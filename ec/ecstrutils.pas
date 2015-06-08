@@ -9,20 +9,17 @@
 { *************************************************************************** }
 
 {$mode delphi}
-{$define EC_UNICODE}
 
 unit ecStrUtils;
 
 interface
 
-uses Classes, Graphics, SysUtils, ecUnicode;
+uses SysUtils, Classes, Graphics;
 
 type
   ecString = UnicodeString;
   ecChar = WideChar;
   PecChar = PWideChar;
-  TecStrings = TWideStrings;
-  TecStringList = TWideStringList;
 
   UCString = UnicodeString;
   UCChar = WideChar;
@@ -487,13 +484,13 @@ begin
           Result[i] := '#';
           Insert(AnsiString(IntToHex(Ord(C), 2)), Result, I + 1);
         end else
-{$IFDEF EC_UNICODE}
+
       if Ord(C) > 255 then
         begin
           Result[i] := '$';
           Insert(AnsiString(IntToHex(Ord(C), 4)), Result, I + 1);
         end else
-{$ENDIF}
+
       Result[i] := AnsiChar(C);
     end;
 end;

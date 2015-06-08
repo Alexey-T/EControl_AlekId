@@ -673,7 +673,6 @@ type
   private
     FName: string;
     FDescription: string;
-    FCode: TecStrings;
     FAdvanced: boolean;
   protected
     function GetDisplayName: string; override;
@@ -682,8 +681,7 @@ type
   published
     property Name: string read FName write FName;
     property Description: string read FDescription write FDescription;
-    property Code: TecStrings read FCode write FCode;
-    property Advanced: Boolean read FAdvanced write FAdvanced default False;
+    property Advanced: Boolean read FAdvanced write FAdvanced;
   end;
 
   TCodeTemplates = class(TOwnedCollection)
@@ -4760,15 +4758,15 @@ end;
 
 function TClientSyntAnalyzer.GetAutoCloseText(Range: TTextRange;
   const Indent: string): ecString;
-var St: TecStringList;
+var St: TStringList; //AT stringlist instead of ecStringList
     i: integer;
 begin
-  St := TecStringList.Create;
+  St := TStringList.Create;
   try
-    St.Text := RangeFormat(Range.Rule.AutoCloseText, Range);
+    St.Text := UTF8Encode(RangeFormat(Range.Rule.AutoCloseText, Range));
     for i := 0 to St.Count - 1 do
       St[i] := Indent + St[i];
-    Result := St.Text;
+    Result := UTF8Decode(St.Text);
     if Length(Result) > 2 then
       Delete(Result, Length(Result) - 1, 2);
   finally
@@ -5577,7 +5575,6 @@ begin
   inherited;
   FName:= '';
   FDescription:= '';
-  FCode:= nil;
   FAdvanced:= false;
 end;
 
