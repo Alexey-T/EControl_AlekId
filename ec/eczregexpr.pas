@@ -1857,16 +1857,7 @@ begin
   Pos := 1;
   try
     if AExpression <> '' then
-      //todo
-      {
-      if IsMBCS(FCodePage) then
-        begin
-          TreRootNode(FProgRoot).Compile(AnsiToUnicodeCP(AExpression, FCodePage), Pos, FModifiers);
-          FUnicodeCompiled := True;
-        end
-      else
-      }
-        TreRootNode(FProgRoot).Compile(AExpression, Pos, FModifiers)
+      TreRootNode(FProgRoot).Compile(AExpression, Pos, FModifiers)
   except
     ClearRoot;
     raise;
@@ -1979,17 +1970,9 @@ begin
     Result := 0;
 end;
 
-//AT
-procedure STrimEol(var S: ecString);
-begin
-  while (S<>'') and IsLineBreakChar(S[Length(S)]) do
-    SetLength(S, Length(S)-1);
-end;
-
 procedure TecRegExpr.SetExpression(const Value: ecString);
 begin
-  FExpression := Value;
-  STrimEol(FExpression); //AT
+  FExpression := TrimRight(Value); //AT, TrimRight for Lazarus
   ClearRoot;
 end;
 

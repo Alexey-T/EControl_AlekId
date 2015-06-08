@@ -513,13 +513,9 @@ begin
              end;
         '$': begin
                W := UCChar(StrToInt('$' + Copy(Result, i+1, 4)));
-{$IFDEF EC_UNICODE}
+			   
                Result[i] := W;
                Delete(Result, i+1, 4);
-{$ELSE}
-               Delete(Result, i, 5);
-               Insert(UnicodeToAnsi(W), Result, i);
-{$ENDIF}
              end;
       end;
     end;
