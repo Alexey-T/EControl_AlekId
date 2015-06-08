@@ -17,52 +17,18 @@ interface
 
 uses Classes, Graphics, SysUtils, ecUnicode;
 
-const
-  { Search flags }
-  FF_CASESENSITIVE  = 1;
-  FF_WHOLEWORD      = 2;
-  FF_BACKWARD       = 4;
-  FF_REGEXPRESSION  = 8;
-  sLineBreak = #13#10;
-
-
 type
- {$IFDEF EC_UNICODE}
-  ecString = WideString;
+  ecString = UnicodeString;
   ecChar = WideChar;
   PecChar = PWideChar;
   TecStrings = TWideStrings;
   TecStringList = TWideStringList;
- {$ELSE}
-  ecString = AnsiString;
-  ecChar = Char;
-  PecChar = PChar;
-  TecStrings = TStrings;
-  TecStringList = TStringList;
- {$ENDIF}
 
- {$IFDEF EC_STRING_UNICODE}
-  UCString = string;
-  UCChar = Char;
- {$ELSE}
-  UCString = WideString;
+  UCString = UnicodeString;
   UCChar = WideChar;
- {$ENDIF}
 
   ecPointer = Pointer;
   ecPChar = PChar;
-
-  // Encoding
-  TTextCoding = (tcAnsi,
-                 tcUnicode,
-                 tcSwapUnicode,
-                 tcUTF8);
-
-  // Line break format
-  TTextFormat = (tfDefault,       // Line breaks is unchanged
-                 tfCR_NL,         // Windows
-                 tfCR,            // Mac
-                 tfNL);           // Unix
 
   // Change case commands
   TChangeCase = (ccNone, ccUpper, ccLower, ccToggle, ccTitle);
@@ -92,12 +58,14 @@ type
   end;
 
 
+{
 function GetStreamFormat(Stream: TStream): TTextCoding;
 procedure WriteTextSignature(Stream: TStream; TextCoding: TTextCoding);
 procedure ReadStringFromStream(var Text: ecString; Stream: TStream;
                                     TextCoding: TTextCoding = tcAnsi);
 procedure WriteStringToStream(const Text: ecString; Stream: TStream;
                                     TextCoding: TTextCoding = tcAnsi);
+}
 
 function IsDigitChar(const c: UCChar): Boolean; overload;
 function IsHexDigitChar(const c: UCChar): Boolean; overload;
@@ -266,178 +234,6 @@ begin
   else
     if Index >= 0 then Delete(Index);
 end;
-
-function GetStreamFormat(Stream: TStream): TTextCoding;
-var BytesRead: Integer;
-    Sign: WORD;
-    C: BYTE;
-begin
-  Result := tcAnsi;
-  Sign := 0;
-  C := 0;
-  if Stream.Size - Stream.Position < 2 then Exit;
-  BytesRead := Stream.Read(Sign, 2);
-  if (Sign = $FEFF) or (Sign = $FFFE) then
-   begin
-    if Sign = $FFFE then Result := tcSwapUnicode
-     else Result := tcUnicode;
-    Exit;
-   end;
-  if Sign = $BBEF then
-   begin
-    Inc(BytesRead, Stream.Read(C, 1));
-    if C = $BF then
-     begin
-      Result := tcUTF8;
-      Exit;
-     end;
-   end;
-  Stream.Seek(-BytesRead, soFromCurrent);
-end;
-
-procedure WriteTextSignature(Stream: TStream; TextCoding: TTextCoding);
-  procedure Write(const Bytes: array of Byte);
-  begin
-    Stream.Write(Bytes[0], Length(Bytes));
-  end;
-begin
-  case TextCoding of
-    tcUnicode:    Write([$FF, $FE]);
-    tcSwapUnicode:Write([$FE, $FF]);
-    tcUTF8:       Write([$EF, $BB, $BF]);
-  end;
-end;
-
-procedure WriteStringToStream(const Text: ecString; Stream: TStream;
-                                    TextCoding: TTextCoding);
-var S: AnsiString;
-    W: UCString;
-begin
-  // Write text
-  case TextCoding of
-    tcAnsi:
-        begin
-          {$IFDEF EC_UNICODE}
-          S := Text; //todo //UnicodeToAnsi(Text, CharSet, CodePage);
-          Stream.WriteBuffer(Pointer(S)^, Length(S));
-          {$ELSE}
-          if CodePage <> CP_ACP then
-            begin
-              W := AnsiToUnicode(Text, CharSet);
-              S := UnicodeToAnsiCP(W, CodePage);
-            end
-          else
-            S := Text;
-          Stream.WriteBuffer(Pointer(S)^, Length(S));
-          {$ENDIF}
-        end;
-    tcUnicode:
-        begin
-          {$IFDEF EC_UNICODE}
-          Stream.WriteBuffer(Pointer(Text)^, Length(Text) * 2);
-          {$ELSE}
-          W := AnsiToUnicode(Text, CharSet, CodePage);
-          Stream.WriteBuffer(Pointer(W)^, Length(W) * 2);
-          {$ENDIF}
-        end;
-    tcSwapUnicode:
-        begin
-          {$IFDEF EC_UNICODE}
-          W := Text;
-          {$ELSE}
-          W := AnsiToUnicode(Text, CharSet, CodePage);
-          {$ENDIF}
-          raise Exception.Create('Cannot yet save Unicode BE string');
-          {
-          StrSwapByteOrder(PWideChar(W));
-          Stream.WriteBuffer(Pointer(W)^, Length(W) * 2);
-          }
-        end;
-    tcUTF8:
-        begin
-          {$IFDEF EC_UNICODE}
-          W := Text;
-          {$ELSE}
-          W := AnsiToUnicode(Text, CharSet, CodePage);
-          {$ENDIF}
-
-          S := Utf8Encode(W);
-          Stream.WriteBuffer(Pointer(S)^, Length(S));
-        end;
-  end;
-end;
-
-procedure ReadStringFromStream(var Text: ecString; Stream: TStream;
-                               TextCoding: TTextCoding);
-var Size: Cardinal;
-    S: AnsiString;
-    W: UCString;
-begin
-  Size := Stream.Size - Stream.Position;
-  try
-    case TextCoding of
-      tcAnsi:
-         begin
-          {$IFDEF EC_UNICODE}
-          SetLength(S, Size);
-          Stream.Read(S[1], Size);
-          Text := S; //todo //AnsiToUnicode(S, CharSet, CodePage);
-          {$ELSE}
-          SetLength(Text, Size);
-          Stream.Read(Text[1], Size);
-          if CodePage <> CP_ACP then
-            begin
-              W := AnsiToUnicodeCP(Text, CodePage);
-              Text := UnicodeToAnsi(W, CharSet);
-            end;
-          {$ENDIF}
-         end;
-      tcUnicode:
-         begin
-          Size := Size shr 1;
-          {$IFNDEF EC_UNICODE}
-          SetLength(W, Size);
-          Stream.Read(W[1], Size shl 1);
-          Text := UnicodeToAnsi(W, CharSet, CodePage);
-          {$ELSE}
-          SetLength(Text, Size);
-          Stream.Read(Text[1], Size shl 1);
-          {$ENDIF}
-         end;
-      tcSwapUnicode:
-         begin
-          Size := Size shr 1;
-          {$IFNDEF EC_UNICODE}
-          SetLength(W, Size);
-          Stream.Read(W[1], Size shl 1);
-          StrSwapByteOrder(PWideChar(W));
-          Text := UnicodeToAnsi(W, CharSet, CodePage);
-          {$ELSE}
-          raise Exception.Create('Cannot yet load Unicode BE string');
-          {
-          SetLength(Text, Size);
-          Stream.Read(Text[1], Size shl 1);
-          StrSwapByteOrder(PWideChar(Text));
-          }
-          {$ENDIF}
-         end;
-      tcUTF8:
-         begin
-          SetLength(S, Size);
-          Stream.Read(S[1], Size);
-          W := UTF8Decode(S);
-
-          {$IFDEF EC_UNICODE}
-          Text := W;
-          {$ELSE}
-          Text := UnicodeToAnsi(W, CharSet, CodePage);
-          {$ENDIF}
-         end;
-    end;
-  except
-  end;
-end;
-
 
 //==============================================================================
 //  Routines

@@ -57,12 +57,12 @@ type
     function Compile: Boolean; overload;
     function Compile(AsUnicode: Boolean): Boolean; overload;
     procedure Compile(const AExpression: AnsiString); overload;
-    procedure Compile(const AExpression: UCString{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}); overload;
-    function Match(const InputString: UCString; var aPos: integer; Back: Boolean{$IFDEF EC_VCL5}; D5_Dummy: integer{$ELSE} = False{$ENDIF}): Boolean; overload;
+    procedure Compile(const AExpression: UCString); overload;
+    function Match(const InputString: UCString; var aPos: integer; Back: Boolean = False): Boolean; overload;
     function MatchLength(const InputString: AnsiString; aPos: integer; Back: Boolean = False): integer; overload;
-    function MatchLength(const InputString: UCString; aPos: integer; Back: Boolean{$IFDEF EC_VCL5}; D5_Dummy: integer{$ELSE} = False{$ENDIF}): integer; overload;
+    function MatchLength(const InputString: UCString; aPos: integer; Back: Boolean = False): integer; overload;
     function GetMatch(const InputString: AnsiString; SubIdx: integer): AnsiString; overload;
-    function GetMatch(const InputString: UCString; SubIdx: integer{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): UCString; overload;
+    function GetMatch(const InputString: UCString; SubIdx: integer): UCString; overload;
     function Substitute (const InputString, ATemplate : ecString) : ecString;
 
     property ModifierMask: Word read FModifiers write SetModifiers;
@@ -188,7 +188,7 @@ type
     FRef: integer;
     FIgnoreCase: Boolean;
     function GetExprStr(const InputString: AnsiString): AnsiString; overload;
-    function GetExprStr(const InputString: UCString{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): UCString; overload;
+    function GetExprStr(const InputString: UCString): UCString; overload;
   public
     function Match(const InputString: UCString; var aPos: integer): integer; override;
     function BackMatch(const InputString: UCString; var aPos: integer): integer; override;
@@ -212,7 +212,7 @@ type
     procedure Add(Node: TRENodeBase);
     procedure Invert;
     procedure Compile(const Expression: AnsiString; var aPos: integer; Modifiers: Word); overload;
-    procedure Compile(const Expression: UCString; var aPos: integer; Modifiers: Word{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}); overload;
+    procedure Compile(const Expression: UCString; var aPos: integer; Modifiers: Word); overload;
     function Match(const InputString: UCString; var aPos: integer): integer; override;
     function BackMatch(const InputString: UCString; var aPos: integer): integer; override;
   end;
@@ -243,7 +243,7 @@ type
   public
     constructor Create(AOwner: TreSubExpr); override;
     procedure Compile(const Expression: AnsiString; var aPos: integer; Modifiers: Word); overload;
-    procedure Compile(const Expression: UCString; var aPos: integer; Modifiers: Word{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}); overload;
+    procedure Compile(const Expression: UCString; var aPos: integer; Modifiers: Word); overload;
     function Match(const InputString: UCString; var aPos: integer): integer; override;
     function BackMatch(const InputString: UCString; var aPos: integer): integer; override;
   end;
@@ -364,7 +364,7 @@ begin
   end;
 end;
 
-function GetEscape(const Expression: UCString; var aPos: integer{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): UCChar; overload;
+function GetEscape(const Expression: UCString; var aPos: integer): UCChar; overload;
 var strt: integer;
 begin
   Result := #0;
@@ -610,8 +610,8 @@ begin
                    (InputString[aPos] = #10) and (C <> #13);
     'A': b := C = #0;
     'Z': b := aPos > Length(InputString);
-    'b': b := IsWordBreak(aPos, InputString{$IFDEF EC_VCL5},0{$ENDIF});
-    'B': b := not IsWordBreak(aPos, InputString{$IFDEF EC_VCL5},0{$ENDIF});
+    'b': b := IsWordBreak(aPos, InputString);
+    'B': b := not IsWordBreak(aPos, InputString);
     'z': begin
            b := IsLineBreakChar(C);
            if b then
@@ -656,8 +656,8 @@ begin
     '$': b := (C = #13) or (C = #10) and (aPos > 1) and (InputString[aPos - 1] <> #13) or (C = #0);
     'A': b := aPos = 1;
     'Z': b := C = #0;
-    'b': b := IsWordBreak(aPos, InputString{$IFDEF EC_VCL5},0{$ENDIF});
-    'B': b := not IsWordBreak(aPos, InputString{$IFDEF EC_VCL5},0{$ENDIF});
+    'b': b := IsWordBreak(aPos, InputString);
+    'B': b := not IsWordBreak(aPos, InputString);
     'z': begin
            b := IsLineBreakChar(C);
            if b then
@@ -697,7 +697,7 @@ begin
       end;
 end;
 
-function TRefNode.GetExprStr(const InputString: UCString{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): UCString;
+function TRefNode.GetExprStr(const InputString: UCString): UCString;
 var se: TreSubExpr;
     l: integer;
 begin
@@ -719,7 +719,7 @@ var S, S1: UCString;
     b: Boolean;
 begin
   Result := 0;
-  S := GetExprStr(InputString{$IFDEF EC_VCL5},0{$ENDIF});
+  S := GetExprStr(InputString);
   L := Length(S);
   if (L > 0) and (L < aPos) then
     begin
@@ -741,7 +741,7 @@ var S, S1: UCString;
     b: Boolean;
 begin
   Result := 0;
-  S := GetExprStr(InputString{$IFDEF EC_VCL5},0{$ENDIF});
+  S := GetExprStr(InputString);
   L := Length(S);
   if (L > 0) and (L <= Length(InputString) - aPos + 1) then
     begin
@@ -1139,7 +1139,7 @@ begin
 end;
 
 procedure TreBranchNode.Compile(const Expression: UCString; var aPos: integer;
-  Modifiers: Word{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF});
+  Modifiers: Word);
 var Len: integer;
     sub: TreSubExpr;
     C: UCChar;
@@ -1249,7 +1249,7 @@ var Len: integer;
          Inc(aPos);
          if aPos > Length(Expression) then
           Exit;
-         Result := GetEscape(Expression, aPos{$IFDEF EC_VCL5},0{$ENDIF});
+         Result := GetEscape(Expression, aPos);
          if Result = #0 then
           begin
             Result := GetClassChar(Expression[aPos], Modifiers);
@@ -1376,7 +1376,7 @@ begin
               begin // sub expression
                 sub := TreSubExpr.Create(Owner);
                 Add(sub);
-                sub.Compile(Expression, aPos, Modifiers{$IFDEF EC_VCL5},0{$ENDIF});
+                sub.Compile(Expression, aPos, Modifiers);
                 if (aPos > Len) or (Expression[aPos] <> ')') then
                  raise Exception.Create('Do not closed sub expression');
                 ReadRepeaters(sub);
@@ -1394,7 +1394,7 @@ begin
        '\': begin
               Inc(aPos);
               if aPos > Len then C := '\'
-               else C := GetEscape(Expression, aPos{$IFDEF EC_VCL5},0{$ENDIF});
+               else C := GetEscape(Expression, aPos);
               if C <> #0 then AddCharSeq(C) else
                begin
                  C := GetClassChar(Expression[aPos], Modifiers);
@@ -1676,7 +1676,7 @@ begin
 end;
 
 procedure TreSubExpr.Compile(const Expression: UCString; var aPos: integer;
-  Modifiers: Word{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF});
+  Modifiers: Word);
 var Br: TreBranchNode;
 begin
   Dec(aPos);
@@ -1684,7 +1684,7 @@ begin
     Inc(aPos);
     Br := TreBranchNode.Create(Self);
     FList.Add(Br);
-    Br.Compile(Expression, aPos, Modifiers{$IFDEF EC_VCL5},0{$ENDIF});
+    Br.Compile(Expression, aPos, Modifiers);
     if Br.FList.Count = 0 then FList.Remove(Br);
   until (aPos > Length(Expression)) or (Expression[aPos] = ')');
 end;
@@ -1873,7 +1873,7 @@ begin
   end;
 end;
 
-procedure TecRegExpr.Compile(const AExpression: UCString{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF});
+procedure TecRegExpr.Compile(const AExpression: UCString);
 var Pos: integer;
 begin
   {$IFDEF RE_DEBUG} LastNodeID := 0; {$ENDIF}
@@ -1896,27 +1896,13 @@ end;
 
 function TecRegExpr.Compile: Boolean;
 begin
-  {$IFDEF EC_UNICODE}
   Result := Compile(True);
-  {$ELSE}
-  Result := Compile(False);
-  {$ENDIF}
 end;
 
 function TecRegExpr.Compile(AsUnicode: Boolean): Boolean;
 begin
   try
     if IsEmpty or (AsUnicode xor FUnicodeCompiled) then
-      //todo
-      (*
-      {$IFDEF EC_UNICODE}
-        if not IsMBCS(FCodePage) and not AsUnicode then
-          Compile(UnicodeToAnsiCP(FExpression, FCodePage)) else
-      {$ELSE}
-        if IsMBCS(FCodePage) or AsUnicode then
-          Compile(AnsiToUnicodeCP(FExpression, FCodePage){$IFDEF EC_VCL5},0{$ENDIF}) else
-      {$ENDIF}
-      *)
       Compile(FExpression);
   except
   end;
@@ -1951,14 +1937,14 @@ begin
   Result := Result + ')';
 end;
 
-function TecRegExpr.Match(const InputString: UCString; var aPos: integer; Back: Boolean{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): Boolean;
+function TecRegExpr.Match(const InputString: UCString; var aPos: integer; Back: Boolean): Boolean;
 begin
   Result := Compile(True); // ensure compiling and validity
   if Result then
     begin
       if aPos < 1 then
         aPos := 1;
-      Result := TreRootNode(FProgRoot).MatchStr(InputString, aPos, Back{$IFDEF EC_VCL5},0{$ENDIF});
+      Result := TreRootNode(FProgRoot).MatchStr(InputString, aPos, Back);
       FMatchOK := Result;
     end;
 end;
@@ -1979,10 +1965,10 @@ begin
 end;
 
 function TecRegExpr.MatchLength(const InputString: UCString;
-  aPos: integer; Back: Boolean{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): integer;
+  aPos: integer; Back: Boolean): integer;
 begin
   Result := aPos;
-  if Match(InputString, aPos, Back{$IFDEF EC_VCL5},0{$ENDIF}) then
+  if Match(InputString, aPos, Back) then
     begin
      if Back then
        Result := Result - aPos
@@ -1993,9 +1979,17 @@ begin
     Result := 0;
 end;
 
+//AT
+procedure STrimEol(var S: ecString);
+begin
+  while (S<>'') and IsLineBreakChar(S[Length(S)]) do
+    SetLength(S, Length(S)-1);
+end;
+
 procedure TecRegExpr.SetExpression(const Value: ecString);
 begin
   FExpression := Value;
+  STrimEol(FExpression); //AT
   ClearRoot;
 end;
 
@@ -2065,7 +2059,7 @@ begin
 end;
 
 function TecRegExpr.GetMatch(const InputString: UCString;
-  SubIdx: integer{$IFDEF EC_VCL5}; D5_Dummy: integer{$ENDIF}): UCString;
+  SubIdx: integer): UCString;
 begin
   Result := '';
   if FMatchOK then
