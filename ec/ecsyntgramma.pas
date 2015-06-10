@@ -428,8 +428,7 @@ end;
 
 procedure TGrammaAnalyzer.SetGramma(const Value: ecString);
 begin
-  ////FGrammaDefs.Text := Value;
-  //Showmessage('not done TGrammaAnalyzer.SetGramma');
+  FGrammaDefs.SetupSlow(Value);
   Changed;
 end;
 
