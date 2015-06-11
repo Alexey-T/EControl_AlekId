@@ -1972,7 +1972,12 @@ end;
 
 procedure TecRegExpr.SetExpression(const Value: ecString);
 begin
-  FExpression := TrimRight(Value); //AT, TrimRight for Lazarus
+  FExpression := Value;
+
+  //for Lazarus:
+  FExpression := TrimRight(FExpression); //AT, trim eol at end
+  FExpression := StringReplace(FExpression, #13#10, #10, [rfReplaceAll]); //AT, for Tcl lexer, rule "Comment"
+
   ClearRoot;
 end;
 
