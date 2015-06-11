@@ -15,7 +15,10 @@ unit ecZRegExpr;
 
 interface
 
-uses Classes, ecStrUtils {$IFDEF RE_DEBUG},ComCtrls{$ENDIF};
+uses
+  Classes, ecStrUtils,
+  {$IFDEF RE_DEBUG}ComCtrls,{$ENDIF}
+  Dialogs;
 
 const
   MaskModI = 1;  // modifier /i bit in fModifiers
@@ -1970,14 +1973,50 @@ begin
     Result := 0;
 end;
 
+
+//AT fix for SetExpression
+function _MultilineTextToOneline(const AText: string): string;
+var
+  L: TStringList;
+  S: string;
+  i, j: integer;
+begin
+  L:= TStringList.Create;
+  try
+    L.TextLineBreakStyle:= tlbsLF; //force LF
+    L.Text:= AText;
+
+    //delete comments "#nnnnnnnnnnn"
+    for i:= 0 to L.Count-1 do
+    begin
+      S:= L[i];
+      for j:= 2{!} to Length(S) do
+        if (S[j]='#') and (S[j-1]<>'\') then
+        begin
+          Delete(S, j, Maxint);
+          L[i]:= S;
+          Break
+        end;
+    end;
+
+    Result:= Trim(L.Text);
+    Result:= StringReplace(Result, #10, ' ', [rfReplaceAll]);
+  finally
+    FreeAndNil(L);
+  end;
+end;
+
 procedure TecRegExpr.SetExpression(const Value: ecString);
 begin
+  (*
   FExpression := Value;
-
   //for Lazarus:
-  FExpression := TrimRight(FExpression); //AT, trim eol at end
+  //still it don't solve issue with mulline expressions with "|" like JS rule "Comment"
+  FExpression := Trim(FExpression); //AT
   FExpression := StringReplace(FExpression, #13#10, #10, [rfReplaceAll]); //AT, for Tcl lexer, rule "Comment"
+  *)
 
+  FExpression:= _MultilineTextToOneline(Value); //AT
   ClearRoot;
 end;
 
