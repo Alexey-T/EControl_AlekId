@@ -1990,8 +1990,8 @@ begin
     for i:= 0 to L.Count-1 do
     begin
       S:= L[i];
-      for j:= 2{!} to Length(S) do
-        if (S[j]='#') and (S[j-1]<>'\') then
+      for j:= 1 to Length(S) do
+        if (S[j]='#') and ((j=1) or (S[j-1]<>'\')) then
         begin
           Delete(S, j, Maxint);
           L[i]:= S;
@@ -2008,15 +2008,11 @@ end;
 
 procedure TecRegExpr.SetExpression(const Value: ecString);
 begin
-  (*
-  FExpression := Value;
-  //for Lazarus:
-  //still it don't solve issue with mulline expressions with "|" like JS rule "Comment"
-  FExpression := Trim(FExpression); //AT
-  FExpression := StringReplace(FExpression, #13#10, #10, [rfReplaceAll]); //AT, for Tcl lexer, rule "Comment"
-  *)
-
   FExpression:= _MultilineTextToOneline(Value); //AT
+
+  //if Pos('#', FExpression)>0 then
+  //  showmessage('regex'#13+FExpression);
+
   ClearRoot;
 end;
 
