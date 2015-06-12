@@ -57,6 +57,7 @@ type
   protected
     function GetKey: integer; override;
   public
+    PntStart, PntEnd: TPoint; //AT for faster render
     constructor Create(AStartPos, AEndPos: integer);
     property StartPos: integer read FStartPos;
     property EndPos: integer read FEndPos;
@@ -175,15 +176,12 @@ end;
 constructor TRange.Create(AStartPos, AEndPos: integer);
 begin
   inherited Create;
-//  if AStartPos <= AEndPos then
-//   begin
-     FStartPos := AStartPos;
-     FEndPos := AEndPos;
-//   end else
-//   begin
-//     FStartPos := AEndPos;
-//     FEndPos := AStartPos;
-//   end;
+  FStartPos := AStartPos;
+  FEndPos := AEndPos;
+  PntStart.X:= 0; //AT
+  PntStart.Y:= 0;
+  PntEnd.X:= 0;
+  PntEnd.Y:= 0;
 end;
 
 function TRange.GetKey: integer;
