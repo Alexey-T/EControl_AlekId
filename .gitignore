@@ -17,13 +17,10 @@
 *.dcu
 *.dof
 *.deb
-*.zip
 *.ppu
 *.bak
+*.lps
+*.ini
 
 lib/
 backup/
-*.lps
-project?
-demo
-*.ini
