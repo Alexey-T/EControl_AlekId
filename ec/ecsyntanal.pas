@@ -160,6 +160,8 @@ type
                  ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign);
   TFormatFlags = set of TFormatFlag;
 
+  TChangeCase = (ccNone, ccUpper, ccLower, ccToggle, ccTitle);
+
   TSyntaxFormat = class(TSyntCollectionItem)
   private
     FIsBlock: Boolean;

@@ -19,21 +19,10 @@ uses SysUtils, Classes, Graphics;
 type
   ecString = UnicodeString;
   ecChar = WideChar;
-  PecChar = PWideChar;
-
   UCString = UnicodeString;
   UCChar = WideChar;
 
-  ecPointer = Pointer;
-  ecPChar = PChar;
-
-  // Change case commands
-  TChangeCase = (ccNone, ccUpper, ccLower, ccToggle, ccTitle);
-
-  // Event to define "word" characters
-  // Used by several components and may be shared
-  TCheckCharEvent = procedure(Sender: TObject; C: Word; var IsWord: Boolean) of object;
-
+type
   TzStringList = class(TStringList)
   private
     FDelimiter: Char;
@@ -54,16 +43,6 @@ type
     property ValueFromIndex[Index: Integer]: string read GetValueFromIndex write SetValueFromIndex;
   end;
 
-
-{
-function GetStreamFormat(Stream: TStream): TTextCoding;
-procedure WriteTextSignature(Stream: TStream; TextCoding: TTextCoding);
-procedure ReadStringFromStream(var Text: ecString; Stream: TStream;
-                                    TextCoding: TTextCoding = tcAnsi);
-procedure WriteStringToStream(const Text: ecString; Stream: TStream;
-                                    TextCoding: TTextCoding = tcAnsi);
-}
-
 function IsDigitChar(const c: UCChar): Boolean; overload;
 function IsHexDigitChar(const c: UCChar): Boolean; overload;
 function IsLineBreakChar(const c: UCChar): Boolean; overload;
@@ -77,24 +56,11 @@ function IsIdentLetterChar(const C: UCChar): Boolean; overload;
 function IsWordBreak(aPos: integer; const Text: UCString): Boolean; overload;
 
 function ecUpCase(const C: UCChar): UCChar; overload;
-
 function SkipSpaces(const Source: ecString; var APos: integer): integer;
 function SkipSpacesNoLineBreak(const Source: ecString; var APos: integer): integer;
-function IsStringEmpty(const S: ecString): Boolean;
-function GetLineIndex(const S: ecString; aPos: integer): integer;
-function GetLines(const AText: ecString; List: TList = nil): integer; // Calculates line number in the Text, fills indexes List
 function ecEncodeString(const S: string): string;
 function ecDecodeString(const S: string): string;
-
 function ecPosEx(const SubStr, S: ecString; Offset: Cardinal = 1): Integer;
-
-function EncodeINIString(const S: ecString): AnsiString;
-function DecodeINIString(const S: AnsiString): ecString;
-
-function ChangeComponentReference(This, NewRef: TComponent; var RefVar: TComponent): Boolean;
-
-const
-  SecListIndexError = 'Index %d is out of range';
 
 implementation
 
@@ -336,59 +302,6 @@ begin
   if APos > N then Result := -1;
 end;
 
-function IsStringEmpty(const S: ecString): Boolean;
-var i: integer;
-begin
-  for i := 1 to Length(s) do
-   if not IsSpaceChar(s[i]) then
-    begin
-      Result := False;
-      Exit;
-    end;
-  Result := True;
-end;
-
-function GetLineIndex(const S: ecString; aPos: integer): integer;
-var i, N: integer;
-begin
-  Result := 0;
-  N := Length(S);
-  Inc(aPos);
-  if N > aPos then N := aPos;
-  for i := 1 to N do
-   if S[i] = #10 then inc(Result);
-end;
-
-function GetLines(const AText: ecString; List: TList): integer;
-var i, L, st, res: Integer;
-    procedure Add;
-    begin
-        if List <> nil then List.Add(TObject(st));
-        st := i;
-        Inc(res);
-    end;
-begin
-    if List <> nil then List.Clear;
-    res := 0;
-    L := Length(AText);
-    if L > 0 then begin
-        st := 0;
-        i := 1;
-        while i <= L do begin
-            case AText[i] of
-            #13:begin
-                    if (i < L) and (AText[i + 1] = #10) then Inc(i);
-                    Add;
-                end;
-            #10:Add;
-            end;
-            inc(i);
-        end;
-        Add;
-    end;
-    Result := res;
-end;
-
 function ecEncodeString(const S: string): string;
 var I, L, K: integer;
 begin
@@ -468,54 +381,6 @@ begin
     end;
     Result := 0;
   end;
-end;
-
-function EncodeINIString(const S: ecString): AnsiString;
-var i, N: integer;
-    C: ecChar;
-begin
-  N := Length(S);
-  SetLength(Result, N);
-  for i := N downto 1 do
-    begin
-      C := S[i];
-      if (Ord(C) < 32) or (C = '#') or (C = '$') then
-        begin
-          Result[i] := '#';
-          Insert(AnsiString(IntToHex(Ord(C), 2)), Result, I + 1);
-        end else
-
-      if Ord(C) > 255 then
-        begin
-          Result[i] := '$';
-          Insert(AnsiString(IntToHex(Ord(C), 4)), Result, I + 1);
-        end else
-
-      Result[i] := AnsiChar(C);
-    end;
-end;
-
-function DecodeINIString(const S: AnsiString): ecString;
-var i, N: integer;
-    W: UCChar;
-begin
-  Result := ecString(S);
-  N := Length(S);
-  for i := N downto 1 do
-    begin
-      case Result[i] of
-        '#': begin
-               Result[i] := ecChar(StrToInt('$' + Copy(Result, i+1, 2)));
-               Delete(Result, i+1, 2);
-             end;
-        '$': begin
-               W := UCChar(StrToInt('$' + Copy(Result, i+1, 4)));
-			   
-               Result[i] := W;
-               Delete(Result, i+1, 4);
-             end;
-      end;
-    end;
 end;
 
 function ChangeComponentReference(This, NewRef: TComponent; var RefVar: TComponent): Boolean;
