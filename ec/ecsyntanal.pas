@@ -732,11 +732,7 @@ type
     FIdleProc: Boolean;
     FIdleTimer: TTimer;
 
-    FDynCurPos: integer;
-    FDynOut: Boolean;
-
     FRangeStyles: TRangeCollection;    // all styled blocks (without tokens)
-    FDynoConditions: TRangeCollection; // dynamic ranges hot-points
     FCollapsables: TRangeCollection;   // ranges that can be collapsed
     FSavedTags: TRangeList;            // saved tokens
     FCurDynamic: TList;                // currently highlighted ranges
@@ -765,7 +761,6 @@ type
     procedure IntIdleAppend(Sender: TObject);
     procedure CloseAtEnd(StartTagIdx: integer); override;
 
-    procedure UpdateDyno;
   public
     constructor Create(AOwner: TSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); override;
     destructor Destroy; override;
@@ -777,7 +772,6 @@ type
     function TokenAtPos(Pos: integer): integer;
     function PriorTokenAt(Pos: integer): integer;
     function NextTokenAt(Pos: integer): integer;
-    function SetCurPos(Pos: integer; OutOfLine: Boolean): Boolean;
 
     function GetRangeBound(Range: TTextRange): TPoint;
     function GetColRangeBound(Range: TTextRange): TPoint;
@@ -3354,7 +3348,6 @@ begin
   FCurDynamic := TList.Create;
 
   FRangeStyles := TRangeCollection.Create;
-  FDynoConditions := TRangeCollection.Create;
   FCollapsables := TRangeCollection.Create;
   FChanges := TChangeFixer.Create;
   FSavedTags := TRangeList.Create;
@@ -3378,7 +3371,6 @@ begin
   FreeAndNil(FIdleTimer);
 
   FreeAndNil(FRangeStyles);
-  FreeAndNil(FDynoConditions);
   FreeAndNil(FChanges);
   FreeAndNil(FSavedTags);
   FreeAndNil(FLineBreakRanges);
@@ -3404,7 +3396,6 @@ begin
     FOpenedBlocks.Clear;
     FCurDynamic.Clear;
     FRangeStyles.Clear;
-    FDynoConditions.Clear;
     FCollapsables.Clear;
     FChanges.Clear;
     FSavedTags.Clear;
@@ -3440,7 +3431,6 @@ begin
 
     FreeAndNil(FRangeStyles);
     FreeAndNil(FCollapsables);
-    FreeAndNil(FDynoConditions);
     FreeAndNil(FLineBreakRanges);
 
     if FFinishThread<>nil then
@@ -3448,7 +3438,6 @@ begin
        begin
         Self.FRangeStyles := FRangeStyles;
         Self.FCollapsables := FCollapsables;
-        Self.FDynoConditions := FDynoConditions;
         Self.FLineBreakRanges := FLineBreakRanges;
        end;
 
@@ -3456,7 +3445,7 @@ begin
   finally
     Unlock;
   end;
-  UpdateDyno;
+
   if FClient <> nil then  FClient.Finished;
 end;
 
@@ -4308,81 +4297,10 @@ begin
   Result := RangeFormat(Range.Rule.CollapseFmt, Range);
 end;
 
-// Returns True if Dynamic Highlight changed
-function TClientSyntAnalyzer.SetCurPos(Pos: integer; OutOfLine: Boolean): Boolean;
-var i: integer;
-    Lst: TList;
-
-  function LookForRule(ARule: TObject): Boolean;
-  var j: integer;
-  begin
-    for j := i + 1 to Lst.Count - 1 do
-     if TDynoRange(Lst[j]).FRule = ARule then
-      begin
-       Result := True;
-       Exit;
-      end;
-    Result := False;
-  end;
-
-  function IsDynoChanged: Boolean;
-  var j: integer;
-  begin
-    Result := Lst.Count <> FCurDynamic.Count;
-    if not Result then
-     for j := 0 to Lst.Count - 1 do
-      if TDynoRange(Lst[j]).FRange <> FCurDynamic[j] then
-       begin
-        Result := True;
-        Exit;
-       end;
-  end;
-
-begin
-  FDynCurPos := Pos;
-  FDynOut := OutOfLine;
-  Lst := TList.Create;
-  try
-    Pos := FChanges.CurToOld(Pos);
-    FDynoConditions.GetRangesAtPos(Lst, Pos);
-    // Checking out of line condition
-    if FDynOut then
-     for i := Lst.Count - 1 downto 0 do
-      with TDynoRange(Lst[i]) do
-       if EndPos <= Pos then
-        Lst.Delete(i);
-
-    // Removing with the same rule (DynSelectMin)
-    i := 0;
-    while i < Lst.Count do
-     with TDynoRange(Lst[i]) do
-      if (FRule <> nil) and LookForRule(FRule) then
-       Lst.Delete(i)
-      else
-       Inc(i);
-
-    // Is dynamic changed ?
-    Result := IsDynoChanged;
-    if Result then
-     begin
-      FCurDynamic.Clear;
-      for i := 0 to Lst.Count - 1 do
-       FCurDynamic.Add(TDynoRange(Lst[i]).FRange);
-     end;
-  finally
-    FreeAndNil(Lst);
-  end;
-end;
-
 function TClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;
 begin
   Result := inherited IsEnabled(Rule, OnlyGlobal) and
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
-end;
-
-procedure TClientSyntAnalyzer.UpdateDyno;
-begin
-  SetCurPos(FDynCurPos, FDynOut);
 end;
 
 function TClientSyntAnalyzer.GetTokenStyle(Pos: integer;
