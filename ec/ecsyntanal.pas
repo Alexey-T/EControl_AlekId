@@ -369,15 +369,6 @@ type
     property CondEndPos: integer read FCondEndPos;
   end;
 
-  TBlockStaple = class(TRange)
-  private
-    FXPos: integer;
-    FRule: TTagBlockCondition;
-  public
-    property XPos: integer read FXPos write FXPos;
-    property Rule: TTagBlockCondition read FRule;
-  end;
-
   TStyledRange = class(TRange)
   private
     FRange: TObject;
@@ -780,7 +771,6 @@ type
     FRangeStyles: TRangeCollection;    // all styled blocks (without tokens)
     FDynoConditions: TRangeCollection; // dynamic ranges hot-points
     FCollapsables: TRangeCollection;   // ranges that can be collapsed
-    FStaples: TRangeCollection;        // ranges that can be collapsed
     FSavedTags: TRangeList;            // saved tokens
     FCurDynamic: TList;                // currently highlighted ranges
     FChanges: TChangeFixer;            // fixes all changes before objects will be updated
@@ -846,9 +836,6 @@ type
 
     function GetTokenStyle(Pos: integer; StlList: TStyleEntries): integer;
     function GetRangeStyles(Pos: integer; StlList: TStyleEntries; UseDyno: Boolean): integer;
-    procedure GetStaples(Line: integer; List: TList);
-    procedure GetStapleLines(Staple: TBlockStaple; var sLine, eLine: integer);
-    procedure ResetStaples;
     procedure CompleteAnalysis;
 
     procedure Lock;
@@ -3223,7 +3210,6 @@ type
     FRangeStyles: TRangeCollection;    // all styled blocks (without tokens)
     FDynoConditions: TRangeCollection; // dynamic ranges hot-points
     FCollapsables: TRangeCollection;   // ranges that can be collapsed
-    FStaples: TRangeCollection;        // ranges that can be collapsed
     FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
   protected
     procedure Execute; override;
@@ -3239,7 +3225,6 @@ begin
   FRangeStyles := TRangeCollection.Create;
   FDynoConditions := TRangeCollection.Create;
   FCollapsables := TRangeCollection.Create;
-  FStaples := TRangeCollection.Create;
   FLineBreakRanges := TRangeCollection.Create;
 
   inherited Create(False);
@@ -3266,7 +3251,6 @@ procedure TSyntFinishThread.Execute;
 var i, sIdx, eIdx: integer;
     Flags: Byte;
     Range: TTextRange;
-    Staple: TBlockStaple;
     StlRange1, StlRange2: TStyledRange;
     Lb: TLineBreakRange;
 begin
@@ -3288,21 +3272,6 @@ begin
      if Terminated then Exit else
      with Owner.Ranges[i] do
       begin
-        if Rule.DrawStaple and  (EndIdx <> -1) then
-          begin
-            sIdx := StartIdx;
-            eIdx := EndIdx;
-            if Assigned(FOwner.Owner.OnGetStapleRange) then
-              FOwner.Owner.OnGetStapleRange(FOwner, Owner.Ranges[i], sIdx, eIdx);
-            if eIdx <> -1 then
-              begin
-                Staple := TBlockStaple.Create(Owner.Tags[sIdx].StartPos, Owner.Tags[eIdx].EndPos);
-                Staple.FRule := Owner.Ranges[i].Rule;
-                Staple.XPos := -1;
-                FStaples.Add(Staple);
-              end;
-          end;
-
         // Collapsable ranges
         if (EndIdx <> -1) and not Rule.NotCollapsed then
           begin
@@ -3423,7 +3392,6 @@ begin
   FCollapsables := TRangeCollection.Create;
   FChanges := TChangeFixer.Create;
   FSavedTags := TRangeList.Create;
-  FStaples := TRangeCollection.Create;
   FLineBreakRanges := TRangeCollection.Create;
 
   FIdleTimer := TTimer.Create(nil);
@@ -3445,7 +3413,6 @@ begin
 
   FreeAndNil(FRangeStyles);
   FreeAndNil(FDynoConditions);
-  FreeAndNil(FStaples);
   FreeAndNil(FChanges);
   FreeAndNil(FSavedTags);
   FreeAndNil(FLineBreakRanges);
@@ -3475,7 +3442,6 @@ begin
     FCollapsables.Clear;
     FChanges.Clear;
     FSavedTags.Clear;
-    FStaples.Clear;
     FLineBreakRanges.Clear;
 
     FFinished := False;
@@ -3509,7 +3475,6 @@ begin
     FreeAndNil(FRangeStyles);
     FreeAndNil(FCollapsables);
     FreeAndNil(FDynoConditions);
-    FreeAndNil(FStaples);
     FreeAndNil(FLineBreakRanges);
 
     if FFinishThread<>nil then
@@ -3518,7 +3483,6 @@ begin
         Self.FRangeStyles := FRangeStyles;
         Self.FCollapsables := FCollapsables;
         Self.FDynoConditions := FDynoConditions;
-        Self.FStaples := FStaples;
         Self.FLineBreakRanges := FLineBreakRanges;
        end;
 
@@ -4707,33 +4671,9 @@ begin
     else Exit;
 end;
 
-procedure TClientSyntAnalyzer.GetStaples(Line: integer; List: TList);
-var sp, ep: integer;
-begin
-  sp := FSrcProc.LineIndex(Line) - 1;
-  ep := FChanges.CurToOld(sp + FSrcProc.LineSpace(Line));
-  sp := FChanges.CurToOld(sp);
-  FStaples.GetRangesAtRange(List, sp, ep);
-end;
-
-procedure TClientSyntAnalyzer.GetStapleLines(Staple: TBlockStaple;
-  var sLine, eLine: integer);
-begin
-  sLine := FSrcProc.StrToCaret(FChanges.OldToCur(Staple.StartPos)).Y;
-  eLine := FSrcProc.StrToCaret(FChanges.OldToCur(Staple.EndPos)).Y;
-end;
-
 function TClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
 begin
   Result := FTagList.NextAt(Pos);
-end;
-
-procedure TClientSyntAnalyzer.ResetStaples;
-var i, j: integer;
-begin
-  for i := 0 to FStaples.LevelCount - 1 do
-    for j := 0 to FStaples[i].Count - 1 do
-      TBlockStaple(FStaples[i][j]).XPos := -1;
 end;
 
 procedure TClientSyntAnalyzer.Lock;
