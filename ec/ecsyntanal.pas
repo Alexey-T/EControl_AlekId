@@ -733,7 +733,6 @@ type
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TTextRange;
     function GetTagPos(Index: integer): TPoint;
-    procedure FinishThreadEnd(Sender: TObject);
     function GetOpened(Index: integer): TTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
@@ -1088,9 +1087,6 @@ type
     property Styles: TStylesCollection read FStyles write SetStyles;
   end;
 
-procedure DrawBorder(Canvas: TCanvas; bType: TBorderLineType; p1, p2: TPoint);
-function GetBorderLineWidth(bType: TBorderLineType): integer;
-
 type
   TInitRegularExpressionProc = procedure(RE: TecRegExpr);
 var
@@ -1108,102 +1104,9 @@ const
 implementation
 
 uses
-  SysUtils, Forms, Dialogs, ecSysUtils,
-  Math;
-
-// Flags const for TStyledRange (used only internally)
-const
-  srLineHighlight     = 1;  // line highlighting
-  srInvertCondition   = 2;  // "Out of range" dynamic highlighting
-  srInvertSelColor    = 4;  // invert colors when selected
-  srSubLexerHighlight = 8;  // sub-lexer highlighting
-
-procedure DrawBorder(Canvas: TCanvas; bType: TBorderLineType; p1, p2: TPoint);
-var x, y, m: integer;
-const dx = 2;
-begin
-  Canvas.Pen.Width := 1;
-  case bType of
-    blNone: Exit;
-    blDouble,
-    blSolid:     Canvas.Pen.Style := psSolid;
-    blDash:      Canvas.Pen.Style := psDash;
-    blDot:       Canvas.Pen.Style := psDot;
-    blDashDot:   Canvas.Pen.Style := psDashDot;
-    blDashDotDot:Canvas.Pen.Style := psDashDotDot;
-    blSolid2: begin
-      Canvas.Pen.Style := psSolid;
-      Canvas.Pen.Width := 2;
-     end;
-    blSolid3: begin
-      Canvas.Pen.Style := psSolid;
-      Canvas.Pen.Width := 3;
-     end;
-    blWavyLine: begin
-      Canvas.Pen.Style := psSolid;
-     end;
-  end;
-  if bType = blDouble then
-   begin
-    if p1.Y = p2.Y then
-     begin
-      Canvas.MoveTo(p1.X, p1.Y -1);
-      Canvas.LineTo(p2.X, p2.Y - 1);
-      Canvas.MoveTo(p1.X, p1.Y + 1);
-      Canvas.LineTo(p2.X, p2.Y + 1);
-     end else
-     begin
-      Canvas.MoveTo(p1.X - 1, p1.Y);
-      Canvas.LineTo(p2.X - 1, p2.Y);
-      Canvas.MoveTo(p1.X + 1, p1.Y);
-      Canvas.LineTo(p2.X + 1, p2.Y);
-     end;
-   end else
-  if (bType = blWavyLine) and ((p1.Y = p2.Y) or (p1.X = p2.X)) then
-   begin
-     if p1.Y = p2.Y then
-      begin
-       x := p1.X;
-       m := 1;
-       Canvas.MoveTo(p1.X, p1.Y);
-       while x <= p2.X - dx do
-        begin
-          Inc(x, dx);
-          y := p1.Y - m * dx;
-          m := 1 - m;
-          Canvas.LineTo(x, y);
-        end;
-      end else
-      begin
-       y := p1.Y;
-       m := 1;
-       Canvas.MoveTo(p1.X, p1.Y);
-       while y <= p2.Y - dx do
-        begin
-          Inc(y, dx);
-          x := p1.X + m * dx - 1;
-          m := 1 - m;
-          Canvas.LineTo(x, y);
-        end;
-      end;
-   end else
-   begin
-     Canvas.MoveTo(p1.X, p1.Y);
-     Canvas.LineTo(p2.X, p2.Y);
-   end;
-end;
-
-function GetBorderLineWidth(bType: TBorderLineType): integer;
-begin
-  Result := 1;
-  case bType of
-    blNone:    Result := 0;
-    blSolid2:  Result := 2;
-    blSolid3:  Result := 3;
-    blWavyLine:Result := 2;
-    blDouble:  Result := 3;
-  end;
-end;
+  SysUtils, Forms, Dialogs,
+  Math,
+  ecSysUtils;
 
 procedure SetDefaultModifiers(RegExpr: TecRegExpr);
 begin
@@ -3184,22 +3087,6 @@ begin
     Unlock;
   end;
   IdleAppend;
-end;
-
-procedure TClientSyntAnalyzer.FinishThreadEnd(Sender: TObject);
-begin
-  Lock;
-  try
-    FChanges.Clear;
-    FSavedTags.Clear;
-
-    FreeAndNil(FCollapsables);
-    FreeAndNil(FLineBreakRanges);
-  finally
-    Unlock;
-  end;
-
-  if FClient <> nil then  FClient.Finished;
 end;
 
 procedure TClientSyntAnalyzer.AddRange(Range: TTextRange);
