@@ -608,7 +608,6 @@ type
   public
     constructor Create(AOwner: TPersistent);
     function Add: TecCodeTemplate;
-    function FindTemplate(AName: string): TecCodeTemplate;
     property Items[Index: integer]: TecCodeTemplate read GetItem; default;
   end;
 
@@ -4750,18 +4749,6 @@ end;
 constructor TecCodeTemplates.Create(AOwner: TPersistent);
 begin
   inherited Create(AOwner, TecCodeTemplate);
-end;
-
-function TecCodeTemplates.FindTemplate(AName: string): TecCodeTemplate;
-var i: integer;
-begin
-  for i := 0 to Count - 1 do
-   if SameText(AName, Items[i].Name) then
-    begin
-      Result := Items[i];
-      Exit;
-    end;
-  Result := nil;
 end;
 
 function TecCodeTemplates.GetItem(Index: integer): TecCodeTemplate;

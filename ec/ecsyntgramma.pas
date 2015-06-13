@@ -9,17 +9,18 @@
 { *************************************************************************** }
 
 {$mode delphi}
-{$define EC_UNICODE}
 
 unit ecSyntGramma;
 
 interface
 
 uses
-  Classes, ecStrUtils, ATStringProc_TextBuffer, Dialogs;
+  Classes,
+  Dialogs,
+  ecStrUtils,
+  ATStringProc_TextBuffer;
 
 type
-
   TParserRuleItem = class;
   TParserRule = class;
   TParserRuleBranch = class;
