@@ -1087,11 +1087,6 @@ type
     property Styles: TStylesCollection read FStyles write SetStyles;
   end;
 
-type
-  TInitRegularExpressionProc = procedure(RE: TecRegExpr);
-var
-  InitRegularExpressionProc: TInitRegularExpressionProc = nil;
-
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
                              'Comment' + #13#10 +
@@ -1108,18 +1103,14 @@ uses
   Math,
   ecSysUtils;
 
-procedure SetDefaultModifiers(RegExpr: TecRegExpr);
+procedure SetDefaultModifiers(RE: TecRegExpr);
 begin
-  if Assigned(InitRegularExpressionProc) then
-    InitRegularExpressionProc(RegExpr) else
-  begin
-    RegExpr.ModifierI := True;
-    RegExpr.ModifierG := True;
-    RegExpr.ModifierS := False;
-    RegExpr.ModifierM := True;
-    RegExpr.ModifierX := True;
-    RegExpr.ModifierR := False;
-  end;
+  RE.ModifierI := True;
+  RE.ModifierG := True;
+  RE.ModifierS := False;
+  RE.ModifierM := True;
+  RE.ModifierX := True;
+  RE.ModifierR := False;
 end;
 
 { TSyntToken }
