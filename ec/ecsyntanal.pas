@@ -25,8 +25,6 @@ uses
   proc_StreamComponent;
 
 type
-  TecStyleEntries = class;
-
   IecTextClient = interface
     ['{359632FE-CC0F-463F-B9CC-2F40F292DE40}']
     // Count < 0 => after delete, Pos = -1 => all text changed
@@ -233,23 +231,6 @@ type
     property FormatFlags: TecFormatFlags read FFormatFlags write SetFormatFlags
                  default [ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
                           ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign];
-  end;
-
-  TecStyleCache = class
-  private
-    FList: TList;
-    function GetCount: integer;
-    function GetItem(Index: integer): TecSyntaxFormat;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Clear;
-    function AddStyle(Style: TecSyntaxFormat): integer;
-    procedure AddNoCheck(Style: TecSyntaxFormat);
-    procedure Delete(Index: integer);
-
-    property Count: integer read GetCount;
-    property Items[Index: integer]: TecSyntaxFormat read GetItem; default;
   end;
 
   TecStylesCollection = class(TSyntCollection)
@@ -773,7 +754,6 @@ type
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
     procedure IdleAppend;                 // Start idle analysis
 
-    function GetTokenStyle(Pos: integer; StlList: TecStyleEntries): integer;
     procedure CompleteAnalysis;
 
     procedure Lock;
@@ -792,21 +772,6 @@ type
     property DisableIdleAppend: Boolean read FDisableIdleAppend write SetDisableIdleAppend;
   end;
 
-  // Internal class to store styles diapasons
-  TecStyleEntry = class(TRange)
-    Style: TecSyntaxFormat;
-    IsDynoStyle: Boolean;   // Over line highlighting
-  public
-    constructor Create(AStyle: TecSyntaxFormat; AStartPos, AEndPos: integer; AIsDynoStyle: Boolean = False);
-  end;
-
-  TecStyleEntries = class(TObjectList)
-  private
-    function GetItems(Index: integer): TecStyleEntry;
-  public
-    procedure Add(AStyle: TecSyntaxFormat; AStartPos, AEndPos: integer; AIsDynoStyle: Boolean = False); overload;
-    property Items[Index: integer]: TecStyleEntry read GetItems; default;
-  end;
 // *******************************************************************
 //  Syntax analizer
 //            container of syntax rules
@@ -3889,74 +3854,6 @@ begin
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
 end;
 
-function TecClientSyntAnalyzer.GetTokenStyle(Pos: integer;
-  StlList: TecStyleEntries): integer;
-var i, ps, sp, ep: integer;
-    stl: TecSyntaxFormat;
-begin
-//  TryAppend(Pos);
-  if (FNextTokIndex < FTagList.Count) and (FNextTokIndex >= 0) then
-   begin
-     with TecSyntToken(FTagList[FNextTokIndex]) do
-       if StartPos = Pos then
-             i := FNextTokIndex else
-        if EndPos = Pos then
-         begin
-          if FNextTokIndex < FTagList.Count - 1 then
-             i := FNextTokIndex + 1
-          else
-             i := -1;
-         end else
-             i := FTagList.NextAt(Pos);
-   end else
-  i := FTagList.NextAt(Pos);
-
-  FNextTokIndex := i;
-  if i = -1 then Result := -1 else
-   with TecSyntToken(FTagList[i]) do
-    if StartPos > Pos then Result := StartPos else
-     begin
-      Result := EndPos;
-      stl := Style;
-{      Inc(i);
-      while (i < FTagList.Count) and
-            (Tags[i].Style = stl) and
-            ((Tags[i].StartPos = Tags[i -1].EndPos) or
-             (stl = nil) or (stl.BgColor = clNone)) do
-        begin
-          Result := Tags[i].EndPos;
-          FNextTokIndex := i;
-          Inc(i);
-        end;}
-      if stl <> nil then
-        StlList.Add(stl, StartPos, Result);
-     end;
-
-  if (Result = -1) and (FSavedTags.Count > 0) then
-   begin
-    ps := FChanges.CurToOld(Pos);
-    i := FSavedTags.NextAt(ps);
-    if i = -1 then Exit;
-    ep := FChanges.OldToCur(TecSyntToken(FSavedTags[i]).EndPos);
-    while ep <= Pos do
-     begin
-      Inc(i);
-      if i = FSavedTags.Count then Exit;
-      ep := FChanges.OldToCur(TecSyntToken(FSavedTags[i]).EndPos);
-     end;
-    with TecSyntToken(FSavedTags[i]) do
-     begin
-       sp := FChanges.OldToCur(StartPos);
-       if StartPos > ps then Result := sp else
-         begin
-          Result := ep;
-          if (Rule <> nil) and (Rule.Style <> nil) then
-            StlList.Add(Rule.Style, sp, Result);
-         end;
-     end;
-   end;
-end;
-
 function TecClientSyntAnalyzer.GetRangeAtLine(Line: integer): TecTextRange;
 var i, sp, ep: integer;
     List: TList;
@@ -5386,80 +5283,6 @@ begin
   FStyles.Assign(Value);
 end;
 
-{ TecStyleCache }
-
-constructor TecStyleCache.Create;
-begin
-  inherited;
-  FList := TObjectList.Create;
-end;
-
-destructor TecStyleCache.Destroy;
-begin
-  FreeAndNil(FList);
-  inherited;
-end;
-
-procedure TecStyleCache.Clear;
-begin
-  FList.Clear;
-end;
-
-function TecStyleCache.GetCount: integer;
-begin
-  Result := FList.Count;
-end;
-
-function TecStyleCache.GetItem(Index: integer): TecSyntaxFormat;
-begin
-  Result := TecSyntaxFormat(FList[Index]);
-end;
-
-function TecStyleCache.AddStyle(Style: TecSyntaxFormat): integer;
-var i: integer;
-begin
-  for i := 0 to FList.Count - 1 do
-    if Items[i].IsEqual(Style) then
-      begin
-        Result := i;
-        FreeAndNil(Style);
-        Exit;
-      end;
-  Result := FList.Add(Style);
-end;
-
-procedure TecStyleCache.Delete(Index: integer);
-begin
-  FList.Delete(Index);
-end;
-
-procedure TecStyleCache.AddNoCheck(Style: TecSyntaxFormat);
-begin
-  FList.Add(Style);
-end;
-
-{ TecStyleEntry }
-
-constructor TecStyleEntry.Create(AStyle: TecSyntaxFormat; AStartPos,
-  AEndPos: integer; AIsDynoStyle: Boolean);
-begin
-  inherited Create(AStartPos, AEndPos);
-  Style := AStyle;
-  IsDynoStyle := AIsDynoStyle;
-end;
-
-{ TecStyleEntries }
-
-procedure TecStyleEntries.Add(AStyle: TecSyntaxFormat; AStartPos,
-  AEndPos: integer; AIsDynoStyle: Boolean);
-begin
-  Add(TecStyleEntry.Create(AStyle, AStartPos, AEndPos, AIsDynoStyle));
-end;
-
-function TecStyleEntries.GetItems(Index: integer): TecStyleEntry;
-begin
-  Result := TecStyleEntry(inherited Items[Index]);
-end;
 
 initialization
   Classes.RegisterClass(TLibSyntAnalyzer);
