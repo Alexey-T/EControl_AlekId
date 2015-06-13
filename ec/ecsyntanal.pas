@@ -9,7 +9,6 @@
 { *************************************************************************** }
 
 {$mode delphi}
-//{$define ThreadEn}
 
 unit ecSyntAnal;
 
@@ -334,17 +333,6 @@ type
     property Rule: TSubAnalyzerRule read FRule;
     property CondStartPos: integer read FCondStartPos;
     property CondEndPos: integer read FCondEndPos;
-  end;
-
-  TStyledRange = class(TRange)
-  private
-    FRange: TObject;
-    FStyle: TSyntaxFormat;
-    FFlags: Byte;
-  public
-    constructor Create(AStartPos, AEndPos: integer; AStyle: TSyntaxFormat);
-    constructor Create1(AStartPos: integer; AStyle: TSyntaxFormat);
-    property Style: TSyntaxFormat read FStyle;
   end;
 
 // *******************************************************************
@@ -732,13 +720,11 @@ type
     FIdleProc: Boolean;
     FIdleTimer: TTimer;
 
-    FRangeStyles: TRangeCollection;    // all styled blocks (without tokens)
     FCollapsables: TRangeCollection;   // ranges that can be collapsed
     FSavedTags: TRangeList;            // saved tokens
     FCurDynamic: TList;                // currently highlighted ranges
     FChanges: TChangeFixer;            // fixes all changes before objects will be updated
     FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
-    FFinishThread: TThread;
     FDataAccess: TCriticalSection;
     FNextTokIndex: integer;
     FStartSepRangeAnal: integer;
@@ -747,7 +733,6 @@ type
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TTextRange;
     function GetTagPos(Index: integer): TPoint;
-    procedure TerminateFinishThread;
     procedure FinishThreadEnd(Sender: TObject);
     function GetOpened(Index: integer): TTextRange;
     function GetOpenedCount: integer;
@@ -767,8 +752,6 @@ type
     procedure Clear; override;
     procedure ChangedAtPos(APos: integer);
     function GetLineBreak(Line: integer): TLineBreakRange;
-    procedure GetLineHighlight(Line: integer; var InvSel: Boolean; var bgColor,
-                               frColor: TColor; UseDyno: Boolean);
     function TokenAtPos(Pos: integer): integer;
     function PriorTokenAt(Pos: integer): integer;
     function NextTokenAt(Pos: integer): integer;
@@ -795,7 +778,6 @@ type
     procedure IdleAppend;                 // Start idle analysis
 
     function GetTokenStyle(Pos: integer; StlList: TStyleEntries): integer;
-    function GetRangeStyles(Pos: integer; StlList: TStyleEntries; UseDyno: Boolean): integer;
     procedure CompleteAnalysis;
 
     procedure Lock;
@@ -897,7 +879,6 @@ type
     FSeparateBlocks: integer;
     FAlwaysSyncBlockAnal: Boolean;   // Indicates that blocks analysis may after tokens
     FOnGetCollapseRange: TBoundDefEvent;
-    FOnGetStapleRange: TBoundDefEvent;
     FOnCloseTextRange: TBoundDefEvent;
     FIdleAppendDelayInit: Cardinal;
     FIdleAppendDelay: Cardinal;
@@ -1004,7 +985,6 @@ type
     property IdleAppendDelayInit: Cardinal read FIdleAppendDelayInit write FIdleAppendDelayInit default 50;
 
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
-    property OnGetStapleRange: TBoundDefEvent read FOnGetStapleRange write FOnGetStapleRange;
     property OnGetCollapseRange: TBoundDefEvent read FOnGetCollapseRange write FOnGetCollapseRange;
     property OnCloseTextRange: TBoundDefEvent read FOnCloseTextRange write FOnCloseTextRange;
     property OnParseToken: TParseTokenEvent read FOnParseToken write FOnParseToken;
@@ -1299,21 +1279,6 @@ begin
   if Range = FParent then Result := True else
     if Assigned(FParent) then Result := FParent.IsParent(Range)
       else Result := False;
-end;
-
-{ TStyledRange }
-
-constructor TStyledRange.Create(AStartPos, AEndPos: integer;
-  AStyle: TSyntaxFormat);
-begin
-  inherited Create(AStartPos, AEndPos);
-  FStyle := AStyle;
-end;
-
-constructor TStyledRange.Create1(AStartPos: integer;
-  AStyle: TSyntaxFormat);
-begin
-  Create(AStartPos, AStartPos + 1, AStyle);
 end;
 
 { TSyntCollectionItem }
@@ -3025,14 +2990,6 @@ begin
 end;
 
 type
-  // Special object to handle dyno ranges
-  TDynoRange = class(TRange)
-    FRange: TObject; // Reference to range (only for link with TStyledRange)
-    FRule: TObject;  // Is not nil for selecting nearest range of the rule
-  public
-    constructor Create(AStart, AEnd: integer; ARange: TTextRange);
-  end;
-
   TTextChangeInfo = class
     FPos: integer;
     FCount: integer;
@@ -3045,14 +3002,6 @@ type
   public
     constructor Create(ASource, AStart, AEnd: integer);
   end;
-
-constructor TDynoRange.Create(AStart, AEnd: integer; ARange: TTextRange);
-begin
- inherited Create(AStart, AEnd);
- FRange := ARange;
- if ARange.Rule.DynSelectMin then
-  FRule := ARange.Rule;
-end;
 
 constructor TTextChangeInfo.Create(Pos, Count: integer);
 begin
@@ -3163,176 +3112,7 @@ begin
     end;
 end;
 
-type
-  TSyntFinishThread = class(TThread)
-  private
-    FOwner: TClientSyntAnalyzer;
-    FRangeStyles: TRangeCollection;    // all styled blocks (without tokens)
-    FDynoConditions: TRangeCollection; // dynamic ranges hot-points
-    FCollapsables: TRangeCollection;   // ranges that can be collapsed
-    FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
-  protected
-    procedure Execute; override;
-    property Owner: TClientSyntAnalyzer read FOwner;
-  public
-    constructor Create(AOwner: TClientSyntAnalyzer);
-    destructor Destroy; override;
-  end;
 
-constructor TSyntFinishThread.Create(AOwner: TClientSyntAnalyzer);
-begin
-  FOwner := AOwner;
-  FRangeStyles := TRangeCollection.Create;
-  FDynoConditions := TRangeCollection.Create;
-  FCollapsables := TRangeCollection.Create;
-  FLineBreakRanges := TRangeCollection.Create;
-
-  inherited Create(False);
-  OnTerminate := AOwner.FinishThreadEnd;
-  FreeOnTerminate := True;
-end;
-
-destructor TSyntFinishThread.Destroy;
-begin
-  {//AT
-  if Terminated then
-   begin
-    FreeAndNil(FRangeStyles);
-    FreeAndNil(FDynoConditions);
-    FreeAndNil(FCollapsables);
-    FreeAndNil(FStaples);
-    FreeAndNil(FLineBreakRanges);
-   end;
-  }
-  inherited;
-end;
-
-procedure TSyntFinishThread.Execute;
-var i, sIdx, eIdx: integer;
-    Flags: Byte;
-    Range: TTextRange;
-    StlRange1, StlRange2: TStyledRange;
-    Lb: TLineBreakRange;
-begin
-  if Terminated then Exit;
-  Owner.Lock;
-  try
-    for i := Owner.FSubLexerBlocks.Count - 1 downto 0 do
-     if Terminated then Exit else
-     with TSubLexerRange(Owner.FSubLexerBlocks[i]) do
-      if Rule.Style <> nil then
-       begin
-         StlRange1 := TStyledRange.Create(StartPos, EndPos, Rule.Style);
-         StlRange1.FFlags := srSubLexerHighlight;
-         FRangeStyles.Add(StlRange1);
-       end;
-
-    if Terminated then Exit else
-    for i := 0 to Owner.RangeCount - 1 do
-     if Terminated then Exit else
-     with Owner.Ranges[i] do
-      begin
-        // Collapsable ranges
-        if (EndIdx <> -1) and not Rule.NotCollapsed then
-          begin
-            sIdx := StartIdx;
-            eIdx := EndIdx;
-            if Assigned(FOwner.Owner.OnGetCollapseRange) then
-              FOwner.Owner.OnGetCollapseRange(FOwner, Owner.Ranges[i], sIdx, eIdx);
-            if eIdx <> -1 then
-              FCollapsables.Add(TCollapsibleRange.Create(i, Owner.Tags[sIdx].StartPos, Owner.Tags[eIdx].EndPos));
-          end;
-
-        // Ranges with highlighting
-        if (Rule.Style <> nil) and (Rule.DynHighlight <> dhNone) then
-         begin
-           // Creating styled ranges
-           StlRange1 := nil;
-           StlRange2 := nil;
-           case Rule.DynHighlight of
-             dhBound: begin
-                         StlRange1 := TStyledRange.Create(
-                                   Owner.Tags[StartIdx].StartPos,
-                                   Owner.Tags[StartIdx].EndPos,
-                                   Rule.Style);
-                         if EndIdx <> -1 then
-                           StlRange2 := TStyledRange.Create(
-                                   Owner.Tags[EndIdx].StartPos,
-                                   Owner.Tags[EndIdx].EndPos,
-                                   Rule.Style);
-                      end;
-             dhRangeNoBound:
-               if EndIdx <> -1 then
-                StlRange1 := TStyledRange.Create(Owner.Tags[StartIdx].EndPos, Owner.Tags[EndIdx].StartPos, Rule.Style);
-             dhRange:
-               if EndIdx <> -1 then
-                StlRange1 := TStyledRange.Create(Owner.Tags[StartIdx].StartPos, Owner.Tags[EndIdx].EndPos, Rule.Style);
-           end;
-           if StlRange1 = nil then Continue;
-           // Creaing dynamic conditions
-           if Rule.HighlightPos <> cpAny then
-            begin
-              Range := Owner.Ranges[i];
-              case Rule.HighlightPos of
-                cpBound:
-                 begin
-                  FDynoConditions.Add(TDynoRange.Create(Owner.Tags[StartIdx].StartPos, Owner.Tags[StartIdx].StartPos + 1, Range));
-                  if EndIdx <> -1 then
-                    FDynoConditions.Add(TDynoRange.Create(Owner.Tags[EndIdx].EndPos, Owner.Tags[EndIdx].EndPos + 1, Range));
-                 end;
-                cpBoundTag:
-                 begin
-                  FDynoConditions.Add(TDynoRange.Create(Owner.Tags[StartIdx].StartPos, Owner.Tags[StartIdx].EndPos, Range));
-                  if EndIdx <> -1 then
-                    FDynoConditions.Add(TDynoRange.Create(Owner.Tags[EndIdx].StartPos, Owner.Tags[EndIdx].EndPos, Range));
-                 end;
-                cpBoundTagBegin:
-                 begin
-                  FDynoConditions.Add(TDynoRange.Create(Owner.Tags[StartIdx].StartPos, Owner.Tags[StartIdx].StartPos + 1, Range));
-                  if EndIdx <> -1 then
-                    FDynoConditions.Add(TDynoRange.Create(Owner.Tags[EndIdx].StartPos, Owner.Tags[EndIdx].StartPos + 1, Range));
-                 end;
-                cpRange, cpOutOfRange:
-                  if EndIdx <> -1 then
-                    FDynoConditions.Add(TDynoRange.Create(Owner.Tags[StartIdx].StartPos, Owner.Tags[EndIdx].EndPos, Range));
-              end;
-              StlRange1.FRange := Range;
-              if StlRange2 <> nil then StlRange2.FRange := Range;
-            end;
-           // Adding to lists
-           Flags := 0;
-           if Rule.Highlight then Inc(Flags, srLineHighlight);
-           if Rule.InvertColors then Inc(Flags, srInvertSelColor);
-           if Rule.HighlightPos = cpOutOfRange then Inc(Flags, srInvertCondition);
-           StlRange1.FFlags := Flags;
-           FRangeStyles.Add(StlRange1);
-           if StlRange2 <> nil then
-             begin
-               StlRange2.FFlags := Flags;
-               FRangeStyles.Add(StlRange2);
-             end;
-         end;
-      end;
-
-    if Terminated then Exit else
-    for i := 0 to Owner.FLineBreaks.Count - 1 do
-     if Terminated then Exit else
-     with TLineBreak(Owner.FLineBreaks[i]) do
-      begin
-        with Owner.Tags[FRefTag] do
-         Lb := TLineBreakRange.Create(StartPos, EndPos);
-        Lb.FRule :=  TLineBreak(Owner.FLineBreaks[i]).Rule;
-//        Lb.FPos := FRule.FLinePos;
-//        if (Rule <> nil) and (Rule.Style <> nil) then
-//          Lb.FColor := Rule.Style.BgColor
-//        else
-//          Lb.FColor := clBlack;
-        FLineBreakRanges.Add(Lb);
-      end;
-  finally
-    Owner.Unlock;
-  end;
-end;
 { TClientSyntAnalyzer }
 
 constructor TClientSyntAnalyzer.Create(AOwner: TSyntAnalyzer; SrcProc: TATStringBuffer;
@@ -3347,7 +3127,6 @@ begin
   FOpenedBlocks := TSortedList.Create(False);
   FCurDynamic := TList.Create;
 
-  FRangeStyles := TRangeCollection.Create;
   FCollapsables := TRangeCollection.Create;
   FChanges := TChangeFixer.Create;
   FSavedTags := TRangeList.Create;
@@ -3363,14 +3142,12 @@ end;
 
 destructor TClientSyntAnalyzer.Destroy;
 begin
-  TerminateFinishThread;
   SafeDestroying(Self);
 
   if Assigned(FIdleTimer) then
     FIdleTimer.Enabled := False;
   FreeAndNil(FIdleTimer);
 
-  FreeAndNil(FRangeStyles);
   FreeAndNil(FChanges);
   FreeAndNil(FSavedTags);
   FreeAndNil(FLineBreakRanges);
@@ -3385,7 +3162,6 @@ end;
 
 procedure TClientSyntAnalyzer.Clear;
 begin
-  TerminateFinishThread;
   Lock;
   try
     inherited;
@@ -3395,7 +3171,6 @@ begin
     FLineBreaks.Clear;
     FOpenedBlocks.Clear;
     FCurDynamic.Clear;
-    FRangeStyles.Clear;
     FCollapsables.Clear;
     FChanges.Clear;
     FSavedTags.Clear;
@@ -3411,17 +3186,6 @@ begin
   IdleAppend;
 end;
 
-procedure TClientSyntAnalyzer.TerminateFinishThread;
-begin
-  if FFinishThread <> nil then
-   begin
-    FFinishThread.OnTerminate := nil;
-    FFinishThread.Terminate;
-    //FFinishThread.WaitFor; //no need
-    FFinishThread := nil;
-   end;
-end;
-
 procedure TClientSyntAnalyzer.FinishThreadEnd(Sender: TObject);
 begin
   Lock;
@@ -3429,19 +3193,8 @@ begin
     FChanges.Clear;
     FSavedTags.Clear;
 
-    FreeAndNil(FRangeStyles);
     FreeAndNil(FCollapsables);
     FreeAndNil(FLineBreakRanges);
-
-    if FFinishThread<>nil then
-      with TSyntFinishThread(FFinishThread) do
-       begin
-        Self.FRangeStyles := FRangeStyles;
-        Self.FCollapsables := FCollapsables;
-        Self.FLineBreakRanges := FLineBreakRanges;
-       end;
-
-    FFinishThread := nil;
   finally
     Unlock;
   end;
@@ -3552,10 +3305,6 @@ begin
 
   // Close blocks at the end of text
   CloseAtEnd(0);
-
-  {$ifdef ThreadEn}
-  FFinishThread := TSyntFinishThread.Create(Self);
-  {$endif}
 
   FRepeateAnalysis := True;
 end;
@@ -3671,7 +3420,6 @@ begin
    Exit;
   end;}
 
- TerminateFinishThread;
  Lock;
  try
    FFinished := False;
@@ -4369,64 +4117,6 @@ begin
          end;
      end;
    end;
-end;
-
-function TClientSyntAnalyzer.GetRangeStyles(Pos: integer; StlList: TStyleEntries;
-   UseDyno: Boolean): integer;
-var Lst: TList;
-    i, sp, ep: integer;
-begin
-  Lst := TList.Create;
-  try
-    Result := FRangeStyles.GetRangesAtPos(Lst, FChanges.CurToOld(Pos));
-    Result := FChanges.OldToCur(Result);
-    for i := 0 to Lst.Count - 1 do
-     with TStyledRange(Lst[i]) do
-      if (FFlags and srLineHighlight) = 0 then
-      begin
-        sp := FChanges.OldToCur(StartPos);
-        ep := FChanges.OldToCur(EndPos);
-        if (ep <= Pos) or (sp > Pos) then Continue;
-        if FRange = nil then
-         StlList.Add(Style, sp, ep, False) else
-        if UseDyno and
-          (((FFlags and srInvertCondition) <> 0) =
-           (FCurDynamic.IndexOf(FRange) = -1)) then
-         StlList.Add(Style, sp, ep, True);
-      end;
-  finally
-    FreeAndNil(Lst);
-  end;
-end;
-
-procedure TClientSyntAnalyzer.GetLineHighlight(Line: integer; var InvSel: Boolean;
-  var bgColor, frColor: TColor; UseDyno: Boolean);
-var i, sp, ep: integer;
-    List: TList;
-begin
-  List := TList.Create;
-  try
-    sp := FSrcProc.LineIndex(Line) - 1;
-    ep := FChanges.CurToOld(sp + FSrcProc.LineSpace(Line));
-    sp := FChanges.CurToOld(sp);
-    FRangeStyles.GetRangesAtRange(List, sp, ep);
-    for i := 0 to List.Count - 1 do
-     with TStyledRange(List[i]) do
-      if ((FFlags and srLineHighlight) <> 0) and Style.Enabled then
-      if (FRange = nil) or
-         UseDyno and
-         (((FFlags and srInvertCondition) <> 0) =
-          (FCurDynamic.IndexOf(FRange) = -1)) then
-       begin
-        InvSel := (FFlags and srInvertSelColor) <> 0;
-        if Style.BgColor <> clNone then
-          bgColor := Style.BgColor;
-        if (Style.FormatType <> ftBackGround) and (Style.Font.Color <> clNone) then
-          frColor := Style.Font.Color;
-       end;
-  finally
-    FreeAndNil(List);
-  end;
 end;
 
 function TClientSyntAnalyzer.GetRangeAtLine(Line: integer): TTextRange;
