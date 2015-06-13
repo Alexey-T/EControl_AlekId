@@ -9,7 +9,6 @@
 { *************************************************************************** }
 
 {$mode delphi}
-{$define EC_UNICODE}
 //{$define ThreadEn}
 
 unit ecSyntAnal;
@@ -17,16 +16,14 @@ unit ecSyntAnal;
 interface
 
 uses
-  Classes, Graphics, Controls, ExtCtrls, Contnrs, SyncObjs,
-  eczRegExpr, ecStrUtils, ecLists, ecSyntGramma, ATStringProc_TextBuffer,
+  Classes, Graphics, Controls, ExtCtrls,
+  Contnrs, SyncObjs,
+  eczRegExpr,
+  ecStrUtils,
+  ecLists,
+  ecSyntGramma,
+  ATStringProc_TextBuffer,
   proc_StreamComponent;
-
-const
-  csCollapsed     = 1;
-  csCollapsible   = 0;   // not collapsed, start line of collapsible range
-  csCollapseEnd   = -1;  // end line of the collapsable range
-  csInCollapse    = -2;  // in the collapsable lines range
-  csOutCollapse   = -3;  // can not be hidden and is not start of the collapsible range (default)
 
 type
   TStyleEntries = class;
@@ -41,36 +38,6 @@ type
     ['{045EAD6D-5584-4A60-849E-6B8994AA5B8F}']
     procedure FormatChanged; // Lexer properties changed (update without clear)
     procedure Finished;      // Compleat analysis
-  end;
-
-  IecSyntMemoClient = interface
-    ['{577542E6-7DCE-44C1-A014-C2DA8335AF0F}']
-    function CaretPosChanged: Boolean;
-  end;
-
-  IecSyntMemoPlugIn = interface
-    ['{5C76D1AD-6D9D-469B-8380-6B448086B722}']
-    function HandleKeyStroke(AShortCut: TShortCut): Boolean;
-    function HandleMouse(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
-    procedure UpdateCursor(X, Y: Integer; Shift: TShiftState; var Cursor: TCursor);
-  end;
-
-  IecSyntMemoPlugIn2 = interface
-    ['{C240E719-B016-49F0-9A4E-A76850BD854A}']
-    procedure ScrollPosChanged;
-  end;
-
-  IecExternalFormatter = interface
-    ['{C482008B-E5A0-4732-BA89-2230E1952221}']
-    function GetStyleList(CurPos: integer; List: TStyleEntries): integer; // Formatting
-    procedure AnalyzeToPos(APos: integer);                        // Analyzing
-  end;
-
-  IecCommandHook = interface
-    ['{453306A6-8967-4C9E-A452-586EF3979B8C}']
-    procedure BeforeCommand(Command: integer; Data: ecPointer; var Handled: Boolean);
-    procedure AfterCommand(Command: integer; Data: ecPointer; var Handled: Boolean);
-    procedure IsCommandEnabled(Command: integer; Data: ecPointer; var Enable: Boolean);
   end;
 
   TLineBreakPos = (lbTop, lbBottom);
@@ -820,7 +787,6 @@ type
     function NearestRangeIdxAtPos(APos: integer): integer;
     function GetRangeAtLine(Line: integer): TTextRange;
     function GetNearestColRange(Pos: integer): TTextRange;
-    function GetLineState(Line: integer): integer;
 
     function RangeFormat(const FmtStr: ecString; Range: TTextRange): ecString;
     function GetRangeName(Range: TTextRange): ecString;
@@ -828,7 +794,7 @@ type
     function GetCollapsedText(Range: TTextRange): ecString;
     function GetAutoCloseText(Range: TTextRange; const Indent: string): ecString;
 
-    procedure TextChanged(Pos, Count, Line, LineChange: integer);
+    procedure TextChanged(Pos, Count: integer);
     procedure TryAppend(APos: integer);   // Tries to analyze to APos
     procedure AppendToPos(APos: integer); // Requires analyzed to APos
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
@@ -4545,34 +4511,6 @@ begin
   end;
 end;
 
-function TClientSyntAnalyzer.GetLineState(Line: integer): integer;
-var i, sp, ep: integer;
-    List: TList;
-begin
-  List := TList.Create;
-  try
-    sp := FSrcProc.LineIndex(Line) - 1;
-    ep := FChanges.CurToOld(sp + FSrcProc.LineSpace(Line));
-    sp := FChanges.CurToOld(sp);
-    FCollapsables.GetRangesAtRange(List, sp, ep);
-    Result := csOutCollapse;
-    for i := 0 to List.Count - 1 do
-     with TRange(List[i]) do
-      if StartPos >= sp then
-       begin
-        if EndPos >= ep then
-         begin
-           Result := csCollapsible;
-           Exit;
-         end;
-       end else
-       if EndPos < ep then Result := csCollapseEnd else
-        if Result = csOutCollapse then Result := csInCollapse;
-  finally
-    FreeAndNil(List);
-  end;
-end;
-
 function TClientSyntAnalyzer.GetRangeAtLine(Line: integer): TTextRange;
 var i, sp, ep: integer;
     List: TList;
@@ -4630,12 +4568,11 @@ begin
   end;
 end;
 
-procedure TClientSyntAnalyzer.TextChanged(Pos, Count, Line, LineChange: integer);
+procedure TClientSyntAnalyzer.TextChanged(Pos, Count: integer); //AT: Line, LineChange were not used, deled
 begin
   if Pos = -1 then Clear else
     begin
       ChangedAtPos(Pos);
-//      CorrectStaples(Line, LineChange);
       FChanges.Add(Pos, Count);
     end;
 end;
@@ -5877,7 +5814,7 @@ var i: integer;
     iObj: IecTextClient;
 begin
   if FSyntRanges <> nil then
-    FSyntRanges.TextChanged(Pos, Count, FLines.StrToCaret(Pos).Y, LineChange);
+    FSyntRanges.TextChanged(Pos, Count{, FLines.StrToCaret(Pos).Y, LineChange}); //AT
   for i := FClients.Count - 1 downto 0 do
    if Supports(TObject(FClients[i]), IecTextClient, iObj) then
     iObj.TextChanged(Sender, Pos, Count, LineChange);
