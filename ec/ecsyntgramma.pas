@@ -439,13 +439,13 @@ end;
 
 // Compiling Gramma rules
 function TGrammaAnalyzer.CompileGramma(TokenNames: TStrings): Boolean;
-var Lex: TSyntAnalyzer;
-    Res: TClientSyntAnalyzer;
+var Lex: TecSyntAnalyzer;
+    Res: TecClientSyntAnalyzer;
     Cur, i: integer;
     Rule: TParserRule;
 
   procedure AddTokenRule(ATokenType: integer; Expr: string);
-  var TokenRule: TTokenRule;
+  var TokenRule: TecTokenRule;
   begin
     TokenRule := Lex.TokenRules.Add;
     TokenRule.TokenType := ATokenType;
@@ -628,7 +628,7 @@ begin
 
   if GetGrammaLines.Count > 0 then
     begin
-      Lex := TSyntAnalyzer.Create(nil);
+      Lex := TecSyntAnalyzer.Create(nil);
       try
         Res := Lex.AddClient(nil, GetGrammaLines);
         if Res <> nil then

@@ -25,7 +25,7 @@ uses
   proc_StreamComponent;
 
 type
-  TStyleEntries = class;
+  TecStyleEntries = class;
 
   IecTextClient = interface
     ['{359632FE-CC0F-463F-B9CC-2F40F292DE40}']
@@ -39,29 +39,29 @@ type
     procedure Finished;      // Compleat analysis
   end;
 
-  TLineBreakPos = (lbTop, lbBottom);
-  TLineBreakBound = set of TLineBreakPos; // for user blocks
-  TVertAlignment = (vaTop, vaCenter, vaBottom);
-  TFormatType = (ftCustomFont, // Any customizing
-                 ftFontAttr,   // Except custom font
-                 ftColor,      // Any color
-                 ftBackGround);// Only background color
+  TecLineBreakPos = (lbTop, lbBottom);
+  TecLineBreakBound = set of TecLineBreakPos; // for user blocks
+  TecVertAlignment = (vaTop, vaCenter, vaBottom);
+  TecFormatType = (ftCustomFont, // Any customizing
+                   ftFontAttr,   // Except custom font
+                   ftColor,      // Any color
+                   ftBackGround);// Only background color
 
-  TSyntAnalyzer       = class;
-  TParserResults      = class;
-  TClientSyntAnalyzer = class;
-  TTagBlockCondition  = class;
-  TSyntaxManager      = class;
-  TSyntaxFormat       = class;
-  TSubAnalyzerRule    = class;
-  TTextRange          = class;
+  TecSyntAnalyzer       = class;
+  TecParserResults      = class;
+  TecClientSyntAnalyzer = class;
+  TecTagBlockCondition  = class;
+  TecSyntaxManager      = class;
+  TecSyntaxFormat       = class;
+  TecSubAnalyzerRule    = class;
+  TecTextRange        = class;
 
-  TOnMatchToken = procedure(Sender: TObject; Client: TParserResults;
+  TOnMatchToken = procedure(Sender: TObject; Client: TecParserResults;
       const Text: ecString; APos: integer; var MatchLen: integer) of object;
-  TOnBlockCheck = procedure(Sender: TObject; Client: TClientSyntAnalyzer;
+  TOnBlockCheck = procedure(Sender: TObject; Client: TecClientSyntAnalyzer;
       const Text: ecString; var RefIdx: integer; var Accept: Boolean) of object;
 
-  TBoundDefEvent = procedure(Sender: TClientSyntAnalyzer; Range: TTextRange; var sIdx, eIdx: integer) of object;
+  TBoundDefEvent = procedure(Sender: TecClientSyntAnalyzer; Range: TecTextRange; var sIdx, eIdx: integer) of object;
 
   TSyntCollectionItem = class(TCollectionItem)
   private
@@ -87,7 +87,7 @@ type
 
   TSyntCollection = class(TCollection)
   private
-    FSyntOwner: TSyntAnalyzer;
+    FSyntOwner: TecSyntAnalyzer;
     FOnChange: TSyntItemChanged;
     function GetItems(Index: integer): TSyntCollectionItem;
   protected
@@ -100,7 +100,7 @@ type
     function ValidItem(Item: TSyntCollectionItem): Boolean;
     function GetUniqueName(const Base: string): string;
 
-    property SyntOwner: TSyntAnalyzer read FSyntOwner write FSyntOwner;
+    property SyntOwner: TecSyntAnalyzer read FSyntOwner write FSyntOwner;
     property Items[Index: integer]: TSyntCollectionItem read GetItems; default;
     property OnChange: TSyntItemChanged read FOnChange write FOnChange;
   end;
@@ -109,8 +109,8 @@ type
   private
     FStyleName: string;
     FBlockName: string;
-    FFormat: TSyntaxFormat;
-    FBlock: TTagBlockCondition;
+    FFormat: TecSyntaxFormat;
+    FBlock: TecTagBlockCondition;
     FStrictParent: Boolean;
     FNotParent: Boolean;
     FAlwaysEnabled: Boolean;
@@ -125,20 +125,20 @@ type
     procedure SetNotParent(const Value: Boolean);
     procedure SetStrictParent(const Value: Boolean);
     procedure SetAlwaysEnabled(const Value: Boolean);
-    function GetSyntOwner: TSyntAnalyzer;
+    function GetSyntOwner: TecSyntAnalyzer;
     procedure SetStatesAdd(const Value: integer);
     procedure SetStatesAbsent(const Value: integer);
     procedure SetStatesRemove(const Value: integer);
     procedure SetStatesPresent(const Value: integer);
   protected
-    function ValidStyleName(const AStyleName: string; AStyle: TSyntaxFormat): string;
-    function ValidSetStyle(const AStyleName: string; var AStyleField: string; var AStyle: TSyntaxFormat): string;
+    function ValidStyleName(const AStyleName: string; AStyle: TecSyntaxFormat): string;
+    function ValidSetStyle(const AStyleName: string; var AStyleField: string; var AStyle: TecSyntaxFormat): string;
     procedure AssignTo(Dest: TPersistent); override;
     procedure Loaded; override;
   public
-    property Style: TSyntaxFormat read FFormat write FFormat;
-    property Block: TTagBlockCondition read FBlock write FBlock;
-    property SyntOwner: TSyntAnalyzer read GetSyntOwner;
+    property Style: TecSyntaxFormat read FFormat write FFormat;
+    property Block: TecTagBlockCondition read FBlock write FBlock;
+    property SyntOwner: TecSyntAnalyzer read GetSyntOwner;
   published
     property StyleName: string read GetStyleName write SetStyleName;
     property BlockName: string read GetBlockName write SetBlockName;
@@ -154,44 +154,44 @@ type
 // *******************************************************************
 //  Format for syntax output
 // *******************************************************************
-  TBorderLineType = (blNone, blSolid, blDash, blDot, blDashDot, blDashDotDot,
+  TecBorderLineType = (blNone, blSolid, blDash, blDot, blDashDot, blDashDotDot,
                      blSolid2, blSolid3, blWavyLine, blDouble);
-  TFormatFlag = (ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
+  TecFormatFlag = (ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
                  ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign);
-  TFormatFlags = set of TFormatFlag;
+  TecFormatFlags = set of TecFormatFlag;
 
-  TChangeCase = (ccNone, ccUpper, ccLower, ccToggle, ccTitle);
+  TecChangeCase = (ccNone, ccUpper, ccLower, ccToggle, ccTitle);
 
-  TSyntaxFormat = class(TSyntCollectionItem)
+  TecSyntaxFormat = class(TSyntCollectionItem)
   private
     FIsBlock: Boolean;
     FFont: TFont;
     FBgColor: TColor;
-    FVertAlign: TVertAlignment;
-    FFormatType: TFormatType;
+    FVertAlign: TecVertAlignment;
+    FFormatType: TecFormatType;
     FOnChange: TNotifyEvent;
     FHidden: Boolean;
-    FBorderTypes: array[0..3] of TBorderLineType;
+    FBorderTypes: array[0..3] of TecBorderLineType;
     FBorderColors: array[0..3] of TColor;
     FMultiLineBorder: Boolean;
     FReadOnly: Boolean;
-    FChangeCase: TChangeCase;
-    FFormatFlags: TFormatFlags;
+    FChangeCase: TecChangeCase;
+    FFormatFlags: TecFormatFlags;
     procedure SetFont(const Value: TFont);
     procedure SetBgColor(const Value: TColor);
     procedure FontChanged(Sender: TObject);
-    procedure SetVertAlign(const Value: TVertAlignment);
-    procedure SetFormatType(const Value: TFormatType);
+    procedure SetVertAlign(const Value: TecVertAlignment);
+    procedure SetFormatType(const Value: TecFormatType);
     procedure SetHidden(const Value: Boolean);
     function GetBorderColor(Index: Integer): TColor;
-    function GetBorderType(Index: Integer): TBorderLineType;
+    function GetBorderType(Index: Integer): TecBorderLineType;
     procedure SetBorderColor(Index: Integer; const Value: TColor);
     procedure SetBorderType(Index: Integer;
-      const Value: TBorderLineType);
+      const Value: TecBorderLineType);
     procedure SetMultiLineBorder(const Value: Boolean);
     procedure SetReadOnly(const Value: Boolean);
-    procedure SetChangeCase(const Value: TChangeCase);
-    procedure SetFormatFlags(const Value: TFormatFlags);
+    procedure SetChangeCase(const Value: TecChangeCase);
+    procedure SetFormatFlags(const Value: TecFormatFlags);
     function GetHidden: Boolean;
   protected
     procedure AssignTo(Dest: TPersistent); override;
@@ -204,105 +204,105 @@ type
 
     procedure ApplyTo(Canvas: TCanvas; AllowChangeFont: Boolean = True);
 
-    function IsEqual(Other: TSyntaxFormat): Boolean;
+    function IsEqual(Other: TecSyntaxFormat): Boolean;
     // Merges style above this style
-    procedure Merge(Over: TSyntaxFormat);
+    procedure Merge(Over: TecSyntaxFormat);
     // Save only common properties
-    procedure Intersect(Over: TSyntaxFormat);
+    procedure Intersect(Over: TecSyntaxFormat);
 
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
-    property BorderTypes[Index: integer]: TBorderLineType read GetBorderType write SetBorderType;
+    property BorderTypes[Index: integer]: TecBorderLineType read GetBorderType write SetBorderType;
     property BorderColors[Index: integer]: TColor read GetBorderColor write SetBorderColor;
   published
     property Font: TFont read FFont write SetFont;
     property BgColor: TColor read FBgColor write SetBgColor default clNone;
-    property VertAlignment: TVertAlignment read FVertAlign write SetVertAlign default vaCenter;
-    property FormatType: TFormatType read FFormatType write SetFormatType default ftFontAttr;
+    property VertAlignment: TecVertAlignment read FVertAlign write SetVertAlign default vaCenter;
+    property FormatType: TecFormatType read FFormatType write SetFormatType default ftFontAttr;
     property Hidden: Boolean read GetHidden write SetHidden default False;
-    property BorderTypeLeft: TBorderLineType index 0 read GetBorderType write SetBorderType default blNone;
+    property BorderTypeLeft: TecBorderLineType index 0 read GetBorderType write SetBorderType default blNone;
     property BorderColorLeft: TColor index 0 read GetBorderColor write SetBorderColor default clBlack;
-    property BorderTypeTop: TBorderLineType index 1 read GetBorderType write SetBorderType default blNone;
+    property BorderTypeTop: TecBorderLineType index 1 read GetBorderType write SetBorderType default blNone;
     property BorderColorTop: TColor index 1 read GetBorderColor write SetBorderColor default clBlack;
-    property BorderTypeRight: TBorderLineType index 2 read GetBorderType write SetBorderType default blNone;
+    property BorderTypeRight: TecBorderLineType index 2 read GetBorderType write SetBorderType default blNone;
     property BorderColorRight: TColor index 2 read GetBorderColor write SetBorderColor default clBlack;
-    property BorderTypeBottom: TBorderLineType index 3 read GetBorderType write SetBorderType default blNone;
+    property BorderTypeBottom: TecBorderLineType index 3 read GetBorderType write SetBorderType default blNone;
     property BorderColorBottom: TColor index 3 read GetBorderColor write SetBorderColor default clBlack;
     property MultiLineBorder: Boolean read FMultiLineBorder write SetMultiLineBorder default False;
     property ReadOnly: Boolean read FReadOnly write SetReadOnly default False;
-    property ChangeCase: TChangeCase read FChangeCase write SetChangeCase default ccNone;
-    property FormatFlags: TFormatFlags read FFormatFlags write SetFormatFlags
+    property ChangeCase: TecChangeCase read FChangeCase write SetChangeCase default ccNone;
+    property FormatFlags: TecFormatFlags read FFormatFlags write SetFormatFlags
                  default [ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
                           ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign];
   end;
 
-  TStyleCache = class
+  TecStyleCache = class
   private
     FList: TList;
     function GetCount: integer;
-    function GetItem(Index: integer): TSyntaxFormat;
+    function GetItem(Index: integer): TecSyntaxFormat;
   public
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
-    function AddStyle(Style: TSyntaxFormat): integer;
-    procedure AddNoCheck(Style: TSyntaxFormat);
+    function AddStyle(Style: TecSyntaxFormat): integer;
+    procedure AddNoCheck(Style: TecSyntaxFormat);
     procedure Delete(Index: integer);
 
     property Count: integer read GetCount;
-    property Items[Index: integer]: TSyntaxFormat read GetItem; default;
+    property Items[Index: integer]: TecSyntaxFormat read GetItem; default;
   end;
 
-  TStylesCollection = class(TSyntCollection)
+  TecStylesCollection = class(TSyntCollection)
   private
-    function GetItem(Index: integer): TSyntaxFormat;
+    function GetItem(Index: integer): TecSyntaxFormat;
   public
-    function Synchronize(Source: TStylesCollection): integer;
+    function Synchronize(Source: TecStylesCollection): integer;
     constructor Create;
-    function Add: TSyntaxFormat;
-    property Items[Index: integer]: TSyntaxFormat read GetItem; default;
+    function Add: TecSyntaxFormat;
+    property Items[Index: integer]: TecSyntaxFormat read GetItem; default;
   end;
 
 // *******************************************************************
 // description classes of text contents
 // *******************************************************************
 
-  TSyntToken = class(TRange)
+  TecSyntToken = class(TRange)
   private
     FTokenType: integer;
     FRule: TRuleCollectionItem;
-    function GetStyle: TSyntaxFormat;
+    function GetStyle: TecSyntaxFormat;
   public
     constructor Create(ARule: TRuleCollectionItem; AStartPos, AEndPos: integer);
     function GetStr(const Source: ecString): ecString;
     property TokenType: integer read FTokenType;
     property Rule: TRuleCollectionItem read FRule;
-    property Style: TSyntaxFormat read GetStyle;
+    property Style: TecSyntaxFormat read GetStyle;
   end;
 
-  TLineBreak = class
+  TecLineBreak = class
   private
     FRefTag: integer;
     FLine: integer;
-    FRule: TTagBlockCondition;
+    FRule: TecTagBlockCondition;
   public
-    property Rule: TTagBlockCondition read FRule;
+    property Rule: TecTagBlockCondition read FRule;
     property Line: integer read FLine;
     property RefIdx: integer read FRefTag;
   end;
 
-  TLineBreakRange = class(TRange)
+  TecLineBreakRange = class(TRange)
   private
-    FRule: TTagBlockCondition;
+    FRule: TecTagBlockCondition;
   public
-    property Rule: TTagBlockCondition read FRule;
+    property Rule: TecTagBlockCondition read FRule;
   end;
 
-  TTextRange = class(TSortedItem)
+  TecTextRange = class(TSortedItem)
   private
-    FRule: TTagBlockCondition;
+    FRule: TecTagBlockCondition;
     FStart, FEnd, FIdent: integer;
     FStartPos: integer;
-    FParent: TTextRange;
+    FParent: TecTextRange;
     FCondIndex: integer;
     FEndCondIndex: integer;
     FIndex: integer;
@@ -312,13 +312,13 @@ type
     function GetKey: integer; override;
   public
     constructor Create(AStartIdx, AStartPos: integer);
-    function IsParent(Range: TTextRange): Boolean;
+    function IsParent(Range: TecTextRange): Boolean;
 
-    property Rule: TTagBlockCondition read FRule;
+    property Rule: TecTagBlockCondition read FRule;
     property StartIdx: integer read FStart;
     property EndIdx: integer read FEnd;
     property IdentIdx: integer read FIdent;
-    property Parent: TTextRange read FParent;
+    property Parent: TecTextRange read FParent;
     property Level: integer read GetLevel;
     property Index: integer read FIndex;
     property StartPos: Integer read FStartPos;
@@ -326,13 +326,13 @@ type
     property IsClosed: Boolean read GetIsClosed;
   end;
 
-  TSubLexerRange = class(TRange)
+  TecSubLexerRange = class(TRange)
   private
-    FRule: TSubAnalyzerRule;   // Rule reference
+    FRule: TecSubAnalyzerRule;   // Rule reference
     FCondEndPos: integer;      // Start pos of the start condition
     FCondStartPos: integer;    // End pos of the end condition
   public
-    property Rule: TSubAnalyzerRule read FRule;
+    property Rule: TecSubAnalyzerRule read FRule;
     property CondStartPos: integer read FCondStartPos;
     property CondEndPos: integer read FCondEndPos;
   end;
@@ -341,17 +341,17 @@ type
 //                Rules for syntax interpretation
 // *******************************************************************
 
-  TTagConditionType = (tcEqual, tcNotEqual, tcMask, tcSkip, tcStrictMask);
+  TecTagConditionType = (tcEqual, tcNotEqual, tcMask, tcSkip, tcStrictMask);
 
-  TSingleTagCondition = class(TCollectionItem)
+  TecSingleTagCondition = class(TCollectionItem)
   private
     FTagList: TStrings;
-    FCondType: TTagConditionType;
+    FCondType: TecTagConditionType;
     FTokenTypes: DWORD;
     procedure SetTagList(const Value: TStrings);
     procedure SetIgnoreCase(const Value: Boolean);
     procedure SetTokenTypes(const Value: DWORD);
-    procedure SetCondType(const Value: TTagConditionType);
+    procedure SetCondType(const Value: TecTagConditionType);
     procedure TagListChanged(Sender: TObject);
     function GetIgnoreCase: Boolean;
   protected
@@ -359,42 +359,42 @@ type
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
-    function CheckToken(const Source: ecString; Token: TSyntToken): Boolean;
+    function CheckToken(const Source: ecString; Token: TecSyntToken): Boolean;
   published
     property TagList: TStrings read FTagList write SetTagList;
-    property CondType: TTagConditionType read FCondType write SetCondType default tcEqual;
+    property CondType: TecTagConditionType read FCondType write SetCondType default tcEqual;
     property TokenTypes: DWORD read FTokenTypes write SetTokenTypes default 0;
     property IgnoreCase: Boolean read GetIgnoreCase write SetIgnoreCase default False;
   end;
 
-  TConditionCollection = class(TCollection)
+  TecConditionCollection = class(TCollection)
   private
-    FOwner: TTagBlockCondition;
+    FOwner: TecTagBlockCondition;
     FOnChange: TNotifyEvent;
-    function GetItem(Index: integer): TSingleTagCondition;
+    function GetItem(Index: integer): TecSingleTagCondition;
   protected
     procedure Update(Item: TCollectionItem); override;
     function  GetOwner: TPersistent; override;
   public
-    constructor Create(AOwner: TTagBlockCondition);
-    function Add: TSingleTagCondition;
-    property Items[Index: integer]: TSingleTagCondition read GetItem; default;
+    constructor Create(AOwner: TecTagBlockCondition);
+    function Add: TecSingleTagCondition;
+    property Items[Index: integer]: TecSingleTagCondition read GetItem; default;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
-  TTagBlockType = (btTagDetect, btLineBreak, btRangeStart, btRangeEnd);
-  THighlightPos = (cpAny, cpBound, cpBoundTag, cpRange, cpBoundTagBegin, cpOutOfRange);
-  TDynamicHighlight = (dhNone, dhBound, dhRangeNoBound, dhRange);
-  TAutoCloseMode = (acmDisabled, acmCloseNearest, acmCloseOpened);
+  TecTagBlockType = (btTagDetect, btLineBreak, btRangeStart, btRangeEnd);
+  TecHighlightPos = (cpAny, cpBound, cpBoundTag, cpRange, cpBoundTagBegin, cpOutOfRange);
+  TecDynamicHighlight = (dhNone, dhBound, dhRangeNoBound, dhRange);
+  TecAutoCloseMode = (acmDisabled, acmCloseNearest, acmCloseOpened);
 
-  TTagBlockCondition = class(TRuleCollectionItem)
+  TecTagBlockCondition = class(TRuleCollectionItem)
   private
-    FConditions: TConditionCollection;
+    FConditions: TecConditionCollection;
     FIdentIndex: integer;
-    FLinePos: TLineBreakPos;
+    FLinePos: TecLineBreakPos;
     FBlockOffset: integer;
-    FBlockEndCond: TTagBlockCondition;
-    FBlockType: TTagBlockType;
+    FBlockEndCond: TecTagBlockCondition;
+    FBlockType: TecTagBlockType;
     FBlockEndName: string;
     FEndOfTextClose: Boolean;
     FNotCollapsed: Boolean;
@@ -405,8 +405,8 @@ type
     FNameFmt: ecString;
     FGroupFmt: ecString;
     FRefToCondEnd: Boolean;
-    FDynHighlight: TDynamicHighlight;
-    FHighlightPos: THighlightPos;
+    FDynHighlight: TecDynamicHighlight;
+    FHighlightPos: TecHighlightPos;
     FDynSelectMin: Boolean;
     FCancelNextRules: Boolean;
     FOnBlockCheck: TOnBlockCheck;
@@ -419,23 +419,23 @@ type
     FGrammaRule: TParserRule;
     FTokenType: integer;
     FTreeItemStyle: string;
-    FTreeItemStyleObj: TSyntaxFormat;
+    FTreeItemStyleObj: TecSyntaxFormat;
     FTreeGroupStyle: string;
-    FTreeGroupStyleObj: TSyntaxFormat;
+    FTreeGroupStyleObj: TecSyntaxFormat;
     FTreeGroupImage: integer;
     FTreeItemImage: integer;
     FUseCustomPen: Boolean;
     FPen: TPen;
     FIgnoreAsParent: Boolean;
     FAutoCloseText: ecString;
-    FAutoCloseMode: TAutoCloseMode;
+    FAutoCloseMode: TecAutoCloseMode;
     procedure ConditionsChanged(Sender: TObject);
     function GetBlockEndName: string;
     procedure SetBlockEndName(const Value: string);
-    procedure SetBlockType(const Value: TTagBlockType);
-    procedure SetConditions(const Value: TConditionCollection);
-    procedure SetBlockEndCond(const Value: TTagBlockCondition);
-    procedure SetLinePos(const Value: TLineBreakPos);
+    procedure SetBlockType(const Value: TecTagBlockType);
+    procedure SetConditions(const Value: TecConditionCollection);
+    procedure SetBlockEndCond(const Value: TecTagBlockCondition);
+    procedure SetLinePos(const Value: TecLineBreakPos);
     procedure SetIdentIndex(const Value: integer);
     procedure SetBlockOffset(const Value: integer);
     procedure SetEndOfTextClose(const Value: Boolean);
@@ -445,10 +445,10 @@ type
     procedure SetInvertColors(const Value: Boolean);
     procedure SetDisplayInTree(const Value: Boolean);
     procedure SetCancelNextRules(const Value: Boolean);
-    procedure SetDynHighlight(const Value: TDynamicHighlight);
+    procedure SetDynHighlight(const Value: TecDynamicHighlight);
     procedure SetDynSelectMin(const Value: Boolean);
     procedure SetGroupFmt(const Value: ecString);
-    procedure SetHighlightPos(const Value: THighlightPos);
+    procedure SetHighlightPos(const Value: TecHighlightPos);
     procedure SetNameFmt(const Value: ecString);
     procedure SetRefToCondEnd(const Value: Boolean);
     procedure SetDrawStaple(const Value: Boolean);
@@ -467,7 +467,7 @@ type
     procedure SetUseCustomPen(const Value: Boolean);
     procedure SetIgnoreAsParent(const Value: Boolean);
     procedure SetAutoCloseText(Value: ecString);
-    procedure SetAutoCloseMode(const Value: TAutoCloseMode);
+    procedure SetAutoCloseMode(const Value: TecAutoCloseMode);
   protected
     procedure AssignTo(Dest: TPersistent); override;
     function GetItemBaseName: string; override;
@@ -476,16 +476,16 @@ type
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
-    function Check(const Source: ecString; Tags: TClientSyntAnalyzer;
+    function Check(const Source: ecString; Tags: TecClientSyntAnalyzer;
                    N: integer;  var RefIdx: integer): Boolean;
-    property BlockEndCond: TTagBlockCondition read FBlockEndCond write SetBlockEndCond;
-    property TreeItemStyleObj: TSyntaxFormat read FTreeItemStyleObj;
-    property TreeGroupStyleObj: TSyntaxFormat read FTreeGroupStyleObj;
+    property BlockEndCond: TecTagBlockCondition read FBlockEndCond write SetBlockEndCond;
+    property TreeItemStyleObj: TecSyntaxFormat read FTreeItemStyleObj;
+    property TreeGroupStyleObj: TecSyntaxFormat read FTreeGroupStyleObj;
   published
-    property BlockType: TTagBlockType read FBlockType write SetBlockType default btRangeStart;
-    property ConditionList: TConditionCollection read FConditions write SetConditions;
+    property BlockType: TecTagBlockType read FBlockType write SetBlockType default btRangeStart;
+    property ConditionList: TecConditionCollection read FConditions write SetConditions;
     property IdentIndex: integer read FIdentIndex write SetIdentIndex default 0;
-    property LinePos: TLineBreakPos read FLinePos write SetLinePos default lbTop;
+    property LinePos: TecLineBreakPos read FLinePos write SetLinePos default lbTop;
     property BlockOffset: integer read FBlockOffset write SetBlockOffset default 0;
     property BlockEnd: string read GetBlockEndName write SetBlockEndName;
     property EndOfTextClose: Boolean read FEndOfTextClose write SetEndOfTextClose default False;
@@ -497,8 +497,8 @@ type
     property NameFmt: ecString read FNameFmt write SetNameFmt;
     property GroupFmt: ecString read FGroupFmt write SetGroupFmt;
     property RefToCondEnd: Boolean read FRefToCondEnd write SetRefToCondEnd default False;
-    property DynHighlight: TDynamicHighlight read FDynHighlight write SetDynHighlight default dhNone;
-    property HighlightPos: THighlightPos read FHighlightPos write SetHighlightPos;
+    property DynHighlight: TecDynamicHighlight read FDynHighlight write SetDynHighlight default dhNone;
+    property HighlightPos: TecHighlightPos read FHighlightPos write SetHighlightPos;
     property DynSelectMin: Boolean read FDynSelectMin write SetDynSelectMin default False;
     property CancelNextRules: Boolean read FCancelNextRules write SetCancelNextRules default False;
     property DrawStaple: Boolean read FDrawStaple write SetDrawStaple default False;
@@ -519,29 +519,25 @@ type
     property UseCustomPen: Boolean read FUseCustomPen write SetUseCustomPen default False;
     property IgnoreAsParent: Boolean read FIgnoreAsParent write SetIgnoreAsParent;
     // New in 2.50
-    property AutoCloseMode: TAutoCloseMode read FAutoCloseMode write SetAutoCloseMode default acmDisabled;
+    property AutoCloseMode: TecAutoCloseMode read FAutoCloseMode write SetAutoCloseMode default acmDisabled;
     property AutoCloseText: ecString read FAutoCloseText write SetAutoCloseText;
   end;
 
-  TBlockRuleCollection = class(TSyntCollection)
+  TecBlockRuleCollection = class(TSyntCollection)
   private
-    function GetItem(Index: integer): TTagBlockCondition;
+    function GetItem(Index: integer): TecTagBlockCondition;
   public
     constructor Create;
-    function Add: TTagBlockCondition;
-    property Items[Index: integer]: TTagBlockCondition read GetItem; default;
+    function Add: TecTagBlockCondition;
+    property Items[Index: integer]: TecTagBlockCondition read GetItem; default;
   end;
 
-  TMouseClickEvent = procedure(Editor: TObject;{v2.25} TokenIndex: integer;
-                               Button: TMouseButton; Shift: TShiftState) of object;
-
   // Token identification rule
-  TTokenRule = class(TRuleCollectionItem)
+  TecTokenRule = class(TRuleCollectionItem)
   private
     FRegExpr: TecRegExpr;
     FTokenType: integer;
     FOnMatchToken: TOnMatchToken;
-    FOnMouseClick: TMouseClickEvent;
     FColumnTo: integer;
     FColumnFrom: integer;
     function GetExpression: ecString;
@@ -563,23 +559,22 @@ type
     property ColumnFrom: integer read FColumnFrom write SetColumnFrom;
     property ColumnTo: integer read FColumnTo write SetColumnTo;
     property OnMatchToken: TOnMatchToken read FOnMatchToken write FOnMatchToken;
-    property OnMouseClick: TMouseClickEvent read FOnMouseClick write FOnMouseClick;
   end;
 
-  TTokenRuleCollection = class(TSyntCollection)
+  TecTokenRuleCollection = class(TSyntCollection)
   private
-    function GetItem(Index: integer): TTokenRule;
+    function GetItem(Index: integer): TecTokenRule;
   public
     constructor Create;
-    function Add: TTokenRule;
-    property Items[Index: integer]: TTokenRule read GetItem; default;
+    function Add: TecTokenRule;
+    property Items[Index: integer]: TecTokenRule read GetItem; default;
   end;
 
-  TSubAnalyzerRule = class(TRuleCollectionItem)
+  TecSubAnalyzerRule = class(TRuleCollectionItem)
   private
     FStartRegExpr: TecRegExpr;
     FEndRegExpr: TecRegExpr;
-    FSyntAnalyzer: TSyntAnalyzer;
+    FSyntAnalyzer: TecSyntAnalyzer;
     FFromTextBegin: Boolean;
     FToTextEnd: Boolean;
     FIncludeBounds: Boolean;
@@ -587,7 +582,7 @@ type
     function GetStartExpression: string;
     procedure SetEndExpression(const Value: string);
     procedure SetStartExpression(const Value: string);
-    procedure SetSyntAnalyzer(const Value: TSyntAnalyzer);
+    procedure SetSyntAnalyzer(const Value: TecSyntAnalyzer);
     procedure SetFromTextBegin(const Value: Boolean);
     procedure SetToTextEnd(const Value: Boolean);
     procedure SetIncludeBounds(const Value: Boolean);
@@ -602,22 +597,22 @@ type
   published
     property StartExpression: string read GetStartExpression write SetStartExpression;
     property EndExpression: string read GetEndExpression write SetEndExpression;
-    property SyntAnalyzer: TSyntAnalyzer read FSyntAnalyzer write SetSyntAnalyzer;
+    property SyntAnalyzer: TecSyntAnalyzer read FSyntAnalyzer write SetSyntAnalyzer;
     property FromTextBegin: Boolean read FFromTextBegin write SetFromTextBegin default False;
     property ToTextEnd: Boolean read FToTextEnd write SetToTextEnd default False;
     property IncludeBounds: Boolean read FIncludeBounds write SetIncludeBounds default False;
   end;
 
-  TSubAnalyzerRules = class(TSyntCollection)
+  TecSubAnalyzerRules = class(TSyntCollection)
   private
-    function GetItem(Index: integer): TSubAnalyzerRule;
+    function GetItem(Index: integer): TecSubAnalyzerRule;
   public
     constructor Create;
-    function Add: TSubAnalyzerRule;
-    property Items[Index: integer]: TSubAnalyzerRule read GetItem; default;
+    function Add: TecSubAnalyzerRule;
+    property Items[Index: integer]: TecSubAnalyzerRule read GetItem; default;
   end;
 
-  TCodeTemplate = class(TCollectionItem)
+  TecCodeTemplate = class(TCollectionItem)
   private
     FName: string;
     FDescription: string;
@@ -632,17 +627,17 @@ type
     property Advanced: Boolean read FAdvanced write FAdvanced;
   end;
 
-  TCodeTemplates = class(TOwnedCollection)
+  TecCodeTemplates = class(TOwnedCollection)
   private
-    function GetItem(Index: integer): TCodeTemplate;
+    function GetItem(Index: integer): TecCodeTemplate;
   public
     constructor Create(AOwner: TPersistent);
-    function Add: TCodeTemplate;
-    function FindTemplate(AName: string): TCodeTemplate;
-    property Items[Index: integer]: TCodeTemplate read GetItem; default;
+    function Add: TecCodeTemplate;
+    function FindTemplate(AName: string): TecCodeTemplate;
+    property Items[Index: integer]: TecCodeTemplate read GetItem; default;
   end;
 
-  TChangeFixer = class
+  TecChangeFixer = class
   private
     FList: TList;
   public
@@ -665,11 +660,11 @@ type
 //  Syntax analizer for single client
 //            container of description objects
 // *******************************************************************
-  TParserResults = class(TTokenHolder)
+  TecParserResults = class(TTokenHolder)
   private
     FSrcProc: TATStringBuffer;
     FClient: IecSyntClient;
-    FOwner: TSyntAnalyzer;
+    FOwner: TecSyntAnalyzer;
     FFinished: Boolean;
 
     FSubLexerBlocks: TList;     // Sub Lexer Text Ranges
@@ -678,9 +673,9 @@ type
     FStateChanges: TList;
     function GetLastPos(const Source: ecString): integer;
     function ExtractTag(const Source: ecString; var FPos: integer; IsIdle: Boolean): Boolean;
-    function GetTags(Index: integer): TSyntToken;
+    function GetTags(Index: integer): TecSyntToken;
     function GetSubLexerRangeCount: integer;
-    function GetSubLexerRange(Index: integer): TSubLexerRange;
+    function GetSubLexerRange(Index: integer): TecSubLexerRange;
   protected
     function GetTokenCount: integer; override;
     function GetTokenStr(Index: integer): ecString; override;
@@ -694,24 +689,24 @@ type
     procedure SaveState;
     procedure RestoreState;
   public
-    constructor Create(AOwner: TSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); virtual;
+    constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); virtual;
     destructor Destroy; override;
     procedure Clear; virtual;
 
-    function AnalyzerAtPos(Pos: integer): TSyntAnalyzer;
+    function AnalyzerAtPos(Pos: integer): TecSyntAnalyzer;
     function ParserStateAtPos(TokenIndex: integer): integer;
 
-    property Owner: TSyntAnalyzer read FOwner;
+    property Owner: TecSyntAnalyzer read FOwner;
     property IsFinished: Boolean read FFinished;
     property TagStr[Index: integer]: ecString read GetTokenStr;
     property TagCount: integer read GetTokenCount;
-    property Tags[Index: integer]: TSyntToken read GetTags; default;
+    property Tags[Index: integer]: TecSyntToken read GetTags; default;
     property SubLexerRangeCount: integer read GetSubLexerRangeCount;
-    property SubLexerRanges[Index: integer]: TSubLexerRange read GetSubLexerRange;
+    property SubLexerRanges[Index: integer]: TecSubLexerRange read GetSubLexerRange;
     property ParserState: integer read FCurState write FCurState;
   end;
 
-  TClientSyntAnalyzer = class(TParserResults)
+  TecClientSyntAnalyzer = class(TecParserResults)
   private
     FLineBreaks: TList;
 
@@ -725,7 +720,7 @@ type
     FCollapsables: TRangeCollection;   // ranges that can be collapsed
     FSavedTags: TRangeList;            // saved tokens
     FCurDynamic: TList;                // currently highlighted ranges
-    FChanges: TChangeFixer;            // fixes all changes before objects will be updated
+    FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
     FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
     FDataAccess: TCriticalSection;
     FNextTokIndex: integer;
@@ -733,44 +728,44 @@ type
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
     function GetRangeCount: integer;
-    function GetRanges(Index: integer): TTextRange;
+    function GetRanges(Index: integer): TecTextRange;
     function GetTagPos(Index: integer): TPoint;
-    function GetOpened(Index: integer): TTextRange;
+    function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
   protected
-    procedure AddLineBreak(lb: TLineBreak);
-    procedure AddRange(Range: TTextRange);
-    function HasOpened(Rule: TRuleCollectionItem; Parent: TTagBlockCondition; Strict: Boolean): Boolean;
+    procedure AddLineBreak(lb: TecLineBreak);
+    procedure AddRange(Range: TecTextRange);
+    function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
     function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
     procedure Finished; override;
     procedure IntIdleAppend(Sender: TObject);
     procedure CloseAtEnd(StartTagIdx: integer); override;
 
   public
-    constructor Create(AOwner: TSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); override;
+    constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); override;
     destructor Destroy; override;
     procedure Clear; override;
     procedure ChangedAtPos(APos: integer);
-    function GetLineBreak(Line: integer): TLineBreakRange;
+    function GetLineBreak(Line: integer): TecLineBreakRange;
     function TokenAtPos(Pos: integer): integer;
     function PriorTokenAt(Pos: integer): integer;
     function NextTokenAt(Pos: integer): integer;
 
-    function GetRangeBound(Range: TTextRange): TPoint;
-    function GetColRangeBound(Range: TTextRange): TPoint;
-    function RangeAtPos(APos: integer): TTextRange;
+    function GetRangeBound(Range: TecTextRange): TPoint;
+    function GetColRangeBound(Range: TecTextRange): TPoint;
+    function RangeAtPos(APos: integer): TecTextRange;
     function RangeIdxAtPos(APos: integer): integer;
-    function NearestRangeAtPos(APos: integer): TTextRange;
+    function NearestRangeAtPos(APos: integer): TecTextRange;
     function NearestRangeIdxAtPos(APos: integer): integer;
-    function GetRangeAtLine(Line: integer): TTextRange;
-    function GetNearestColRange(Pos: integer): TTextRange;
+    function GetRangeAtLine(Line: integer): TecTextRange;
+    function GetNearestColRange(Pos: integer): TecTextRange;
 
-    function RangeFormat(const FmtStr: ecString; Range: TTextRange): ecString;
-    function GetRangeName(Range: TTextRange): ecString;
-    function GetRangeGroup(Range: TTextRange): ecString;
-    function GetCollapsedText(Range: TTextRange): ecString;
-    function GetAutoCloseText(Range: TTextRange; const Indent: string): ecString;
+    function RangeFormat(const FmtStr: ecString; Range: TecTextRange): ecString;
+    function GetRangeName(Range: TecTextRange): ecString;
+    function GetRangeGroup(Range: TecTextRange): ecString;
+    function GetCollapsedText(Range: TecTextRange): ecString;
+    function GetAutoCloseText(Range: TecTextRange; const Indent: string): ecString;
 
     procedure TextChanged(Pos, Count: integer);
     procedure TryAppend(APos: integer);   // Tries to analyze to APos
@@ -778,39 +773,39 @@ type
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
     procedure IdleAppend;                 // Start idle analysis
 
-    function GetTokenStyle(Pos: integer; StlList: TStyleEntries): integer;
+    function GetTokenStyle(Pos: integer; StlList: TecStyleEntries): integer;
     procedure CompleteAnalysis;
 
     procedure Lock;
     procedure Unlock;
 
-    function CloseRange(Cond: TTagBlockCondition; RefTag: integer): Boolean;
-    function CreateLineBreak(Rule: TTagBlockCondition; RefTag: integer): Boolean;
-    function DetectTag(Rule: TTagBlockCondition; RefTag: integer): Boolean;
+    function CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
+    function CreateLineBreak(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
+    function DetectTag(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
 
     property OpenCount: integer read GetOpenedCount;
-    property Opened[Index: integer]: TTextRange read GetOpened;
+    property Opened[Index: integer]: TecTextRange read GetOpened;
 
     property RangeCount: integer read GetRangeCount;
-    property Ranges[Index: integer]: TTextRange read GetRanges;
+    property Ranges[Index: integer]: TecTextRange read GetRanges;
     property TagPos[Index: integer]: TPoint read GetTagPos;
     property DisableIdleAppend: Boolean read FDisableIdleAppend write SetDisableIdleAppend;
   end;
 
   // Internal class to store styles diapasons
-  TStyleEntry = class(TRange)
-    Style: TSyntaxFormat;
+  TecStyleEntry = class(TRange)
+    Style: TecSyntaxFormat;
     IsDynoStyle: Boolean;   // Over line highlighting
   public
-    constructor Create(AStyle: TSyntaxFormat; AStartPos, AEndPos: integer; AIsDynoStyle: Boolean = False);
+    constructor Create(AStyle: TecSyntaxFormat; AStartPos, AEndPos: integer; AIsDynoStyle: Boolean = False);
   end;
 
-  TStyleEntries = class(TObjectList)
+  TecStyleEntries = class(TObjectList)
   private
-    function GetItems(Index: integer): TStyleEntry;
+    function GetItems(Index: integer): TecStyleEntry;
   public
-    procedure Add(AStyle: TSyntaxFormat; AStartPos, AEndPos: integer; AIsDynoStyle: Boolean = False); overload;
-    property Items[Index: integer]: TStyleEntry read GetItems; default;
+    procedure Add(AStyle: TecSyntaxFormat; AStartPos, AEndPos: integer; AIsDynoStyle: Boolean = False); overload;
+    property Items[Index: integer]: TecStyleEntry read GetItems; default;
   end;
 // *******************************************************************
 //  Syntax analizer
@@ -839,36 +834,36 @@ type
     property FileName: string read FFileName write LoadFromFile;
   end;
 
-  TParseTokenEvent = procedure(Client: TParserResults; const Text: ecString; Pos: integer;
-      var TokenLength: integer; var Rule: TTokenRule) of object;
+  TParseTokenEvent = procedure(Client: TecParserResults; const Text: ecString; Pos: integer;
+      var TokenLength: integer; var Rule: TecTokenRule) of object;
 
-  TSyntAnalyzer = class(TLoadableComponent)
+  TecSyntAnalyzer = class(TLoadableComponent)
   private
     FClientList: TList;
     FMasters: TList;      // Master lexer, i.e. lexers that uses it
     FOnChange: TNotifyEvent;
     FSampleText: TStrings;
-    FFormats: TStylesCollection;
-    FTokenRules: TTokenRuleCollection;
-    FBlockRules: TBlockRuleCollection;
-    FCodeTemplates: TCodeTemplates;
+    FFormats: TecStylesCollection;
+    FTokenRules: TecTokenRuleCollection;
+    FBlockRules: TecBlockRuleCollection;
+    FCodeTemplates: TecCodeTemplates;
     FExtentions: string;
     FLexerName: string;
     FCoping: Boolean;
     FSkipSpaces: Boolean;
-    FSubAnalyzers: TSubAnalyzerRules;
+    FSubAnalyzers: TecSubAnalyzerRules;
     FTokenTypeNames: TStrings;
     FFullRefreshSize: integer;
 
-    FMarkedBlock: TSyntaxFormat;
+    FMarkedBlock: TecSyntaxFormat;
     FMarkedBlockName: string;
-    FSearchMatch: TSyntaxFormat;
+    FSearchMatch: TecSyntaxFormat;
     FSearchMatchName: string;
-    FCurrentLine: TSyntaxFormat;
+    FCurrentLine: TecSyntaxFormat;
     FCurrentLineName: string;
-    FDefStyle: TSyntaxFormat;
+    FDefStyle: TecSyntaxFormat;
     FDefStyleName: string;
-    FCollapseStyle: TSyntaxFormat;
+    FCollapseStyle: TecSyntaxFormat;
     FCollapseStyleName: string;
     FNotes: TStrings;
     FInternal: boolean;
@@ -889,23 +884,23 @@ type
     procedure TokenRuleChanged(Sender: TCollection; Item: TSyntCollectionItem);
     procedure BlocksChanged(Sender: TCollection; Item: TSyntCollectionItem);
     procedure SubLexRuleChanged(Sender: TCollection; Item: TSyntCollectionItem);
-    procedure SetBlockRules(const Value: TBlockRuleCollection);
-    procedure SetCodeTemplates(const Value: TCodeTemplates);
-    procedure SetTokenRules(const Value: TTokenRuleCollection);
-    procedure SetFormats(const Value: TStylesCollection);
+    procedure SetBlockRules(const Value: TecBlockRuleCollection);
+    procedure SetCodeTemplates(const Value: TecCodeTemplates);
+    procedure SetTokenRules(const Value: TecTokenRuleCollection);
+    procedure SetFormats(const Value: TecStylesCollection);
     function GetUniqueName(const Base: string): string;
     procedure SetSkipSpaces(const Value: Boolean);
-    procedure SetSubAnalyzers(const Value: TSubAnalyzerRules);
+    procedure SetSubAnalyzers(const Value: TecSubAnalyzerRules);
     procedure SetTokenTypeNames(const Value: TStrings);
 
-    function GetStyleName(const AName: string; const AStyle: TSyntaxFormat): string;
-    procedure SetMarkedBlock(const Value: TSyntaxFormat);
+    function GetStyleName(const AName: string; const AStyle: TecSyntaxFormat): string;
+    procedure SetMarkedBlock(const Value: TecSyntaxFormat);
     function GetMarkedBlockName: string;
     procedure SetMarkedBlockName(const Value: string);
-    procedure SetSearchMatch(const Value: TSyntaxFormat);
+    procedure SetSearchMatch(const Value: TecSyntaxFormat);
     function GetSearchMatchStyle: string;
     procedure SetSearchMatchStyle(const Value: string);
-    procedure SetCurrentLine(const Value: TSyntaxFormat);
+    procedure SetCurrentLine(const Value: TecSyntaxFormat);
     function GetCurrentLineStyle: string;
     procedure SetCurrentLineStyle(const Value: string);
     procedure SetNotes(const Value: TStrings);
@@ -916,7 +911,7 @@ type
     procedure CompileGramma;
     procedure SetGrammar(const Value: TGrammaAnalyzer);
     procedure GrammaChanged(Sender: TObject);
-    procedure SetDefStyle(const Value: TSyntaxFormat);
+    procedure SetDefStyle(const Value: TecSyntaxFormat);
     function GetDefaultStyleName: string;
     procedure SetDefaultStyleName(const Value: string);
     procedure SetLineComment(const Value: ecString);
@@ -924,14 +919,14 @@ type
     procedure SetAlwaysSyncBlockAnal(const Value: Boolean);
     function GetCollapseStyleName: string;
     procedure SetCollapseStyleName(const Value: string);
-    procedure SetCollapseStyle(const Value: TSyntaxFormat);
+    procedure SetCollapseStyle(const Value: TecSyntaxFormat);
     function GetSeparateBlocks: Boolean;
   protected
-    function GetToken(Client: TParserResults; const Source: ecString;
-                       APos: integer; OnlyGlobal: Boolean): TSyntToken; virtual;
-    procedure HighlightKeywords(Client: TParserResults; const Source: ecString;
+    function GetToken(Client: TecParserResults; const Source: ecString;
+                       APos: integer; OnlyGlobal: Boolean): TecSyntToken; virtual;
+    procedure HighlightKeywords(Client: TecParserResults; const Source: ecString;
                        OnlyGlobal: Boolean); virtual;
-    procedure SelectTokenFormat(Client: TParserResults; const Source: ecString;
+    procedure SelectTokenFormat(Client: TecParserResults; const Source: ecString;
                        OnlyGlobal: Boolean; N: integer = -1); virtual;
     procedure Loaded; override;
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -941,24 +936,24 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
-    function AddClient(const Client: IecSyntClient; SrcProc: TATStringBuffer): TClientSyntAnalyzer;
+    function AddClient(const Client: IecSyntClient; SrcProc: TATStringBuffer): TecClientSyntAnalyzer;
     procedure ClearClientContents;
     procedure UpdateClients;
 
-    procedure AddMasterLexer(SyntAnal: TSyntAnalyzer);
-    procedure RemoveMasterLexer(SyntAnal: TSyntAnalyzer);
+    procedure AddMasterLexer(SyntAnal: TecSyntAnalyzer);
+    procedure RemoveMasterLexer(SyntAnal: TecSyntAnalyzer);
 
-    property MarkedBlock: TSyntaxFormat read FMarkedBlock write SetMarkedBlock;
-    property SearchMatch: TSyntaxFormat read FSearchMatch write SetSearchMatch;
-    property CurrentLine: TSyntaxFormat read FCurrentLine write SetCurrentLine;
-    property DefStyle: TSyntaxFormat read FDefStyle write SetDefStyle;
-    property CollapseStyle: TSyntaxFormat read FCollapseStyle write SetCollapseStyle;
+    property MarkedBlock: TecSyntaxFormat read FMarkedBlock write SetMarkedBlock;
+    property SearchMatch: TecSyntaxFormat read FSearchMatch write SetSearchMatch;
+    property CurrentLine: TecSyntaxFormat read FCurrentLine write SetCurrentLine;
+    property DefStyle: TecSyntaxFormat read FDefStyle write SetDefStyle;
+    property CollapseStyle: TecSyntaxFormat read FCollapseStyle write SetCollapseStyle;
   published
-    property Formats: TStylesCollection read FFormats write SetFormats;
-    property TokenRules: TTokenRuleCollection read FTokenRules write SetTokenRules;
-    property BlockRules: TBlockRuleCollection read FBlockRules write SetBlockRules;
-    property CodeTemplates: TCodeTemplates read FCodeTemplates write SetCodeTemplates;
-    property SubAnalyzers: TSubAnalyzerRules read FSubAnalyzers write SetSubAnalyzers;
+    property Formats: TecStylesCollection read FFormats write SetFormats;
+    property TokenRules: TecTokenRuleCollection read FTokenRules write SetTokenRules;
+    property BlockRules: TecBlockRuleCollection read FBlockRules write SetBlockRules;
+    property CodeTemplates: TecCodeTemplates read FCodeTemplates write SetCodeTemplates;
+    property SubAnalyzers: TecSubAnalyzerRules read FSubAnalyzers write SetSubAnalyzers;
     property SampleText: TStrings read FSampleText write SetSampleText;
 
     property TokenTypeNames: TStrings read FTokenTypeNames write SetTokenTypeNames;
@@ -991,15 +986,11 @@ type
     property OnParseToken: TParseTokenEvent read FOnParseToken write FOnParseToken;
   end;
 
-  TLibSyntAnalyzer = class(TSyntAnalyzer)
+  TLibSyntAnalyzer = class(TecSyntAnalyzer)
   protected
-    FParent: TSyntaxManager;
-
+    FParent: TecSyntaxManager;
 //    function GetChildParent: TComponent; override;
 //    procedure SetName(const NewName: TComponentName); override;
-{$IFDEF EC_DOTNET}
-  public
-{$ENDIF}
     procedure SetParentComponent(Value: TComponent); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -1009,16 +1000,16 @@ type
     function HasParent: Boolean; override;
   end;
 
-  TSyntaxManager = class(TLoadableComponent)
+  TecSyntaxManager = class(TLoadableComponent)
   private
     FOnChange: TNotifyEvent;
     FList: TList;
-    FCurrentLexer: TSyntAnalyzer;
+    FCurrentLexer: TecSyntAnalyzer;
     FOnLexerChanged: TNotifyEvent;
     FModified: Boolean;
-    function GeItem(Index: integer): TSyntAnalyzer;
+    function GeItem(Index: integer): TecSyntAnalyzer;
     function GetCount: integer;
-    procedure SetCurrentLexer(const Value: TSyntAnalyzer);
+    procedure SetCurrentLexer(const Value: TecSyntAnalyzer);
   protected
     procedure GetChildren(Proc: TGetChildProc; Root: TComponent); override;
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -1030,29 +1021,29 @@ type
     destructor Destroy; override;
     procedure LoadFromFile(const FileName: string); override;
     procedure SaveToFile(const FileName: string); override;
-    function FindAnalyzer(const LexerName: string): TSyntAnalyzer;
-    function AddAnalyzer: TSyntAnalyzer;
+    function FindAnalyzer(const LexerName: string): TecSyntAnalyzer;
+    function AddAnalyzer: TecSyntAnalyzer;
     procedure Clear;
     procedure Move(CurIndex, NewIndex: Integer);
 
     property AnalyzerCount: integer read GetCount;
-    property Analyzers[Index: integer]: TSyntAnalyzer read GeItem;
+    property Analyzers[Index: integer]: TecSyntAnalyzer read GeItem;
     property FileName;
-    property CurrentLexer: TSyntAnalyzer read FCurrentLexer write SetCurrentLexer;
+    property CurrentLexer: TecSyntAnalyzer read FCurrentLexer write SetCurrentLexer;
     property Modified: Boolean read FModified write FModified;
   published
     property OnLexerChanged: TNotifyEvent read FOnLexerChanged write FOnLexerChanged stored NotStored;
     property OnChange: TNotifyEvent read FOnChange write FOnChange stored NotStored;
   end;
 
-  TSyntTextSource = class(TComponent, IecSyntClient)
+  TecSyntTextSource = class(TComponent, IecSyntClient)
   private
     FLines: TATStringBuffer;
-    FSyntRanges: TClientSyntAnalyzer;
+    FSyntRanges: TecClientSyntAnalyzer;
     FReadOnly: Boolean;
     procedure SetLines(const Value: TATStringBuffer);
-    function GetSyntRanges: TSyntAnalyzer;
-    procedure SetSyntRanges(const Value: TSyntAnalyzer);
+    function GetSyntRanges: TecSyntAnalyzer;
+    procedure SetSyntRanges(const Value: TecSyntAnalyzer);
     function GetLines: TATStringBuffer;
   protected
     FClients: TList;
@@ -1071,23 +1062,30 @@ type
     function LineLength(Index: integer): integer; virtual;
     procedure TextChanged(Sender: TObject; Pos, Count, LineChange: integer); virtual;
 
-    property SyntObj: TClientSyntAnalyzer read FSyntRanges;
+    property SyntObj: TecClientSyntAnalyzer read FSyntRanges;
   published
     property Lines: TATStringBuffer read GetLines write SetLines;
-    property SyntaxAnalyzer: TSyntAnalyzer read GetSyntRanges write SetSyntRanges;
+    property SyntaxAnalyzer: TecSyntAnalyzer read GetSyntRanges write SetSyntRanges;
     property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
   end;
 
-  TSyntStyles = class(TLoadableComponent)
+  TecSyntStyles = class(TLoadableComponent)
   private
-    FStyles: TStylesCollection;
-    procedure SetStyles(const Value: TStylesCollection);
+    FStyles: TecStylesCollection;
+    procedure SetStyles(const Value: TecStylesCollection);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
-    property Styles: TStylesCollection read FStyles write SetStyles;
+    property Styles: TecStylesCollection read FStyles write SetStyles;
   end;
+
+implementation
+
+uses
+  SysUtils, Forms, Dialogs,
+  Math,
+  ecSysUtils;
 
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
@@ -1098,12 +1096,6 @@ const
                              'Number'  + #13#10 +
                              'Preprocessor';
 
-implementation
-
-uses
-  SysUtils, Forms, Dialogs,
-  Math,
-  ecSysUtils;
 
 procedure SetDefaultModifiers(RE: TecRegExpr);
 begin
@@ -1115,30 +1107,30 @@ begin
   RE.ModifierR := False;
 end;
 
-{ TSyntToken }
+{ TecSyntToken }
 
-constructor TSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
+constructor TecSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
   AEndPos: integer);
 begin
   inherited Create(AStartPos, AEndPos);
   FRule := ARule;
-  FTokenType := TTokenRule(ARule).TokenType;
+  FTokenType := TecTokenRule(ARule).TokenType;
 end;
 
-function TSyntToken.GetStr(const Source: ecString): ecString;
+function TecSyntToken.GetStr(const Source: ecString): ecString;
 begin
   Result := Copy(Source, StartPos + 1, EndPos - StartPos);
 end;
 
-function TSyntToken.GetStyle: TSyntaxFormat;
+function TecSyntToken.GetStyle: TecSyntaxFormat;
 begin
   if Rule = nil then Result := nil
    else Result := Rule.Style;
 end;
 
-{ TTextRange }
+{ TecTextRange }
 
-constructor TTextRange.Create(AStartIdx, AStartPos: integer);
+constructor TecTextRange.Create(AStartIdx, AStartPos: integer);
 begin
   inherited Create;
   FStart := AStartIdx;
@@ -1148,18 +1140,18 @@ begin
   FIndex := -1;
 end;
 
-function TTextRange.GetIsClosed: Boolean;
+function TecTextRange.GetIsClosed: Boolean;
 begin
   Result := FEnd <> -1;
 end;
 
-function TTextRange.GetKey: integer;
+function TecTextRange.GetKey: integer;
 begin
   Result := FStartPos;
 end;
 
-function TTextRange.GetLevel: integer;
-var prn: TTextRange;
+function TecTextRange.GetLevel: integer;
+var prn: TecTextRange;
 begin
   prn := Parent;
   Result := 0;
@@ -1170,7 +1162,7 @@ begin
    end;
 end;
 
-function TTextRange.IsParent(Range: TTextRange): Boolean;
+function TecTextRange.IsParent(Range: TecTextRange): Boolean;
 begin
   if Range = FParent then Result := True else
     if Assigned(FParent) then Result := FParent.IsParent(Range)
@@ -1309,9 +1301,9 @@ begin
   Result := False;
 end;
 
-{ TSyntaxFormat }
+{ TecSyntaxFormat }
 
-constructor TSyntaxFormat.Create(Collection: TCollection);
+constructor TecSyntaxFormat.Create(Collection: TCollection);
 var i: integer;
 begin
   FIsBlock := False;
@@ -1332,18 +1324,18 @@ begin
   FFont.OnChange := FontChanged;
 end;
 
-destructor TSyntaxFormat.Destroy;
+destructor TecSyntaxFormat.Destroy;
 begin
   FreeAndNil(FFont);
   inherited;
 end;
 
-procedure TSyntaxFormat.AssignTo(Dest: TPersistent);
+procedure TecSyntaxFormat.AssignTo(Dest: TPersistent);
 var i: integer;
 begin
   inherited;
-  if Dest is TSyntaxFormat then
-   with Dest as TSyntaxFormat do
+  if Dest is TecSyntaxFormat then
+   with Dest as TecSyntaxFormat do
     begin
       FBgColor := Self.BgColor;
       FFont.Assign(Self.Font);
@@ -1363,53 +1355,53 @@ begin
     end;
 end;
 
-procedure TSyntaxFormat.SetBgColor(const Value: TColor);
+procedure TecSyntaxFormat.SetBgColor(const Value: TColor);
 begin
   FBgColor := Value;
   Change;
 end;
 
-procedure TSyntaxFormat.SetFont(const Value: TFont);
+procedure TecSyntaxFormat.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
   Change;
 end;
 
-procedure TSyntaxFormat.FontChanged(Sender: TObject);
+procedure TecSyntaxFormat.FontChanged(Sender: TObject);
 begin
   Change;
 end;
 
-procedure TSyntaxFormat.SetVertAlign(const Value: TVertAlignment);
+procedure TecSyntaxFormat.SetVertAlign(const Value: TecVertAlignment);
 begin
   FVertAlign := Value;
   Change;
 end;
 
-function TSyntaxFormat.GetItemBaseName: string;
+function TecSyntaxFormat.GetItemBaseName: string;
 begin
   Result := 'Style';
 end;
 
-procedure TSyntaxFormat.SetFormatType(const Value: TFormatType);
+procedure TecSyntaxFormat.SetFormatType(const Value: TecFormatType);
 begin
   FFormatType := Value;
   Change;
 end;
 
-procedure TSyntaxFormat.Change;
+procedure TecSyntaxFormat.Change;
 begin
   Changed(False);
   if Assigned(FOnChange) then FOnChange(Self);
 end;
 
-procedure TSyntaxFormat.SetHidden(const Value: Boolean);
+procedure TecSyntaxFormat.SetHidden(const Value: Boolean);
 begin
   FHidden := Value;
   Change;
 end;
 
-function TSyntaxFormat.GetBorderColor(Index: Integer): TColor;
+function TecSyntaxFormat.GetBorderColor(Index: Integer): TColor;
 begin
   if (Index >= 0) and (Index <= 3) then
     Result := FBorderColors[Index]
@@ -1417,7 +1409,7 @@ begin
     Result := clBlack;
 end;
 
-function TSyntaxFormat.GetBorderType(Index: Integer): TBorderLineType;
+function TecSyntaxFormat.GetBorderType(Index: Integer): TecBorderLineType;
 begin
   if (Index >= 0) and (Index <= 3) then
     Result := FBorderTypes[Index]
@@ -1425,7 +1417,7 @@ begin
     Result := blNone;
 end;
 
-procedure TSyntaxFormat.SetBorderColor(Index: Integer;
+procedure TecSyntaxFormat.SetBorderColor(Index: Integer;
   const Value: TColor);
 begin
   if (Index >= 0) and (Index <= 3) then
@@ -1435,8 +1427,8 @@ begin
    end;
 end;
 
-procedure TSyntaxFormat.SetBorderType(Index: Integer;
-  const Value: TBorderLineType);
+procedure TecSyntaxFormat.SetBorderType(Index: Integer;
+  const Value: TecBorderLineType);
 begin
   if (Index >= 0) and (Index <= 3) then
    begin
@@ -1445,25 +1437,25 @@ begin
    end;
 end;
 
-procedure TSyntaxFormat.SetMultiLineBorder(const Value: Boolean);
+procedure TecSyntaxFormat.SetMultiLineBorder(const Value: Boolean);
 begin
   FMultiLineBorder := Value;
   Change;
 end;
 
-procedure TSyntaxFormat.SetReadOnly(const Value: Boolean);
+procedure TecSyntaxFormat.SetReadOnly(const Value: Boolean);
 begin
   FReadOnly := Value;
   Change;
 end;
 
-procedure TSyntaxFormat.SetChangeCase(const Value: TChangeCase);
+procedure TecSyntaxFormat.SetChangeCase(const Value: TecChangeCase);
 begin
   FChangeCase := Value;
   Change;
 end;
 
-function TSyntaxFormat.HasBorder: Boolean;
+function TecSyntaxFormat.HasBorder: Boolean;
 var i: integer;
 begin
   for i := 0 to 3 do
@@ -1475,7 +1467,7 @@ begin
   Result := False;
 end;
 
-procedure TSyntaxFormat.SetFormatFlags(const Value: TFormatFlags);
+procedure TecSyntaxFormat.SetFormatFlags(const Value: TecFormatFlags);
 begin
   if FFormatFlags <> Value then
     begin
@@ -1484,9 +1476,9 @@ begin
     end;
 end;
 
-procedure TSyntaxFormat.ApplyTo(Canvas: TCanvas; AllowChangeFont: Boolean);
+procedure TecSyntaxFormat.ApplyTo(Canvas: TCanvas; AllowChangeFont: Boolean);
 var fs: TFontStyles;
-  procedure SwitchFontFlag(ff: TFormatFlag; f: TFontStyle);
+  procedure SwitchFontFlag(ff: TecFormatFlag; f: TFontStyle);
   begin
     if ff in FormatFlags then
       if f in Font.Style then Include(fs, f)
@@ -1524,7 +1516,7 @@ begin
    end;
 end;
 
-function TSyntaxFormat.IsEqual(Other: TSyntaxFormat): Boolean;
+function TecSyntaxFormat.IsEqual(Other: TecSyntaxFormat): Boolean;
 begin
   Result := (BgColor = Other.BgColor) and
             (FormatType = Other.FormatType) and
@@ -1554,9 +1546,9 @@ begin
     end;
 end;
 
-procedure TSyntaxFormat.Merge(Over: TSyntaxFormat);
+procedure TecSyntaxFormat.Merge(Over: TecSyntaxFormat);
 var fs: TFontStyles;
-  procedure SwitchFontFlag(ff: TFormatFlag; f: TFontStyle);
+  procedure SwitchFontFlag(ff: TecFormatFlag; f: TFontStyle);
   begin
     if ff in Over.FormatFlags then
       begin
@@ -1602,12 +1594,12 @@ begin
   FormatFlags := FormatFlags + Over.FormatFlags;
 end;
 
-function TSyntaxFormat.GetHidden: Boolean;
+function TecSyntaxFormat.GetHidden: Boolean;
 begin
   Result := FHidden and (ffHidden in FFormatFlags);
 end;
 
-procedure TSyntaxFormat.Intersect(Over: TSyntaxFormat);
+procedure TecSyntaxFormat.Intersect(Over: TecSyntaxFormat);
 begin
   FormatFlags := Over.FormatFlags * FormatFlags;
   if Over.FormatType < FormatType then
@@ -1669,31 +1661,31 @@ begin
     FormatFlags := FormatFlags - [ffFontCharset];
 end;
 
-{ TStylesCollection }
+{ TecStylesCollection }
 
-function TStylesCollection.Add: TSyntaxFormat;
+function TecStylesCollection.Add: TecSyntaxFormat;
 begin
-  Result := (inherited Add) as TSyntaxFormat;
+  Result := (inherited Add) as TecSyntaxFormat;
 end;
 
-constructor TStylesCollection.Create;
+constructor TecStylesCollection.Create;
 begin
-  inherited Create(TSyntaxFormat);
+  inherited Create(TecSyntaxFormat);
 end;
 
-function TStylesCollection.GetItem(Index: integer): TSyntaxFormat;
+function TecStylesCollection.GetItem(Index: integer): TecSyntaxFormat;
 begin
-  Result := (inherited Items[Index]) as TSyntaxFormat;
+  Result := (inherited Items[Index]) as TecSyntaxFormat;
 end;
 
-function TStylesCollection.Synchronize(Source: TStylesCollection): integer;
+function TecStylesCollection.Synchronize(Source: TecStylesCollection): integer;
 var j: integer;
-    f: TSyntaxFormat;
+    f: TecSyntaxFormat;
 begin
   Result := 0;
   for j := 0 to Count - 1 do
    begin
-     f := TSyntaxFormat(Source.ItemByName(Items[j].DisplayName));
+     f := TecSyntaxFormat(Source.ItemByName(Items[j].DisplayName));
      if f <> nil then
       begin
         Inc(Result);
@@ -1702,14 +1694,14 @@ begin
    end;
 end;
 
-{ TSingleTagCondition }
+{ TecSingleTagCondition }
 
-procedure TSingleTagCondition.AssignTo(Dest: TPersistent);
-var dst: TSingleTagCondition;
+procedure TecSingleTagCondition.AssignTo(Dest: TPersistent);
+var dst: TecSingleTagCondition;
 begin
-  if Dest is TSingleTagCondition then
+  if Dest is TecSingleTagCondition then
    begin
-     dst := Dest as TSingleTagCondition;
+     dst := Dest as TecSingleTagCondition;
      dst.CondType := CondType;
      dst.TokenTypes := TokenTypes;
      dst.FTagList.Assign(FTagList);
@@ -1717,8 +1709,8 @@ begin
    end;
 end;
 
-function TSingleTagCondition.CheckToken(const Source: ecString;
-  Token: TSyntToken): Boolean;
+function TecSingleTagCondition.CheckToken(const Source: ecString;
+  Token: TecSyntToken): Boolean;
 var s: ecString;
     i, N: integer;
     RE: TecRegExpr;
@@ -1773,7 +1765,7 @@ begin
    end else Result := FCondType <> tcNotEqual;
 end;
 
-constructor TSingleTagCondition.Create(Collection: TCollection);
+constructor TecSingleTagCondition.Create(Collection: TCollection);
 begin
   inherited;
   FCondType := tcEqual;
@@ -1788,81 +1780,81 @@ begin
   {$ENDIF}
 end;
 
-destructor TSingleTagCondition.Destroy;
+destructor TecSingleTagCondition.Destroy;
 begin
   FreeAndNil(FTagList);
   inherited;
 end;
 
-procedure TSingleTagCondition.SetIgnoreCase(const Value: Boolean);
+procedure TecSingleTagCondition.SetIgnoreCase(const Value: Boolean);
 begin
   TzStringList(FTagList).CaseSensitive := not Value;
 end;
 
-function TSingleTagCondition.GetIgnoreCase: Boolean;
+function TecSingleTagCondition.GetIgnoreCase: Boolean;
 begin
   Result := not TzStringList(FTagList).CaseSensitive;
 end;
 
-procedure TSingleTagCondition.SetTagList(const Value: TStrings);
+procedure TecSingleTagCondition.SetTagList(const Value: TStrings);
 begin
   TzStringList(FTagList).DelimitedText := Value.Text;
   Changed(False);
 end;
 
-procedure TSingleTagCondition.SetTokenTypes(const Value: DWORD);
+procedure TecSingleTagCondition.SetTokenTypes(const Value: DWORD);
 begin
   FTokenTypes := Value;
   Changed(False);
 end;
 
-procedure TSingleTagCondition.SetCondType(const Value: TTagConditionType);
+procedure TecSingleTagCondition.SetCondType(const Value: TecTagConditionType);
 begin
   FCondType := Value;
   Changed(False);
 end;
 
-procedure TSingleTagCondition.TagListChanged(Sender: TObject);
+procedure TecSingleTagCondition.TagListChanged(Sender: TObject);
 begin
   Changed(False);
 end;
 
-{ TConditionCollection }
+{ TecConditionCollection }
 
-function TConditionCollection.Add: TSingleTagCondition;
+function TecConditionCollection.Add: TecSingleTagCondition;
 begin
-  Result := (inherited Add) as TSingleTagCondition;
+  Result := (inherited Add) as TecSingleTagCondition;
 end;
 
-constructor TConditionCollection.Create(AOwner: TTagBlockCondition);
+constructor TecConditionCollection.Create(AOwner: TecTagBlockCondition);
 begin
-  inherited Create(TSingleTagCondition);
+  inherited Create(TecSingleTagCondition);
   FOwner := AOwner;
   PropName := 'Conditions';
 end;
 
-function TConditionCollection.GetItem(Index: integer): TSingleTagCondition;
+function TecConditionCollection.GetItem(Index: integer): TecSingleTagCondition;
 begin
-  Result := (inherited Items[Index]) as TSingleTagCondition;
+  Result := (inherited Items[Index]) as TecSingleTagCondition;
 end;
 
-function TConditionCollection.GetOwner: TPersistent;
+function TecConditionCollection.GetOwner: TPersistent;
 begin
   Result := FOwner;
 end;
 
-procedure TConditionCollection.Update(Item: TCollectionItem);
+procedure TecConditionCollection.Update(Item: TCollectionItem);
 begin
   inherited;
   if Assigned(FOnChange) then FOnChange(Self);
 end;
 
-{ TTagBlockCondition }
+{ TecTagBlockCondition }
 
-constructor TTagBlockCondition.Create(Collection: TCollection);
+constructor TecTagBlockCondition.Create(Collection: TCollection);
 begin
   inherited;
-  FConditions := TConditionCollection.Create(Self);
+  FConditions := TecConditionCollection.Create(Self);
   FConditions.OnChange := ConditionsChanged;
   FBlockType := btRangeStart;
   FLinePos := lbTop;
@@ -1875,13 +1867,13 @@ begin
   FPen.OnChange := ConditionsChanged;
 end;
 
-procedure TTagBlockCondition.AssignTo(Dest: TPersistent);
-var dst: TTagBlockCondition;
+procedure TecTagBlockCondition.AssignTo(Dest: TPersistent);
+var dst: TecTagBlockCondition;
 begin
   inherited;
-  if Dest is TTagBlockCondition then
+  if Dest is TecTagBlockCondition then
    begin
-     dst := Dest as TTagBlockCondition;
+     dst := Dest as TecTagBlockCondition;
      dst.ConditionList := ConditionList;
      dst.FIdentIndex := IdentIndex;
      dst.FLinePos := LinePos;
@@ -1921,8 +1913,8 @@ begin
    end;
 end;
 
-function TTagBlockCondition.Check(const Source: ecString;
-  Tags: TClientSyntAnalyzer; N: integer; var RefIdx: integer): Boolean;
+function TecTagBlockCondition.Check(const Source: ecString;
+  Tags: TecClientSyntAnalyzer; N: integer; var RefIdx: integer): Boolean;
 var i, offs, idx, skipped, skip_cond: integer;
 begin
   Result := False;
@@ -1959,20 +1951,20 @@ begin
 //    RefIdx := N - 1 - offs;
 end;
 
-destructor TTagBlockCondition.Destroy;
+destructor TecTagBlockCondition.Destroy;
 begin
   FreeAndNil(FConditions);
   FreeAndNil(FPen);
   inherited;
 end;
 
-function TTagBlockCondition.GetItemBaseName: string;
+function TecTagBlockCondition.GetItemBaseName: string;
 begin
   Result := 'Tag block rule';
 end;
 
-function TTagBlockCondition.GetBlockEndName: string;
-var FSynt: TSyntAnalyzer;
+function TecTagBlockCondition.GetBlockEndName: string;
+var FSynt: TecSyntAnalyzer;
 begin
   FSynt := TSyntCollection(Collection).SyntOwner;
   if not Assigned(FSynt) then Exit;
@@ -1986,33 +1978,33 @@ begin
     Result := '';
 end;
 
-procedure TTagBlockCondition.SetBlockEndName(const Value: string);
-var FSynt: TSyntAnalyzer;
+procedure TecTagBlockCondition.SetBlockEndName(const Value: string);
+var FSynt: TecSyntAnalyzer;
 begin
   FSynt := TSyntCollection(Collection).SyntOwner;
   if not Assigned(FSynt) then Exit;
   if csLoading in FSynt.ComponentState then
     FBlockEndName := Value
   else
-    FBlockEndCond := TTagBlockCondition(TBlockRuleCollection(Collection).ItemByName(Value));
+    FBlockEndCond := TecTagBlockCondition(TecBlockRuleCollection(Collection).ItemByName(Value));
   Changed(False);
 end;
 
-procedure TTagBlockCondition.Loaded;
-var FSynt: TSyntAnalyzer;
+procedure TecTagBlockCondition.Loaded;
+var FSynt: TecSyntAnalyzer;
 begin
   inherited;
   FSynt := TSyntCollection(Collection).SyntOwner;
   if not Assigned(FSynt) then Exit;
   if FBlockEndName <> '' then
-    FBlockEndCond := TTagBlockCondition(FSynt.FBlockRules.ItemByName(FBlockEndName));
+    FBlockEndCond := TecTagBlockCondition(FSynt.FBlockRules.ItemByName(FBlockEndName));
   if FTreeItemStyle <> '' then
-    FTreeItemStyleObj := TSyntaxFormat(FSynt.Formats.ItemByName(FTreeItemStyle));
+    FTreeItemStyleObj := TecSyntaxFormat(FSynt.Formats.ItemByName(FTreeItemStyle));
   if FTreeGroupStyle <> '' then
-    FTreeGroupStyleObj := TSyntaxFormat(FSynt.Formats.ItemByName(FTreeGroupStyle));
+    FTreeGroupStyleObj := TecSyntaxFormat(FSynt.Formats.ItemByName(FTreeGroupStyle));
 end;
 
-function TTagBlockCondition.CheckOffset: integer;
+function TecTagBlockCondition.CheckOffset: integer;
 begin
   Result := 0;
   if FRefToCondEnd then Exit;
@@ -2021,7 +2013,7 @@ begin
     Result := -FBlockOffset;
 end;
 
-procedure TTagBlockCondition.SetBlockType(const Value: TTagBlockType);
+procedure TecTagBlockCondition.SetBlockType(const Value: TecTagBlockType);
 begin
   FBlockType := Value;
   if FBlockType in [btTagDetect, btLineBreak] then
@@ -2032,19 +2024,19 @@ begin
   Changed(False);
 end;
 
-procedure TTagBlockCondition.SetConditions(
-  const Value: TConditionCollection);
+procedure TecTagBlockCondition.SetConditions(
+  const Value: TecConditionCollection);
 begin
   FConditions.Assign(Value);
 end;
 
-procedure TTagBlockCondition.ConditionsChanged(Sender: TObject);
+procedure TecTagBlockCondition.ConditionsChanged(Sender: TObject);
 begin
   Changed(False);
 end;
 
-procedure TTagBlockCondition.SetBlockEndCond(
-  const Value: TTagBlockCondition);
+procedure TecTagBlockCondition.SetBlockEndCond(
+  const Value: TecTagBlockCondition);
 begin
   if FBlockEndCond <> Value then
     begin
@@ -2053,7 +2045,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetLinePos(const Value: TLineBreakPos);
+procedure TecTagBlockCondition.SetLinePos(const Value: TecLineBreakPos);
 begin
   if FLinePos <> Value then
     begin
@@ -2062,7 +2054,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetIdentIndex(const Value: integer);
+procedure TecTagBlockCondition.SetIdentIndex(const Value: integer);
 begin
   if FIdentIndex <> Value then
     begin
@@ -2071,7 +2063,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetBlockOffset(const Value: integer);
+procedure TecTagBlockCondition.SetBlockOffset(const Value: integer);
 begin
   if FBlockOffset <> Value then
     begin
@@ -2080,7 +2072,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetEndOfTextClose(const Value: Boolean);
+procedure TecTagBlockCondition.SetEndOfTextClose(const Value: Boolean);
 begin
   if FEndOfTextClose <> Value then
     begin
@@ -2089,7 +2081,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetNotCollapsed(const Value: Boolean);
+procedure TecTagBlockCondition.SetNotCollapsed(const Value: Boolean);
 begin
   if FNotCollapsed <> Value then
     begin
@@ -2098,7 +2090,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetSameIdent(const Value: Boolean);
+procedure TecTagBlockCondition.SetSameIdent(const Value: Boolean);
 begin
   if FSameIdent <> Value then
     begin
@@ -2107,7 +2099,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetHighlight(const Value: Boolean);
+procedure TecTagBlockCondition.SetHighlight(const Value: Boolean);
 begin
   if FHighlight <> Value then
     begin
@@ -2116,7 +2108,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetInvertColors(const Value: Boolean);
+procedure TecTagBlockCondition.SetInvertColors(const Value: Boolean);
 begin
   if FInvertColors <> Value then
     begin
@@ -2125,7 +2117,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetDisplayInTree(const Value: Boolean);
+procedure TecTagBlockCondition.SetDisplayInTree(const Value: Boolean);
 begin
   if FDisplayInTree <> Value then
     begin
@@ -2134,7 +2126,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetCancelNextRules(const Value: Boolean);
+procedure TecTagBlockCondition.SetCancelNextRules(const Value: Boolean);
 begin
   if FCancelNextRules <> Value then
     begin
@@ -2143,8 +2135,8 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetDynHighlight(
-  const Value: TDynamicHighlight);
+procedure TecTagBlockCondition.SetDynHighlight(
+  const Value: TecDynamicHighlight);
 begin
   if FDynHighlight <> Value then
     begin
@@ -2153,7 +2145,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetDynSelectMin(const Value: Boolean);
+procedure TecTagBlockCondition.SetDynSelectMin(const Value: Boolean);
 begin
   if FDynSelectMin <> Value then
     begin
@@ -2162,7 +2154,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetGroupFmt(const Value: ecString);
+procedure TecTagBlockCondition.SetGroupFmt(const Value: ecString);
 begin
   if FGroupFmt <> Value then
     begin
@@ -2171,7 +2163,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetHighlightPos(const Value: THighlightPos);
+procedure TecTagBlockCondition.SetHighlightPos(const Value: TecHighlightPos);
 begin
   if FHighlightPos <> Value then
     begin
@@ -2180,7 +2172,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetNameFmt(const Value: ecString);
+procedure TecTagBlockCondition.SetNameFmt(const Value: ecString);
 begin
   if FNameFmt <> Value then
     begin
@@ -2189,7 +2181,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetRefToCondEnd(const Value: Boolean);
+procedure TecTagBlockCondition.SetRefToCondEnd(const Value: Boolean);
 begin
   if FRefToCondEnd <> Value then
     begin
@@ -2198,7 +2190,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetDrawStaple(const Value: Boolean);
+procedure TecTagBlockCondition.SetDrawStaple(const Value: Boolean);
 begin
   if FDrawStaple <> Value then
     begin
@@ -2207,7 +2199,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetCollapseFmt(const Value: ecString);
+procedure TecTagBlockCondition.SetCollapseFmt(const Value: ecString);
 begin
   if FCollapseFmt <> Value then
     begin
@@ -2216,7 +2208,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetSelfClose(const Value: Boolean);
+procedure TecTagBlockCondition.SetSelfClose(const Value: Boolean);
 begin
   if FSelfClose <> Value then
     begin
@@ -2225,7 +2217,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetNoEndRule(const Value: Boolean);
+procedure TecTagBlockCondition.SetNoEndRule(const Value: Boolean);
 begin
   if FNoEndRule <> Value then
     begin
@@ -2234,7 +2226,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetGrammaRuleName(const Value: string);
+procedure TecTagBlockCondition.SetGrammaRuleName(const Value: string);
 begin
   if FGrammaRuleName <> Value then
    begin
@@ -2244,7 +2236,7 @@ begin
    end;
 end;
 
-procedure TTagBlockCondition.SetTokenType(const Value: integer);
+procedure TecTagBlockCondition.SetTokenType(const Value: integer);
 begin
   if FTokenType <> Value then
     begin
@@ -2253,27 +2245,27 @@ begin
     end;
 end;
 
-function TTagBlockCondition.GetTreeItemStyle: string;
+function TecTagBlockCondition.GetTreeItemStyle: string;
 begin
   Result := ValidStyleName(FTreeItemStyle, FTreeItemStyleObj);
 end;
 
-procedure TTagBlockCondition.SetTreeItemStyle(const Value: string);
+procedure TecTagBlockCondition.SetTreeItemStyle(const Value: string);
 begin
   ValidSetStyle(Value, FTreeItemStyle, FTreeItemStyleObj);
 end;
 
-function TTagBlockCondition.GetTreeGroupStyle: string;
+function TecTagBlockCondition.GetTreeGroupStyle: string;
 begin
   Result := ValidStyleName(FTreeGroupStyle, FTreeGroupStyleObj);
 end;
 
-procedure TTagBlockCondition.SetTreeGroupStyle(const Value: string);
+procedure TecTagBlockCondition.SetTreeGroupStyle(const Value: string);
 begin
   ValidSetStyle(Value, FTreeGroupStyle, FTreeGroupStyleObj);
 end;
 
-procedure TTagBlockCondition.SetTreeGroupImage(const Value: integer);
+procedure TecTagBlockCondition.SetTreeGroupImage(const Value: integer);
 begin
   if FTreeGroupImage <> Value then
     begin
@@ -2282,7 +2274,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetTreeItemImage(const Value: integer);
+procedure TecTagBlockCondition.SetTreeItemImage(const Value: integer);
 begin
   if FTreeItemImage <> Value then
     begin
@@ -2291,12 +2283,12 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetPen(const Value: TPen);
+procedure TecTagBlockCondition.SetPen(const Value: TPen);
 begin
   FPen.Assign(Value);
 end;
 
-procedure TTagBlockCondition.SetUseCustomPen(const Value: Boolean);
+procedure TecTagBlockCondition.SetUseCustomPen(const Value: Boolean);
 begin
   if FUseCustomPen <> Value then
     begin
@@ -2305,7 +2297,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetIgnoreAsParent(const Value: Boolean);
+procedure TecTagBlockCondition.SetIgnoreAsParent(const Value: Boolean);
 begin
   if FIgnoreAsParent <> Value then
     begin
@@ -2314,7 +2306,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetAutoCloseText(Value: ecString);
+procedure TecTagBlockCondition.SetAutoCloseText(Value: ecString);
 begin
   if Value = sLineBreak then
     Value := '';
@@ -2325,7 +2317,7 @@ begin
     end;
 end;
 
-procedure TTagBlockCondition.SetAutoCloseMode(const Value: TAutoCloseMode);
+procedure TecTagBlockCondition.SetAutoCloseMode(const Value: TecAutoCloseMode);
 begin
   if FAutoCloseMode <> Value then
     begin
@@ -2334,42 +2326,41 @@ begin
     end;
 end;
 
-{ TBlockRuleCollection }
+{ TecBlockRuleCollection }
 
-function TBlockRuleCollection.Add: TTagBlockCondition;
+function TecBlockRuleCollection.Add: TecTagBlockCondition;
 begin
-  Result := inherited Add as TTagBlockCondition;
+  Result := inherited Add as TecTagBlockCondition;
 end;
 
-constructor TBlockRuleCollection.Create;
+constructor TecBlockRuleCollection.Create;
 begin
-  inherited Create(TTagBlockCondition);
+  inherited Create(TecTagBlockCondition);
 end;
 
-function TBlockRuleCollection.GetItem(Index: integer): TTagBlockCondition;
+function TecBlockRuleCollection.GetItem(Index: integer): TecTagBlockCondition;
 begin
-  Result := inherited Items[Index] as TTagBlockCondition;
+  Result := inherited Items[Index] as TecTagBlockCondition;
 end;
 
-{ TTokenRule }
+{ TecTokenRule }
 
-procedure TTokenRule.AssignTo(Dest: TPersistent);
-var dst: TTokenRule;
+procedure TecTokenRule.AssignTo(Dest: TPersistent);
+var dst: TecTokenRule;
 begin
   inherited;
-  if Dest is TTokenRule then
+  if Dest is TecTokenRule then
    begin
-    dst := Dest as TTokenRule;
+    dst := Dest as TecTokenRule;
     dst.FTokenType := FTokenType;
     dst.FRegExpr.Expression := Expression;
     dst.OnMatchToken := OnMatchToken;
-    dst.OnMouseClick := OnMouseClick;
     dst.ColumnFrom := ColumnFrom;
     dst.ColumnTo := ColumnTo;
    end;
 end;
 
-constructor TTokenRule.Create(Collection: TCollection);
+constructor TecTokenRule.Create(Collection: TCollection);
 begin
   inherited;
   FBlock := nil;
@@ -2378,28 +2369,28 @@ begin
   SetDefaultModifiers(FRegExpr);
 end;
 
-destructor TTokenRule.Destroy;
+destructor TecTokenRule.Destroy;
 begin
   FreeAndNil(FRegExpr);
   inherited;
 end;
 
-function TTokenRule.GetExpression: ecString;
+function TecTokenRule.GetExpression: ecString;
 begin
   Result := FRegExpr.Expression;
 end;
 
-function TTokenRule.GetIsInvalid: Boolean;
+function TecTokenRule.GetIsInvalid: Boolean;
 begin
   Result := FRegExpr.IsInvalid;
 end;
 
-function TTokenRule.GetItemBaseName: string;
+function TecTokenRule.GetItemBaseName: string;
 begin
   Result := 'Token rule';
 end;
 
-function TTokenRule.Match(const Source: ecString; Pos: integer): integer;
+function TecTokenRule.Match(const Source: ecString; Pos: integer): integer;
 begin
  try
   Result := FRegExpr.MatchLength(Source, Pos);
@@ -2408,7 +2399,7 @@ begin
  end;
 end;
 
-procedure TTokenRule.SetColumnFrom(const Value: integer);
+procedure TecTokenRule.SetColumnFrom(const Value: integer);
 begin
   if FColumnFrom <> Value then
     begin
@@ -2417,7 +2408,7 @@ begin
     end;
 end;
 
-procedure TTokenRule.SetColumnTo(const Value: integer);
+procedure TecTokenRule.SetColumnTo(const Value: integer);
 begin
   if FColumnTo <> Value then
     begin
@@ -2426,7 +2417,7 @@ begin
     end;
 end;
 
-procedure TTokenRule.SetExpression(const Value: ecString);
+procedure TecTokenRule.SetExpression(const Value: ecString);
 begin
   try
     FRegExpr.Expression := Value;
@@ -2436,7 +2427,7 @@ begin
   Changed(False);
 end;
 
-procedure TTokenRule.SetTokenType(const Value: integer);
+procedure TecTokenRule.SetTokenType(const Value: integer);
 begin
   if FTokenType <> Value then
     begin
@@ -2448,8 +2439,8 @@ end;
 { TRuleCollectionItem }
 
 function TRuleCollectionItem.ValidStyleName(const AStyleName: string;
-  AStyle: TSyntaxFormat): string;
-var FSynt: TSyntAnalyzer;
+  AStyle: TecSyntaxFormat): string;
+var FSynt: TecSyntAnalyzer;
 begin
   FSynt := TSyntCollection(Collection).SyntOwner;
   Result := '';
@@ -2463,8 +2454,8 @@ begin
 end;
 
 function TRuleCollectionItem.ValidSetStyle(const AStyleName: string;
-  var AStyleField: string; var AStyle: TSyntaxFormat): string;
-var FSynt: TSyntAnalyzer;
+  var AStyleField: string; var AStyle: TecSyntaxFormat): string;
+var FSynt: TecSyntAnalyzer;
 begin
   Result := '';
   FSynt := TSyntCollection(Collection).SyntOwner;
@@ -2472,7 +2463,7 @@ begin
   if csLoading in FSynt.ComponentState then
     AStyleField := AStyleName
   else
-    AStyle := TSyntaxFormat(FSynt.FFormats.ItemByName(AStyleName));
+    AStyle := TecSyntaxFormat(FSynt.FFormats.ItemByName(AStyleName));
   Changed(False);
 end;
 
@@ -2487,18 +2478,18 @@ begin
 end;
 
 procedure TRuleCollectionItem.Loaded;
-var FSynt: TSyntAnalyzer;
+var FSynt: TecSyntAnalyzer;
 begin
   FSynt := TSyntCollection(Collection).SyntOwner;
   if not Assigned(FSynt) then Exit;
   if FStyleName <> '' then
-    FFormat := TSyntaxFormat(FSynt.FFormats.ItemByName(FStyleName));
+    FFormat := TecSyntaxFormat(FSynt.FFormats.ItemByName(FStyleName));
   if FBlockName <> '' then
-    FBlock := TTagBlockCondition(FSynt.BlockRules.ItemByName(FBlockName));
+    FBlock := TecTagBlockCondition(FSynt.BlockRules.ItemByName(FBlockName));
 end;
 
 function TRuleCollectionItem.GetBlockName: string;
-var FSynt: TSyntAnalyzer;
+var FSynt: TecSyntAnalyzer;
 begin
   FSynt := TSyntCollection(Collection).SyntOwner;
   if not Assigned(FSynt) then Exit;
@@ -2513,7 +2504,7 @@ begin
 end;
 
 procedure TRuleCollectionItem.SetBlockName(const Value: string);
-var FSynt: TSyntAnalyzer;
+var FSynt: TecSyntAnalyzer;
 begin
   FSynt := TSyntCollection(Collection).SyntOwner;
   if not Assigned(FSynt) then Exit;
@@ -2521,8 +2512,8 @@ begin
     FBlockName := Value
   else
    begin
-//    FBlock := TTagBlockCondition(FSynt.BlockRules.ItemByName(Value));
-    FBlock := TTagBlockCondition(FSynt.BlockRules.ItemByName(Value));
+//    FBlock := TecTagBlockCondition(FSynt.BlockRules.ItemByName(Value));
+    FBlock := TecTagBlockCondition(FSynt.BlockRules.ItemByName(Value));
     Changed(False);
    end;
 end;
@@ -2573,7 +2564,7 @@ begin
     end;
 end;
 
-function TRuleCollectionItem.GetSyntOwner: TSyntAnalyzer;
+function TRuleCollectionItem.GetSyntOwner: TecSyntAnalyzer;
 begin
   Result := TSyntCollection(Collection).SyntOwner;
 end;
@@ -2614,26 +2605,26 @@ begin
     end;
 end;
 
-{ TTokenRuleCollection }
+{ TecTokenRuleCollection }
 
-function TTokenRuleCollection.Add: TTokenRule;
+function TecTokenRuleCollection.Add: TecTokenRule;
 begin
-  Result := inherited Add as TTokenRule;
+  Result := inherited Add as TecTokenRule;
 end;
 
-constructor TTokenRuleCollection.Create;
+constructor TecTokenRuleCollection.Create;
 begin
-  inherited Create(TTokenRule);
+  inherited Create(TecTokenRule);
 end;
 
-function TTokenRuleCollection.GetItem(Index: integer): TTokenRule;
+function TecTokenRuleCollection.GetItem(Index: integer): TecTokenRule;
 begin
-  Result := inherited Items[Index] as TTokenRule;
+  Result := inherited Items[Index] as TecTokenRule;
 end;
 
-{ TParserResults }
+{ TecParserResults }
 
-constructor TParserResults.Create(AOwner: TSyntAnalyzer;
+constructor TecParserResults.Create(AOwner: TecSyntAnalyzer;
   SrcProc: TATStringBuffer; const AClient: IecSyntClient);
 begin
   inherited Create;
@@ -2649,7 +2640,7 @@ begin
   FStateChanges := TObjectList.Create;
 end;
 
-destructor TParserResults.Destroy;
+destructor TecParserResults.Destroy;
 begin
   FOwner.FClientList.Remove(Self);
   FreeAndNil(FTagList);
@@ -2658,7 +2649,7 @@ begin
   inherited;
 end;
 
-procedure TParserResults.Clear;
+procedure TecParserResults.Clear;
 begin
   FTagList.Clear;
   FSubLexerBlocks.Clear;
@@ -2666,7 +2657,7 @@ begin
   FCurState := 0;
 end;
 
-procedure TParserResults.Finished;
+procedure TecParserResults.Finished;
 //var i: integer;
 begin
 //  if FFinished then Exit;
@@ -2675,7 +2666,7 @@ begin
 //  AnalyzeGramma;
 end;
 
-function TParserResults.IsEnabled(Rule: TRuleCollectionItem;
+function TecParserResults.IsEnabled(Rule: TRuleCollectionItem;
   OnlyGlobal: Boolean): Boolean;
 begin
   Result := Rule.Enabled and (not OnlyGlobal or Rule.AlwaysEnabled) and
@@ -2683,30 +2674,30 @@ begin
             ((Rule.StatesAbsent = 0) or ((FCurState and Rule.StatesAbsent) = 0));
 end;
 
-function TParserResults.GetTokenCount: integer;
+function TecParserResults.GetTokenCount: integer;
 begin
   Result := FTagList.Count;
 end;
 
-function TParserResults.GetTags(Index: integer): TSyntToken;
+function TecParserResults.GetTags(Index: integer): TecSyntToken;
 begin
-  Result := TSyntToken(FTagList[Index]);
+  Result := TecSyntToken(FTagList[Index]);
 end;
 
-function TParserResults.GetTokenStr(Index: integer): ecString;
+function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
   with Tags[Index] do
     Result := FSrcProc.SubString(StartPos + 1, EndPos - StartPos);
 end;
 
-function TParserResults.GetLastPos(const Source: ecString): integer;
+function TecParserResults.GetLastPos(const Source: ecString): integer;
 begin
   if FTagList.Count = 0 then Result := 1 else
-    Result := TSyntToken(FTagList[FTagList.Count - 1]).EndPos + 1;
+    Result := TecSyntToken(FTagList[FTagList.Count - 1]).EndPos + 1;
   if FLastAnalPos > Result then Result := FLastAnalPos;
 end;
 
-procedure TParserResults.SaveState;
+procedure TecParserResults.SaveState;
 var b: Boolean;
 begin
  if FStateChanges.Count = 0 then
@@ -2718,10 +2709,10 @@ begin
 end;
 
 // True if end of the text
-function TParserResults.ExtractTag(const Source: ecString; var FPos: integer; IsIdle: Boolean): Boolean;
+function TecParserResults.ExtractTag(const Source: ecString; var FPos: integer; IsIdle: Boolean): Boolean;
 var N: integer;
-    p: TSyntToken;
-    own: TSyntAnalyzer;
+    p: TecSyntToken;
+    own: TecSyntAnalyzer;
 
    // Select current lexer
    procedure GetOwner;
@@ -2729,7 +2720,7 @@ var N: integer;
    begin
     own := FOwner;
     for i := FSubLexerBlocks.Count - 1 downto 0 do
-     with TSubLexerRange(FSubLexerBlocks[i]) do
+     with TecSubLexerRange(FSubLexerBlocks[i]) do
        if FPos > StartPos then
         if EndPos = -1 then
           begin
@@ -2767,7 +2758,7 @@ var N: integer;
    var i: integer;
    begin
     for i := FSubLexerBlocks.Count - 1 downto 0 do
-     with TSubLexerRange(FSubLexerBlocks[i]) do
+     with TecSubLexerRange(FSubLexerBlocks[i]) do
       if (p.EndPos > StartPos) and (p.StartPos < StartPos) then
        begin
         p.FEndPos := StartPos;
@@ -2775,9 +2766,9 @@ var N: integer;
        end;
    end;
 
-   function CanOpen(Rule: TSubAnalyzerRule): Boolean;
+   function CanOpen(Rule: TecSubAnalyzerRule): Boolean;
    var N: integer;
-       sub: TSubLexerRange;
+       sub: TecSubLexerRange;
    begin
      Result := IsEnabled(Rule, False) and (Rule.SyntAnalyzer <> nil);
      if not Result then Exit;
@@ -2788,11 +2779,11 @@ var N: integer;
      if not Result then Exit;
      // To prevent repeated opening
      if FSubLexerBlocks.Count > 0 then
-       if (TSubLexerRange(FSubLexerBlocks.Last).EndPos = FPos - 1) and
-          (TSubLexerRange(FSubLexerBlocks.Last).Rule = Rule) then Exit;
+       if (TecSubLexerRange(FSubLexerBlocks.Last).EndPos = FPos - 1) and
+          (TecSubLexerRange(FSubLexerBlocks.Last).Rule = Rule) then Exit;
 
      ApplyStates(Rule);
-     sub := TSubLexerRange.Create(0,0);
+     sub := TecSubLexerRange.Create(0,0);
      sub.FRule := Rule;
      sub.FCondStartPos := FPos - 1;
      if Rule.IncludeBounds then
@@ -2858,29 +2849,29 @@ begin
    FLastAnalPos := FPos;
 end;
 
-function TParserResults.AnalyzerAtPos(Pos: integer): TSyntAnalyzer;
+function TecParserResults.AnalyzerAtPos(Pos: integer): TecSyntAnalyzer;
 var i: integer;
 begin
  Result := FOwner;
  if Pos >= 0 then
  for i := 0 to FSubLexerBlocks.Count - 1 do
-  with TSubLexerRange(FSubLexerBlocks[i]) do
+  with TecSubLexerRange(FSubLexerBlocks[i]) do
    if Pos < StartPos then Break else
     if (EndPos = -1) or (Pos < EndPos) then
       Result := Rule.SyntAnalyzer;
 end;
 
-function TParserResults.GetSubLexerRangeCount: integer;
+function TecParserResults.GetSubLexerRangeCount: integer;
 begin
   Result := FSubLexerBlocks.Count;
 end;
 
-function TParserResults.GetSubLexerRange(Index: integer): TSubLexerRange;
+function TecParserResults.GetSubLexerRange(Index: integer): TecSubLexerRange;
 begin
-  Result := TSubLexerRange(FSubLexerBlocks[Index]);
+  Result := TecSubLexerRange(FSubLexerBlocks[Index]);
 end;
 
-function TParserResults.GetTokenType(Index: integer): integer;
+function TecParserResults.GetTokenType(Index: integer): integer;
 begin
   Result := Tags[Index].TokenType;
 end;
@@ -2912,7 +2903,7 @@ begin
   FSource := ASource;
 end;
 
-procedure TParserResults.ApplyStates(Rule: TRuleCollectionItem);
+procedure TecParserResults.ApplyStates(Rule: TRuleCollectionItem);
 begin
   if Rule.StatesRemove <> 0 then
     FCurState := FCurState and not Rule.StatesRemove;
@@ -2920,7 +2911,7 @@ begin
     FCurState := FCurState or Rule.StatesAdd;
 end;
 
-procedure TParserResults.RestoreState;
+procedure TecParserResults.RestoreState;
 var i: integer;
 begin
   for i := FStateChanges.Count - 1 downto 0 do
@@ -2934,7 +2925,7 @@ begin
     FCurState := 0;
 end;
 
-function TParserResults.ParserStateAtPos(TokenIndex: integer): integer;
+function TecParserResults.ParserStateAtPos(TokenIndex: integer): integer;
 var i: integer;
 begin
    for i := FStateChanges.Count - 1 downto 0 do
@@ -2946,31 +2937,31 @@ begin
    Result := 0;
 end;
 
-{ TChangeFixer }
+{ TecChangeFixer }
 
-constructor TChangeFixer.Create;
+constructor TecChangeFixer.Create;
 begin
   inherited Create;
   FList := TObjectList.Create;
 end;
 
-destructor TChangeFixer.Destroy;
+destructor TecChangeFixer.Destroy;
 begin
   FreeAndNil(FList);
   inherited;
 end;
 
-procedure TChangeFixer.Clear;
+procedure TecChangeFixer.Clear;
 begin
   FList.Clear;
 end;
 
-procedure TChangeFixer.Add(Pos, Count: integer);
+procedure TecChangeFixer.Add(Pos, Count: integer);
 begin
   FList.Add(TTextChangeInfo.Create(Pos, Count));
 end;
 
-function TChangeFixer.CurToOld(CurPos: integer): integer;
+function TecChangeFixer.CurToOld(CurPos: integer): integer;
 var i: integer;
 begin
   for i := FList.Count - 1 downto 0 do
@@ -2981,7 +2972,7 @@ begin
   Result := CurPos;
 end;
 
-function TChangeFixer.OldToCur(OldPos: integer): integer;
+function TecChangeFixer.OldToCur(OldPos: integer): integer;
 var i: integer;
 begin
   for i := 0 to FList.Count - 1 do
@@ -2992,7 +2983,7 @@ begin
   Result := OldPos;
 end;
 
-function TChangeFixer.UpOldNoChange: integer;
+function TecChangeFixer.UpOldNoChange: integer;
 var i, t: integer;
 begin
   Result := 0;
@@ -3009,9 +3000,9 @@ begin
 end;
 
 
-{ TClientSyntAnalyzer }
+{ TecClientSyntAnalyzer }
 
-constructor TClientSyntAnalyzer.Create(AOwner: TSyntAnalyzer; SrcProc: TATStringBuffer;
+constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
   const AClient: IecSyntClient);
 begin
 //  FFinishEvent := TEvent.Create(nil, True, False, '');
@@ -3024,7 +3015,7 @@ begin
   FCurDynamic := TList.Create;
 
   FCollapsables := TRangeCollection.Create;
-  FChanges := TChangeFixer.Create;
+  FChanges := TecChangeFixer.Create;
   FSavedTags := TRangeList.Create;
   FLineBreakRanges := TRangeCollection.Create;
 
@@ -3036,7 +3027,7 @@ begin
   IdleAppend;
 end;
 
-destructor TClientSyntAnalyzer.Destroy;
+destructor TecClientSyntAnalyzer.Destroy;
 begin
   SafeDestroying(Self);
 
@@ -3056,7 +3047,7 @@ begin
   inherited;
 end;
 
-procedure TClientSyntAnalyzer.Clear;
+procedure TecClientSyntAnalyzer.Clear;
 begin
   Lock;
   try
@@ -3082,12 +3073,12 @@ begin
   IdleAppend;
 end;
 
-procedure TClientSyntAnalyzer.AddRange(Range: TTextRange);
+procedure TecClientSyntAnalyzer.AddRange(Range: TecTextRange);
 begin
   Range.FIndex := FRanges.Count;
   FRanges.Add(Range);
   if FOpenedBlocks.Count > 0 then
-    Range.FParent := TTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
+    Range.FParent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
   if Range.FEnd = -1 then
     FOpenedBlocks.Add(Range);
 end;
@@ -3105,12 +3096,12 @@ begin
    end;
 end;
 
-function TClientSyntAnalyzer.CloseRange(Cond: TTagBlockCondition; RefTag: integer): Boolean;
+function TecClientSyntAnalyzer.CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
 var j: integer;
     b: boolean;
 begin
   for j := FOpenedBlocks.Count - 1 downto 0 do
-   with TTextRange(FOpenedBlocks[j]) do
+   with TecTextRange(FOpenedBlocks[j]) do
      if Assigned(FRule) then
        begin
          if Cond.BlockType = btRangeStart then
@@ -3124,7 +3115,7 @@ begin
              if (FRule = Cond) and (FEnd > 0) then Dec(FEnd); // for self closing
              FEndCondIndex := RefTag;
              if Assigned(Owner.OnCloseTextRange) then
-               Owner.OnCloseTextRange(Self, TTextRange(FOpenedBlocks[j]), FStart, FEnd);
+               Owner.OnCloseTextRange(Self, TecTextRange(FOpenedBlocks[j]), FStart, FEnd);
              FOpenedBlocks.Delete(j);
              Result := True;
              Exit;
@@ -3133,17 +3124,17 @@ begin
   Result := False;
 end;
 
-function TClientSyntAnalyzer.HasOpened(Rule: TRuleCollectionItem; Parent: TTagBlockCondition; Strict: Boolean): Boolean;
+function TecClientSyntAnalyzer.HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
 var i: integer;
-    prn: TTagBlockCondition;
+    prn: TecTagBlockCondition;
 begin
   if Strict then
     begin
       if FOpenedBlocks.Count > 0 then
         begin
           i := FOpenedBlocks.Count - 1;
-          prn := TTextRange(FOpenedBlocks[i]).Rule;
-          if (Rule is TTagBlockCondition) and TTagBlockCondition(Rule).SelfClose and (prn = Rule) then
+          prn := TecTextRange(FOpenedBlocks[i]).Rule;
+          if (Rule is TecTagBlockCondition) and TecTagBlockCondition(Rule).SelfClose and (prn = Rule) then
             Dec(i);
           repeat
             if i < 0 then
@@ -3151,7 +3142,7 @@ begin
                 Result := False;
                 Exit;
               end;
-            prn := TTextRange(FOpenedBlocks[i]).Rule;
+            prn := TecTextRange(FOpenedBlocks[i]).Rule;
             Dec(i);
           until not prn.IgnoreAsParent;
           Result := prn = Parent;
@@ -3162,13 +3153,13 @@ begin
       Result := True;
       if Parent = nil then Exit;
       for i := FOpenedBlocks.Count - 1 downto 0 do
-        if TTextRange(FOpenedBlocks[i]).Rule = Parent then
+        if TecTextRange(FOpenedBlocks[i]).Rule = Parent then
           Exit;
       Result := False;
     end;
 end;
 
-procedure TClientSyntAnalyzer.Finished;
+procedure TecClientSyntAnalyzer.Finished;
 var i: integer;
 begin
   if FFinished then Exit;
@@ -3176,7 +3167,7 @@ begin
 
   // Close SubLexers at the End of Text
   for i := FSubLexerBlocks.Count - 1 downto 0 do
-   with TSubLexerRange(FSubLexerBlocks[i]) do
+   with TecSubLexerRange(FSubLexerBlocks[i]) do
     if (EndPos = -1) and Rule.ToTextEnd then
      begin
        FEndPos := FSrcProc.TextLength{ - 1};
@@ -3189,9 +3180,9 @@ begin
   FRepeateAnalysis := True;
 end;
 
-procedure TClientSyntAnalyzer.IntIdleAppend(Sender: TObject);
+procedure TecClientSyntAnalyzer.IntIdleAppend(Sender: TObject);
 var FPos, tmp, i: integer;
-    own: TSyntAnalyzer;
+    own: TecSyntAnalyzer;
 begin
   if FIdleProc or FDisableIdleAppend then Exit;
   FIdleTimer.Enabled := False;
@@ -3234,7 +3225,7 @@ begin
   FIdleProc := False;
 end;
 
-procedure TClientSyntAnalyzer.IdleAppend;
+procedure TecClientSyntAnalyzer.IdleAppend;
 begin
   if not FFinished then
    begin
@@ -3247,7 +3238,7 @@ begin
    end;
 end;
 
-procedure TClientSyntAnalyzer.AppendToPos(APos: integer);
+procedure TecClientSyntAnalyzer.AppendToPos(APos: integer);
 var FPos: integer;
 begin
   if Length(FSrcProc.FText) = 0 then Exit;
@@ -3266,12 +3257,12 @@ begin
    end;
 end;
 
-procedure TClientSyntAnalyzer.TryAppend(APos: integer);
+procedure TecClientSyntAnalyzer.TryAppend(APos: integer);
 var sPos, sPos1: integer;
 begin
   if FSavedTags.Count = 0 then AppendToPos(APos) else
    begin
-    sPos1 := FChanges.OldToCur(TSyntToken(FSavedTags[0]).StartPos);
+    sPos1 := FChanges.OldToCur(TecSyntToken(FSavedTags[0]).StartPos);
     sPos := FChanges.UpOldNoChange;// + 1;
     if sPos1 > sPos then
        sPos := sPos1;
@@ -3280,14 +3271,14 @@ begin
    end;
 end;
 
-procedure TClientSyntAnalyzer.ChangedAtPos(APos: integer);
+procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 var i, N: integer;
 
  procedure CleanRangeList(List: TSortedList; IsClosed: Boolean);
  var i: integer;
  begin
    for i := List.Count - 1 downto 0 do
-    with TTextRange(List[i]) do
+    with TecTextRange(List[i]) do
      if (FCondIndex >= N) or (FStart >= N) or IsClosed and
         ((FEndCondIndex >= N) or (FEnd >= N)) then
       List.Delete(i);
@@ -3318,7 +3309,7 @@ begin
 
    // Check sub lexer ranges
    for i := FSubLexerBlocks.Count - 1 downto 0 do
-    with TSubLexerRange(FSubLexerBlocks[i]) do
+    with TecSubLexerRange(FSubLexerBlocks[i]) do
      if APos < StartPos then
       begin
         if APos > CondStartPos then APos := CondStartPos;
@@ -3342,7 +3333,7 @@ begin
    CleanRangeList(FOpenedBlocks, False);
    // Remove text ranges from main storage
    for i := FRanges.Count - 1 downto 0 do
-    with TTextRange(FRanges[i]) do
+    with TecTextRange(FRanges[i]) do
      if (FCondIndex >= N) or (FStart >= N) then FRanges.Delete(i)  else
       if (FEndCondIndex >= N) or (FEnd >= N) then
        begin
@@ -3353,7 +3344,7 @@ begin
 
    // Remove separators
    for i := FLineBreaks.Count - 1 downto 0 do
-    if TLineBreak(FLineBreaks[i]).RefIdx >= N then
+    if TecLineBreak(FLineBreaks[i]).RefIdx >= N then
       FLineBreaks.Delete(i);
 
    // Restore parser state
@@ -3364,30 +3355,30 @@ begin
  IdleAppend;
 end;
 
-function TClientSyntAnalyzer.TokenAtPos(Pos: integer): integer;
+function TecClientSyntAnalyzer.TokenAtPos(Pos: integer): integer;
 begin
   AppendToPos(Pos);
   Result := FTagList.RangeAt(Pos);
 end;
 
-function TClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
+function TecClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
 begin
   Result := FTagList.PriorAt(Pos);
 end;
 
-procedure TClientSyntAnalyzer.AddLineBreak(lb: TLineBreak);
+procedure TecClientSyntAnalyzer.AddLineBreak(lb: TecLineBreak);
 begin
   FLineBreaks.Add(lb);
 end;
 
-function TClientSyntAnalyzer.GetRangeBound(Range: TTextRange): TPoint;
+function TecClientSyntAnalyzer.GetRangeBound(Range: TecTextRange): TPoint;
 begin
-  Result.X := TSyntToken(FTagList[Range.FStart]).StartPos;
+  Result.X := TecSyntToken(FTagList[Range.FStart]).StartPos;
   if Range.FEnd = - 1 then Result.Y := Result.X
-   else Result.Y := TSyntToken(FTagList[Range.FEnd]).EndPos;
+   else Result.Y := TecSyntToken(FTagList[Range.FEnd]).EndPos;
 end;
 
-function TClientSyntAnalyzer.GetColRangeBound(Range: TTextRange): TPoint;
+function TecClientSyntAnalyzer.GetColRangeBound(Range: TecTextRange): TPoint;
 var sIdx, eIdx: integer;
 begin
   sIdx := Range.StartIdx;
@@ -3400,17 +3391,17 @@ begin
    else Result.Y := Tags[eIdx].EndPos;
 end;
 
-function TClientSyntAnalyzer.RangeAtPos(APos: integer): TTextRange;
+function TecClientSyntAnalyzer.RangeAtPos(APos: integer): TecTextRange;
 begin
-  Result := TTextRange(FRanges.GetAt(APos));
+  Result := TecTextRange(FRanges.GetAt(APos));
 end;
 
-function TClientSyntAnalyzer.RangeIdxAtPos(APos: integer): integer;
+function TecClientSyntAnalyzer.RangeIdxAtPos(APos: integer): integer;
 begin
   Result := FRanges.GetIndexAt(APos);
 end;
 
-function TClientSyntAnalyzer.NearestRangeAtPos(APos: integer): TTextRange;
+function TecClientSyntAnalyzer.NearestRangeAtPos(APos: integer): TecTextRange;
 var idx: integer;
 begin
   idx := NearestRangeIdxAtPos(APos);
@@ -3419,38 +3410,38 @@ begin
 {  idx := FRanges.PriorAt(APos);
   if idx <> -1 then
   for i := idx downto 0 do
-   with TTextRange(FRanges[i]) do
+   with TecTextRange(FRanges[i]) do
     if (EndIdx <> -1) and (Tags[EndIdx].EndPos >= APos) then
      begin
-       Result := TTextRange(FRanges[i]);
+       Result := TecTextRange(FRanges[i]);
        Exit;
      end;
   Result := nil;}
 end;
 
-function TClientSyntAnalyzer.NearestRangeIdxAtPos(APos: integer): integer;
+function TecClientSyntAnalyzer.NearestRangeIdxAtPos(APos: integer): integer;
 begin
   Result := FRanges.PriorAt(APos);
   if Result <> -1 then
     while Result >= 0 do
-     with TTextRange(FRanges[Result]) do
+     with TecTextRange(FRanges[Result]) do
       if (EndIdx <> -1) and (Tags[EndIdx].EndPos >= APos) then
         Exit
       else
         Dec(Result);
 end;
 
-function TClientSyntAnalyzer.GetRangeCount: integer;
+function TecClientSyntAnalyzer.GetRangeCount: integer;
 begin
   Result := FRanges.Count;
 end;
 
-function TClientSyntAnalyzer.GetRanges(Index: integer): TTextRange;
+function TecClientSyntAnalyzer.GetRanges(Index: integer): TecTextRange;
 begin
-  Result := TTextRange(FRanges[Index]);
+  Result := TecTextRange(FRanges[Index]);
 end;
 
-procedure TClientSyntAnalyzer.Analyze(ResetContent: Boolean);
+procedure TecClientSyntAnalyzer.Analyze(ResetContent: Boolean);
 var OldSep: integer;
 begin
   if IsFinished then Exit;
@@ -3467,8 +3458,8 @@ begin
     end;
 end;
 
-procedure TClientSyntAnalyzer.CompleteAnalysis;
-var own: TSyntAnalyzer;
+procedure TecClientSyntAnalyzer.CompleteAnalysis;
+var own: TecSyntAnalyzer;
     i: integer;
 begin
   AppendToPos(Length(FSrcProc.FText));
@@ -3484,10 +3475,10 @@ begin
      end;
 end;
 
-function TClientSyntAnalyzer.RangeFormat(const FmtStr: ecString;
-  Range: TTextRange): ecString;
+function TecClientSyntAnalyzer.RangeFormat(const FmtStr: ecString;
+  Range: TecTextRange): ecString;
 var i, j, idx, N, to_idx: integer;
-    rng: TTextRange;
+    rng: TecTextRange;
     LineMode: integer;
 
 { HAW: hans@werschner.de [Oct'07] ......... additions to formatting token parts ......
@@ -3659,7 +3650,7 @@ var i, j, idx, N, to_idx: integer;
 var rngstyle: string;                      // HAW: add style identifier to range expression
     rngtoken, rngResult: string;           //      a few more vars
     swp_idx, rngdir, rngoffset, rngmax: integer;
-    to_rng: TTextRange;
+    to_rng: TecTextRange;
 
 function RangeNumber( const FmtStrNumber: string; var gotnbr: integer ): boolean;
 begin
@@ -3906,7 +3897,7 @@ begin
   end;
 end;
 
-function TClientSyntAnalyzer.GetRangeName(Range: TTextRange): ecString;
+function TecClientSyntAnalyzer.GetRangeName(Range: TecTextRange): ecString;
 begin
   Result := '';
   if Assigned(Range.Rule) and (Range.Rule.NameFmt <> '') then
@@ -3915,31 +3906,31 @@ begin
    Result := TagStr[Range.IdentIdx];
 end;
 
-function TClientSyntAnalyzer.GetRangeGroup(Range: TTextRange): ecString;
+function TecClientSyntAnalyzer.GetRangeGroup(Range: TecTextRange): ecString;
 begin
   Result := RangeFormat(Range.Rule.GroupFmt, Range);
 end;
 
-function TClientSyntAnalyzer.GetCollapsedText(Range: TTextRange): ecString;
+function TecClientSyntAnalyzer.GetCollapsedText(Range: TecTextRange): ecString;
 begin
   Result := RangeFormat(Range.Rule.CollapseFmt, Range);
 end;
 
-function TClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;
+function TecClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;
 begin
   Result := inherited IsEnabled(Rule, OnlyGlobal) and
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
 end;
 
-function TClientSyntAnalyzer.GetTokenStyle(Pos: integer;
-  StlList: TStyleEntries): integer;
+function TecClientSyntAnalyzer.GetTokenStyle(Pos: integer;
+  StlList: TecStyleEntries): integer;
 var i, ps, sp, ep: integer;
-    stl: TSyntaxFormat;
+    stl: TecSyntaxFormat;
 begin
 //  TryAppend(Pos);
   if (FNextTokIndex < FTagList.Count) and (FNextTokIndex >= 0) then
    begin
-     with TSyntToken(FTagList[FNextTokIndex]) do
+     with TecSyntToken(FTagList[FNextTokIndex]) do
        if StartPos = Pos then
              i := FNextTokIndex else
         if EndPos = Pos then
@@ -3955,7 +3946,7 @@ begin
 
   FNextTokIndex := i;
   if i = -1 then Result := -1 else
-   with TSyntToken(FTagList[i]) do
+   with TecSyntToken(FTagList[i]) do
     if StartPos > Pos then Result := StartPos else
      begin
       Result := EndPos;
@@ -3979,14 +3970,14 @@ begin
     ps := FChanges.CurToOld(Pos);
     i := FSavedTags.NextAt(ps);
     if i = -1 then Exit;
-    ep := FChanges.OldToCur(TSyntToken(FSavedTags[i]).EndPos);
+    ep := FChanges.OldToCur(TecSyntToken(FSavedTags[i]).EndPos);
     while ep <= Pos do
      begin
       Inc(i);
       if i = FSavedTags.Count then Exit;
-      ep := FChanges.OldToCur(TSyntToken(FSavedTags[i]).EndPos);
+      ep := FChanges.OldToCur(TecSyntToken(FSavedTags[i]).EndPos);
      end;
-    with TSyntToken(FSavedTags[i]) do
+    with TecSyntToken(FSavedTags[i]) do
      begin
        sp := FChanges.OldToCur(StartPos);
        if StartPos > ps then Result := sp else
@@ -3999,7 +3990,7 @@ begin
    end;
 end;
 
-function TClientSyntAnalyzer.GetRangeAtLine(Line: integer): TTextRange;
+function TecClientSyntAnalyzer.GetRangeAtLine(Line: integer): TecTextRange;
 var i, sp, ep: integer;
     List: TList;
 begin
@@ -4012,9 +4003,9 @@ begin
     for i := 0 to List.Count - 1 do
      with TCollapsibleRange(List[i]) do
       if (StartPos >= sp) and (EndPos >= ep) and (FSource < FRanges.Count) and
-         (Tags[TTextRange(FRanges[FSource]).StartIdx].StartPos = StartPos) then
+         (Tags[TecTextRange(FRanges[FSource]).StartIdx].StartPos = StartPos) then
        begin
-         Result := TTextRange(FRanges[FSource]);
+         Result := TecTextRange(FRanges[FSource]);
          Exit;
        end;
     Result := nil;
@@ -4023,10 +4014,10 @@ begin
   end;
 end;
 
-function TClientSyntAnalyzer.GetLineBreak(Line: integer): TLineBreakRange;
+function TecClientSyntAnalyzer.GetLineBreak(Line: integer): TecLineBreakRange;
 var List: TList;
 
-  function DoLine(Line: integer; Top: Boolean): TLineBreakRange;
+  function DoLine(Line: integer; Top: Boolean): TecLineBreakRange;
   var i, sp, ep: integer;
   begin
     Result := nil;
@@ -4036,11 +4027,11 @@ var List: TList;
     sp := FChanges.CurToOld(sp);
     FLineBreakRanges.GetRangesAtRange(List, sp, ep);
     for i := List.Count - 1 downto 0 do
-     with TLineBreakRange(List[i]) do
+     with TecLineBreakRange(List[i]) do
       if Top and (StartPos >= sp) and (Rule.LinePos = lbTop) or
          not Top and (EndPos < ep) and (Rule.LinePos = lbBottom) then
        begin
-         Result := TLineBreakRange(List[i]);
+         Result := TecLineBreakRange(List[i]);
          Exit;
        end;
   end;
@@ -4056,7 +4047,7 @@ begin
   end;
 end;
 
-procedure TClientSyntAnalyzer.TextChanged(Pos, Count: integer); //AT: Line, LineChange were not used, deled
+procedure TecClientSyntAnalyzer.TextChanged(Pos, Count: integer); //AT: Line, LineChange were not used, deled
 begin
   if Pos = -1 then Clear else
     begin
@@ -4065,7 +4056,7 @@ begin
     end;
 end;
 
-function TClientSyntAnalyzer.GetNearestColRange(Pos: integer): TTextRange;
+function TecClientSyntAnalyzer.GetNearestColRange(Pos: integer): TecTextRange;
 var i: integer;
     List: TList;
 begin
@@ -4076,7 +4067,7 @@ begin
      with TCollapsibleRange(List[i]) do
        if  FSource < FRanges.Count then
          begin
-           Result := TTextRange(FRanges[FSource]);
+           Result := TecTextRange(FRanges[FSource]);
            Exit;
          end;
     Result := nil;
@@ -4085,7 +4076,7 @@ begin
   end;
 end;
 
-function TClientSyntAnalyzer.GetTagPos(Index: integer): TPoint;
+function TecClientSyntAnalyzer.GetTagPos(Index: integer): TPoint;
 var ln_pos, i: integer;
 begin
   Result := FSrcProc.StrToCaret(Tags[Index].StartPos);
@@ -4096,32 +4087,32 @@ begin
     else Exit;
 end;
 
-function TClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
+function TecClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
 begin
   Result := FTagList.NextAt(Pos);
 end;
 
-procedure TClientSyntAnalyzer.Lock;
+procedure TecClientSyntAnalyzer.Lock;
 begin
   FDataAccess.Enter;
 end;
 
-procedure TClientSyntAnalyzer.Unlock;
+procedure TecClientSyntAnalyzer.Unlock;
 begin
   FDataAccess.Leave;
 end;
 
-function TClientSyntAnalyzer.GetOpened(Index: integer): TTextRange;
+function TecClientSyntAnalyzer.GetOpened(Index: integer): TecTextRange;
 begin
-  Result := TTextRange(FOpenedBlocks[Index]);
+  Result := TecTextRange(FOpenedBlocks[Index]);
 end;
 
-function TClientSyntAnalyzer.GetOpenedCount: integer;
+function TecClientSyntAnalyzer.GetOpenedCount: integer;
 begin
   Result := FOpenedBlocks.Count;
 end;
 
-function TClientSyntAnalyzer.GetAutoCloseText(Range: TTextRange;
+function TecClientSyntAnalyzer.GetAutoCloseText(Range: TecTextRange;
   const Indent: string): ecString;
 var St: TStringList; //AT stringlist instead of ecStringList
     i: integer;
@@ -4139,7 +4130,7 @@ begin
   end;
 end;
 
-procedure TClientSyntAnalyzer.SetDisableIdleAppend(const Value: Boolean);
+procedure TecClientSyntAnalyzer.SetDisableIdleAppend(const Value: Boolean);
 begin
   if FDisableIdleAppend <> Value then
     begin
@@ -4149,11 +4140,11 @@ begin
     end;
 end;
 
-function TClientSyntAnalyzer.CreateLineBreak(Rule: TTagBlockCondition;
+function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
   RefTag: integer): Boolean;
-var lb: TLineBreak;
+var lb: TecLineBreak;
 begin
-  lb := TLineBreak.Create;
+  lb := TecLineBreak.Create;
   lb.FRefTag := RefTag;
   lb.FRule := Rule;
   if Rule.LinePos = lbBottom then
@@ -4164,7 +4155,7 @@ begin
   Result := True;
 end;
 
-function TClientSyntAnalyzer.DetectTag(Rule: TTagBlockCondition;
+function TecClientSyntAnalyzer.DetectTag(Rule: TecTagBlockCondition;
   RefTag: integer): Boolean;
 begin
   Tags[RefTag].FRule := Rule;
@@ -4173,7 +4164,7 @@ begin
   Result := True;
 end;
 
-procedure TClientSyntAnalyzer.CloseAtEnd(StartTagIdx: integer);
+procedure TecClientSyntAnalyzer.CloseAtEnd(StartTagIdx: integer);
 const
   cSpecIndentID = 20;
     //special number for "Group index" lexer property, which activates indent-based folding for a rule
@@ -4181,12 +4172,12 @@ const
     //special char - must be first of token's type name (e.g. "1keyword");
     //Also such tokens must contain spaces+tabs at the beginning (use parser regex like "^[\x20\x09]*\w+")
 var i, j, Ind: integer;
-    Range: TTextRange;
+    Range: TecTextRange;
     s: string;
 begin
   for i := FOpenedBlocks.Count - 1 downto 0 do
    begin
-    Range := TTextRange(FOpenedBlocks[i]);
+    Range := TecTextRange(FOpenedBlocks[i]);
     if Range.FRule.EndOfTextClose and
        ((StartTagIdx = 0) or (Range.StartIdx >= StartTagIdx)) then
      begin
@@ -4209,9 +4200,9 @@ begin
    end;
 end;
 
-{ TSyntAnalyzer }
+{ TecSyntAnalyzer }
 
-constructor TSyntAnalyzer.Create(AOwner: TComponent);
+constructor TecSyntAnalyzer.Create(AOwner: TComponent);
 begin
   inherited;
   FClientList := TList.Create;
@@ -4221,30 +4212,30 @@ begin
   FTokenTypeNames.Text := SecDefaultTokenTypeNames;
   TStringList(FTokenTypeNames).OnChange := TokenNamesChanged;
 
-  FFormats := TStylesCollection.Create;
+  FFormats := TecStylesCollection.Create;
   FFormats.OnChange := FormatsChanged;
   FFormats.SyntOwner := Self;
 
-  FTokenRules := TTokenRuleCollection.Create;
+  FTokenRules := TecTokenRuleCollection.Create;
   FTokenRules.OnChange := TokenRuleChanged;
   FTokenRules.SyntOwner := Self;
 
-  FBlockRules := TBlockRuleCollection.Create;
+  FBlockRules := TecBlockRuleCollection.Create;
   FBlockRules.OnChange := BlocksChanged;
   FBlockRules.SyntOwner := Self;
 
-  FSubAnalyzers := TSubAnalyzerRules.Create;
+  FSubAnalyzers := TecSubAnalyzerRules.Create;
   FSubAnalyzers.SyntOwner := Self;
   FSubAnalyzers.OnChange := SubLexRuleChanged;
 
-  FMarkedBlock := FFormats.Add as TSyntaxFormat;
+  FMarkedBlock := FFormats.Add as TecSyntaxFormat;
   FMarkedBlock.BgColor := clHighlight;
   FMarkedBlock.Font.Color := clHighlightText;
   FMarkedBlock.FormatType := ftColor;
   FMarkedBlock.DisplayName := 'Marked block';
   FMarkedBlock.FIsBlock := True;
 
-  FCodeTemplates := TCodeTemplates.Create(Self);
+  FCodeTemplates := TecCodeTemplates.Create(Self);
   FSkipSpaces := True;
 
   FNotes := TStringList.Create;
@@ -4256,7 +4247,7 @@ begin
   FIdleAppendDelay := 200;
 end;
 
-destructor TSyntAnalyzer.Destroy;
+destructor TecSyntAnalyzer.Destroy;
 begin
   FBlockRules.OnChange := nil;
   FTokenRules.OnChange := nil;
@@ -4279,12 +4270,12 @@ begin
   FreeAndNil(FClientList);
 end;
 
-procedure TSyntAnalyzer.Assign(Source: TPersistent);
-var Src: TSyntAnalyzer;
+procedure TecSyntAnalyzer.Assign(Source: TPersistent);
+var Src: TecSyntAnalyzer;
     i: integer;
 begin
-  if not (Source is TSyntAnalyzer) then Exit;
-  Src := Source as TSyntAnalyzer;
+  if not (Source is TecSyntAnalyzer) then Exit;
+  Src := Source as TecSyntAnalyzer;
 //  ClearClientContents;
   FCoping := True;
   try
@@ -4325,10 +4316,10 @@ begin
   end;
   UpdateClients;
   for i := 0 to FClientList.Count - 1 do
-   TClientSyntAnalyzer(FClientList[i]).IdleAppend;
+   TecClientSyntAnalyzer(FClientList[i]).IdleAppend;
 end;
 
-procedure TSyntAnalyzer.HighlightKeywords(Client: TParserResults;
+procedure TecSyntAnalyzer.HighlightKeywords(Client: TecParserResults;
   const Source: ecString; OnlyGlobal: Boolean);
 var i, N, ki, RefIdx: integer;
     Accept: Boolean;
@@ -4341,27 +4332,27 @@ begin
       begin
        if OnlyGlobal and not AlwaysEnabled then Continue;
        RefIdx := 0;
-       Accept := Check(Source, TClientSyntAnalyzer(Client), N, RefIdx);
+       Accept := Check(Source, TecClientSyntAnalyzer(Client), N, RefIdx);
        if Assigned(OnBlockCheck) then
-         OnBlockCheck(FBlockRules[i], TClientSyntAnalyzer(Client), Source, RefIdx, Accept);
+         OnBlockCheck(FBlockRules[i], TecClientSyntAnalyzer(Client), Source, RefIdx, Accept);
        if Accept then
          begin
            if FRefToCondEnd then ki := RefIdx - IdentIndex
              else ki := N - 1 - CheckOffset - IdentIndex;
-           TClientSyntAnalyzer(Client).Tags[ki].FRule := FBlockRules[i];
+           TecClientSyntAnalyzer(Client).Tags[ki].FRule := FBlockRules[i];
            if TokenType >= 0 then
-              TClientSyntAnalyzer(Client).Tags[ki].FTokenType := TokenType;
+              TecClientSyntAnalyzer(Client).Tags[ki].FTokenType := TokenType;
            if CancelNextRules then Exit;   // 2.27
          end;
       end;
 end;
 
-procedure TSyntAnalyzer.SelectTokenFormat(Client: TParserResults;
+procedure TecSyntAnalyzer.SelectTokenFormat(Client: TecParserResults;
             const Source: ecString; OnlyGlobal: Boolean; N: integer);
 var i, li, ki, strt, RefIdx: integer;
-    Range: TTextRange;
+    Range: TecTextRange;
     Accept: Boolean;
-    RClient: TClientSyntAnalyzer;
+    RClient: TecClientSyntAnalyzer;
   function CheckIndex(Idx: integer): Boolean;
   begin
    Result := (Idx >= 0) and (Idx < N);
@@ -4369,8 +4360,8 @@ var i, li, ki, strt, RefIdx: integer;
 begin
   if N = -1 then
     N := Client.TagCount;
-  if not (Client is TClientSyntAnalyzer)  then Exit;
-  RClient := TClientSyntAnalyzer(Client);
+  if not (Client is TecClientSyntAnalyzer)  then Exit;
+  RClient := TecClientSyntAnalyzer(Client);
   RClient.FStartSepRangeAnal := N + 1;
   try
     for i := 0 to FBlockRules.Count - 1 do
@@ -4409,7 +4400,7 @@ begin
                   li := strt - BlockOffset;
                   if CheckIndex(li) then
                    begin
-                    Range := TTextRange.Create(li, RClient.Tags[li].StartPos);
+                    Range := TecTextRange.Create(li, RClient.Tags[li].StartPos);
                     Range.FIdent := ki;
                     Range.FRule := FBlockRules[i];
                     Range.FCondIndex := N - 1;
@@ -4437,21 +4428,21 @@ begin
   end;
 end;
 
-function TSyntAnalyzer.AddClient(const Client: IecSyntClient;
-                         SrcProc: TATStringBuffer): TClientSyntAnalyzer;
+function TecSyntAnalyzer.AddClient(const Client: IecSyntClient;
+                         SrcProc: TATStringBuffer): TecClientSyntAnalyzer;
 begin
-  Result := TClientSyntAnalyzer.Create(Self, SrcProc, Client);
+  Result := TecClientSyntAnalyzer.Create(Self, SrcProc, Client);
 end;
 
-procedure TSyntAnalyzer.SetSampleText(const Value: TStrings);
+procedure TecSyntAnalyzer.SetSampleText(const Value: TStrings);
 begin
   FSampleText.Assign(Value);
 end;
 
-function TSyntAnalyzer.GetToken(Client: TParserResults; const Source: ecString;
-                              APos: integer; OnlyGlobal: Boolean): TSyntToken;
+function TecSyntAnalyzer.GetToken(Client: TecParserResults; const Source: ecString;
+                              APos: integer; OnlyGlobal: Boolean): TecSyntToken;
 var i, N, lp: integer;
-    Rule: TTokenRule;
+    Rule: TecTokenRule;
 begin
   if Assigned(FOnParseToken) then
     begin
@@ -4459,7 +4450,7 @@ begin
       Rule := nil;
       FOnParseToken(Client, Source, APos, N, Rule);
       if Assigned(Rule) then
-        Result := TSyntToken.Create(Rule, APos - 1, APos + N - 1)
+        Result := TecSyntToken.Create(Rule, APos - 1, APos + N - 1)
       else
         Result := nil;
       Exit;
@@ -4485,7 +4476,7 @@ begin
             if N > 0 then
               begin
                 Client.ApplyStates(Rule);
-                Result := TSyntToken.Create(Rule, APos - 1, APos + N - 1);
+                Result := TecSyntToken.Create(Rule, APos - 1, APos + N - 1);
                 Exit;
               end;
           end;
@@ -4493,7 +4484,7 @@ begin
   Result := nil;
 end;
 
-procedure TSyntAnalyzer.FormatsChanged(Sender: TCollection; Item: TSyntCollectionItem);
+procedure TecSyntAnalyzer.FormatsChanged(Sender: TCollection; Item: TSyntCollectionItem);
 var i: integer;
 begin
   ClearClientContents;
@@ -4518,7 +4509,7 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.BlocksChanged(Sender: TCollection;
+procedure TecSyntAnalyzer.BlocksChanged(Sender: TCollection;
   Item: TSyntCollectionItem);
 var i: integer;
 begin
@@ -4539,44 +4530,44 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.ClearClientContents;
+procedure TecSyntAnalyzer.ClearClientContents;
 var i:integer;
 begin
   if FCoping then Exit;
   FCoping := True;
   try
     for i := 0 to FClientList.Count - 1 do
-     with TClientSyntAnalyzer(FClientList[i]) do
+     with TecClientSyntAnalyzer(FClientList[i]) do
       begin
         Clear;
         IdleAppend;
       end;
     for i := 0 to FMasters.Count - 1 do
-      TSyntAnalyzer(FMasters[i]).ClearClientContents;
+      TecSyntAnalyzer(FMasters[i]).ClearClientContents;
   finally
     FCoping := False;
   end;
   UpdateClients;
 end;
 
-procedure TSyntAnalyzer.UpdateClients;
+procedure TecSyntAnalyzer.UpdateClients;
 var i:integer;
 begin
   if FCoping then Exit;
   FCoping := True;
   try
     for i := 0 to FClientList.Count - 1 do
-     with TClientSyntAnalyzer(FClientList[i]) do
+     with TecClientSyntAnalyzer(FClientList[i]) do
        if FClient <> nil then
          FClient.FormatChanged;
     for i := 0 to FMasters.Count - 1 do
-      TSyntAnalyzer(FMasters[i]).UpdateClients;
+      TecSyntAnalyzer(FMasters[i]).UpdateClients;
   finally
     FCoping := False;
   end;
 end;
 
-procedure TSyntAnalyzer.Loaded;
+procedure TecSyntAnalyzer.Loaded;
 var i: integer;
 begin
   inherited;
@@ -4593,33 +4584,33 @@ begin
   CompileGramma;
   DetectBlockSeparate;
   for i := 0 to FMasters.Count - 1 do
-    TSyntAnalyzer(FMasters[i]).DetectBlockSeparate;
+    TecSyntAnalyzer(FMasters[i]).DetectBlockSeparate;
 end;
 
-procedure TSyntAnalyzer.SetBlockRules(const Value: TBlockRuleCollection);
+procedure TecSyntAnalyzer.SetBlockRules(const Value: TecBlockRuleCollection);
 begin
   FBlockRules.Assign(Value);
   ClearClientContents;
 end;
 
-procedure TSyntAnalyzer.SetCodeTemplates(const Value: TCodeTemplates);
+procedure TecSyntAnalyzer.SetCodeTemplates(const Value: TecCodeTemplates);
 begin
   FCodeTemplates.Assign(Value);
   ClearClientContents;
 end;
 
-procedure TSyntAnalyzer.SetTokenRules(const Value: TTokenRuleCollection);
+procedure TecSyntAnalyzer.SetTokenRules(const Value: TecTokenRuleCollection);
 begin
   FTokenRules.Assign(Value);
   ClearClientContents;
 end;
 
-procedure TSyntAnalyzer.SetFormats(const Value: TStylesCollection);
+procedure TecSyntAnalyzer.SetFormats(const Value: TecStylesCollection);
 begin
   FFormats.Assign(Value);
 end;
 
-function TSyntAnalyzer.GetUniqueName(const Base: string): string;
+function TecSyntAnalyzer.GetUniqueName(const Base: string): string;
 var n: integer;
 begin
   n := 1;
@@ -4630,7 +4621,7 @@ begin
   until Owner.FindComponent(Result) = nil;
 end;
 
-procedure TSyntAnalyzer.SetSkipSpaces(const Value: Boolean);
+procedure TecSyntAnalyzer.SetSkipSpaces(const Value: Boolean);
 begin
   if FSkipSpaces <> Value then
    begin
@@ -4639,18 +4630,18 @@ begin
    end;
 end;
 
-procedure TSyntAnalyzer.SetSubAnalyzers(const Value: TSubAnalyzerRules);
+procedure TecSyntAnalyzer.SetSubAnalyzers(const Value: TecSubAnalyzerRules);
 begin
   FSubAnalyzers.Assign(Value);
   ClearClientContents;
 end;
 
-procedure TSyntAnalyzer.Notification(AComponent: TComponent;
+procedure TecSyntAnalyzer.Notification(AComponent: TComponent;
   Operation: TOperation);
 var i: integer;
 begin
   inherited;
-  if (Operation = opRemove)  and (AComponent <> Self) and (aComponent is TSyntAnalyzer) and
+  if (Operation = opRemove)  and (AComponent <> Self) and (aComponent is TecSyntAnalyzer) and
      Assigned(FSubAnalyzers) and Assigned(FMasters) then
    begin
      for i := 0 to FSubAnalyzers.Count - 1 do
@@ -4660,7 +4651,7 @@ begin
    end;
 end;
 
-procedure TSyntAnalyzer.SubLexRuleChanged(Sender: TCollection;
+procedure TecSyntAnalyzer.SubLexRuleChanged(Sender: TCollection;
   Item: TSyntCollectionItem);
 begin
   DetectBlockSeparate;
@@ -4668,7 +4659,7 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.AddMasterLexer(SyntAnal: TSyntAnalyzer);
+procedure TecSyntAnalyzer.AddMasterLexer(SyntAnal: TecSyntAnalyzer);
 begin
   if Assigned(SyntAnal) and (SyntAnal <> Self) and
      (FMasters.IndexOf(SyntAnal) = -1) then
@@ -4678,12 +4669,12 @@ begin
    end;
 end;
 
-procedure TSyntAnalyzer.RemoveMasterLexer(SyntAnal: TSyntAnalyzer);
+procedure TecSyntAnalyzer.RemoveMasterLexer(SyntAnal: TecSyntAnalyzer);
 begin
   FMasters.Remove(SyntAnal);
 end;
 
-procedure TSyntAnalyzer.TokenRuleChanged(Sender: TCollection;
+procedure TecSyntAnalyzer.TokenRuleChanged(Sender: TCollection;
   Item: TSyntCollectionItem);
 begin
   DetectBlockSeparate;
@@ -4691,17 +4682,17 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.SetTokenTypeNames(const Value: TStrings);
+procedure TecSyntAnalyzer.SetTokenTypeNames(const Value: TStrings);
 begin
   FTokenTypeNames.Assign(Value);
 end;
 
-procedure TSyntAnalyzer.Change;
+procedure TecSyntAnalyzer.Change;
 begin
   if Assigned(FOnChange) then FOnChange(Self);
 end;
 
-procedure TSyntAnalyzer.SetSearchMatch(const Value: TSyntaxFormat);
+procedure TecSyntAnalyzer.SetSearchMatch(const Value: TecSyntaxFormat);
 begin
   if FSearchMatch = Value then Exit;
   FSearchMatch := Value;
@@ -4709,7 +4700,7 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.SetMarkedBlock(const Value: TSyntaxFormat);
+procedure TecSyntAnalyzer.SetMarkedBlock(const Value: TecSyntaxFormat);
 begin
   if FMarkedBlock = Value then Exit;
   FMarkedBlock := Value;
@@ -4717,7 +4708,7 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.SetCurrentLine(const Value: TSyntaxFormat);
+procedure TecSyntAnalyzer.SetCurrentLine(const Value: TecSyntaxFormat);
 begin
   if FCurrentLine = Value then Exit;
   FCurrentLine := Value;
@@ -4725,7 +4716,7 @@ begin
   Change;
 end;
 
-procedure TSyntAnalyzer.SetDefStyle(const Value: TSyntaxFormat);
+procedure TecSyntAnalyzer.SetDefStyle(const Value: TecSyntaxFormat);
 begin
   if FDefStyle = Value then Exit;
   FDefStyle := Value;
@@ -4733,7 +4724,7 @@ begin
   Change;
 end;
 
-function TSyntAnalyzer.GetStyleName(const AName: string; const AStyle: TSyntaxFormat): string;
+function TecSyntAnalyzer.GetStyleName(const AName: string; const AStyle: TecSyntaxFormat): string;
 begin
   if csLoading in ComponentState then
     Result := AName
@@ -4744,74 +4735,74 @@ begin
     Result := '';
 end;
 
-function TSyntAnalyzer.GetMarkedBlockName: string;
+function TecSyntAnalyzer.GetMarkedBlockName: string;
 begin
   Result := GetStyleName(FMarkedBlockName, FMarkedBlock);
 end;
 
-procedure TSyntAnalyzer.SetMarkedBlockName(const Value: string);
+procedure TecSyntAnalyzer.SetMarkedBlockName(const Value: string);
 begin
   if csLoading in ComponentState then
     FMarkedBlockName := Value
   else
-    MarkedBlock := TSyntaxFormat(FFormats.ItemByName(Value));
+    MarkedBlock := TecSyntaxFormat(FFormats.ItemByName(Value));
 end;
 
-function TSyntAnalyzer.GetSearchMatchStyle: string;
+function TecSyntAnalyzer.GetSearchMatchStyle: string;
 begin
   Result := GetStyleName(FSearchMatchName, FSearchMatch);
 end;
 
-procedure TSyntAnalyzer.SetSearchMatchStyle(const Value: string);
+procedure TecSyntAnalyzer.SetSearchMatchStyle(const Value: string);
 begin
   if csLoading in ComponentState then
     FSearchMatchName := Value
   else
-    FSearchMatch := TSyntaxFormat(FFormats.ItemByName(Value));
+    FSearchMatch := TecSyntaxFormat(FFormats.ItemByName(Value));
 end;
 
-function TSyntAnalyzer.GetCurrentLineStyle: string;
+function TecSyntAnalyzer.GetCurrentLineStyle: string;
 begin
   Result := GetStyleName(FCurrentLineName, FCurrentLine);
 end;
 
-procedure TSyntAnalyzer.SetCurrentLineStyle(const Value: string);
+procedure TecSyntAnalyzer.SetCurrentLineStyle(const Value: string);
 begin
   if csLoading in ComponentState then
     FCurrentLineName := Value
   else
-    FCurrentLine := TSyntaxFormat(FFormats.ItemByName(Value));
+    FCurrentLine := TecSyntaxFormat(FFormats.ItemByName(Value));
 end;
 
-function TSyntAnalyzer.GetDefaultStyleName: string;
+function TecSyntAnalyzer.GetDefaultStyleName: string;
 begin
   Result := GetStyleName(FDefStyleName, FDefStyle);
 end;
 
-procedure TSyntAnalyzer.SetDefaultStyleName(const Value: string);
+procedure TecSyntAnalyzer.SetDefaultStyleName(const Value: string);
 begin
   if csLoading in ComponentState then
     FDefStyleName := Value
   else
-    FDefStyle := TSyntaxFormat(FFormats.ItemByName(Value));
+    FDefStyle := TecSyntaxFormat(FFormats.ItemByName(Value));
 end;
 
-procedure TSyntAnalyzer.SetNotes(const Value: TStrings);
+procedure TecSyntAnalyzer.SetNotes(const Value: TStrings);
 begin
   FNotes.Assign(Value);
 end;
 
-procedure TSyntAnalyzer.SetInternal(const Value: boolean);
+procedure TecSyntAnalyzer.SetInternal(const Value: boolean);
 begin
   FInternal := Value;
 end;
 
-procedure TSyntAnalyzer.SetRestartFromLineStart(const Value: Boolean);
+procedure TecSyntAnalyzer.SetRestartFromLineStart(const Value: Boolean);
 begin
   FRestartFromLineStart := Value;
 end;
 
-procedure TSyntAnalyzer.SetParseEndOfLine(const Value: Boolean);
+procedure TecSyntAnalyzer.SetParseEndOfLine(const Value: Boolean);
 begin
   if FParseEndOfLine <> Value then
     begin
@@ -4820,7 +4811,7 @@ begin
     end;
 end;
 
-procedure TSyntAnalyzer.CompileGramma;
+procedure TecSyntAnalyzer.CompileGramma;
 var i: integer;
 begin
   FGrammaParser.CompileGramma(FTokenTypeNames);
@@ -4829,29 +4820,29 @@ begin
      FGrammaParser.ParserRuleByName(FBlockRules[i].FGrammaRuleName);
 end;
 
-procedure TSyntAnalyzer.TokenNamesChanged(Sender: TObject);
+procedure TecSyntAnalyzer.TokenNamesChanged(Sender: TObject);
 begin
   CompileGramma;
   Change;
 end;
 
-procedure TSyntAnalyzer.SetGrammar(const Value: TGrammaAnalyzer);
+procedure TecSyntAnalyzer.SetGrammar(const Value: TGrammaAnalyzer);
 begin
   FGrammaParser.Assign(Value);
   CompileGramma;
 end;
 
-procedure TSyntAnalyzer.GrammaChanged(Sender: TObject);
+procedure TecSyntAnalyzer.GrammaChanged(Sender: TObject);
 begin
   CompileGramma;
 end;
 
-procedure TSyntAnalyzer.SetLineComment(const Value: ecString);
+procedure TecSyntAnalyzer.SetLineComment(const Value: ecString);
 begin
   FLineComment := Value;
 end;
 
-function TSyntAnalyzer.GetSeparateBlocks: Boolean;
+function TecSyntAnalyzer.GetSeparateBlocks: Boolean;
   function HasStateModif(List: TCollection): Boolean;
   var i: integer;
   begin
@@ -4895,12 +4886,12 @@ begin
     Result := FSeparateBlocks = 1;
 end;
 
-procedure TSyntAnalyzer.DetectBlockSeparate;
+procedure TecSyntAnalyzer.DetectBlockSeparate;
 begin
   FSeparateBlocks := 0;
 end;
 
-procedure TSyntAnalyzer.SetAlwaysSyncBlockAnal(const Value: Boolean);
+procedure TecSyntAnalyzer.SetAlwaysSyncBlockAnal(const Value: Boolean);
 begin
   FAlwaysSyncBlockAnal := Value;
   if FAlwaysSyncBlockAnal and SeparateBlockAnalysis then
@@ -4910,20 +4901,20 @@ begin
    end;
 end;
 
-function TSyntAnalyzer.GetCollapseStyleName: string;
+function TecSyntAnalyzer.GetCollapseStyleName: string;
 begin
   Result := GetStyleName(FCollapseStyleName, FCollapseStyle);
 end;
 
-procedure TSyntAnalyzer.SetCollapseStyleName(const Value: string);
+procedure TecSyntAnalyzer.SetCollapseStyleName(const Value: string);
 begin
   if csLoading in ComponentState then
     FCollapseStyleName := Value
   else
-    FCollapseStyle := TSyntaxFormat(FFormats.ItemByName(Value));
+    FCollapseStyle := TecSyntaxFormat(FFormats.ItemByName(Value));
 end;
 
-procedure TSyntAnalyzer.SetCollapseStyle(const Value: TSyntaxFormat);
+procedure TecSyntAnalyzer.SetCollapseStyle(const Value: TecSyntaxFormat);
 begin
   if FCollapseStyle <> Value then
     begin
@@ -4933,9 +4924,9 @@ begin
     end;
 end;
 
-{ TCodeTemplate }
+{ TecCodeTemplate }
 
-constructor TCodeTemplate.Create(Collection: TCollection);
+constructor TecCodeTemplate.Create(Collection: TCollection);
 begin
   inherited;
   FName:= '';
@@ -4943,25 +4934,25 @@ begin
   FAdvanced:= false;
 end;
 
-function TCodeTemplate.GetDisplayName: string;
+function TecCodeTemplate.GetDisplayName: string;
 begin
   Result := FName;
 end;
 
 
-{ TCodeTemplates }
+{ TecCodeTemplates }
 
-function TCodeTemplates.Add: TCodeTemplate;
+function TecCodeTemplates.Add: TecCodeTemplate;
 begin
-  Result := TCodeTemplate(inherited Add);
+  Result := TecCodeTemplate(inherited Add);
 end;
 
-constructor TCodeTemplates.Create(AOwner: TPersistent);
+constructor TecCodeTemplates.Create(AOwner: TPersistent);
 begin
-  inherited Create(AOwner, TCodeTemplate);
+  inherited Create(AOwner, TecCodeTemplate);
 end;
 
-function TCodeTemplates.FindTemplate(AName: string): TCodeTemplate;
+function TecCodeTemplates.FindTemplate(AName: string): TecCodeTemplate;
 var i: integer;
 begin
   for i := 0 to Count - 1 do
@@ -4973,14 +4964,14 @@ begin
   Result := nil;
 end;
 
-function TCodeTemplates.GetItem(Index: integer): TCodeTemplate;
+function TecCodeTemplates.GetItem(Index: integer): TecCodeTemplate;
 begin
-  Result := TCodeTemplate(inherited Items[Index]);
+  Result := TecCodeTemplate(inherited Items[Index]);
 end;
 
-{ TSyntaxManager }
+{ TecSyntaxManager }
 
-function TSyntaxManager.AddAnalyzer: TSyntAnalyzer;
+function TecSyntaxManager.AddAnalyzer: TecSyntAnalyzer;
 begin
   Result := TLibSyntAnalyzer.Create(Owner);
   Result.Name := Result.GetUniqueName('SyntAnal');
@@ -4988,7 +4979,7 @@ begin
   FModified := True;
 end;
 
-procedure TSyntaxManager.Clear;
+procedure TecSyntaxManager.Clear;
 begin
   while FList.Count > 0 do
   begin
@@ -4999,14 +4990,14 @@ begin
   FModified := True;
 end;
 
-constructor TSyntaxManager.Create(AOwner: TComponent);
+constructor TecSyntaxManager.Create(AOwner: TComponent);
 begin
   inherited;
   FList := TList.Create;
   FModified := False;
 end;
 
-destructor TSyntaxManager.Destroy;
+destructor TecSyntaxManager.Destroy;
 begin
   FOnChange := nil;
   Clear;
@@ -5014,17 +5005,17 @@ begin
   inherited;
 end;
 
-procedure TSyntaxManager.Changed;
+procedure TecSyntaxManager.Changed;
 begin
   if Assigned(FOnChange) then FOnChange(Self);
 end;
 
-function TSyntaxManager.GeItem(Index: integer): TSyntAnalyzer;
+function TecSyntaxManager.GeItem(Index: integer): TecSyntAnalyzer;
 begin
-  Result := TSyntAnalyzer(FList[Index]);
+  Result := TecSyntAnalyzer(FList[Index]);
 end;
 
-procedure TSyntaxManager.GetChildren(Proc: TGetChildProc;
+procedure TecSyntaxManager.GetChildren(Proc: TGetChildProc;
   Root: TComponent);
 var i: integer;
 begin
@@ -5033,12 +5024,12 @@ begin
     Proc(TComponent(FList[i]));
 end;
 
-function TSyntaxManager.GetCount: integer;
+function TecSyntaxManager.GetCount: integer;
 begin
   Result := FList.Count;
 end;
 
-procedure TSyntaxManager.LoadFromFile(const FileName: string);
+procedure TecSyntaxManager.LoadFromFile(const FileName: string);
 begin
   Clear;
   inherited;
@@ -5046,25 +5037,25 @@ begin
   FModified := False;
 end;
 
-procedure TSyntaxManager.SaveToFile(const FileName: string);
+procedure TecSyntaxManager.SaveToFile(const FileName: string);
 begin
   inherited;
   FModified := False;
 end;
 
-procedure TSyntaxManager.Move(CurIndex, NewIndex: Integer);
+procedure TecSyntaxManager.Move(CurIndex, NewIndex: Integer);
 begin
   FList.Move(CurIndex, NewIndex);
   FModified := True;
 end;
 
-procedure TSyntaxManager.Notification(AComponent: TComponent;
+procedure TecSyntaxManager.Notification(AComponent: TComponent;
   Operation: TOperation);
 begin
   inherited;
 end;
 
-procedure TSyntaxManager.SetCurrentLexer(const Value: TSyntAnalyzer);
+procedure TecSyntaxManager.SetCurrentLexer(const Value: TecSyntAnalyzer);
 begin
   if (FCurrentLexer <> Value) and ((Value = nil) or (FList.IndexOf(value) <> -1)) then
    begin
@@ -5072,8 +5063,8 @@ begin
    end;
 end;
 
-function TSyntaxManager.FindAnalyzer(
-  const LexerName: string): TSyntAnalyzer;
+function TecSyntaxManager.FindAnalyzer(
+  const LexerName: string): TecSyntAnalyzer;
 var i: integer;
 begin
   for i := 0 to GetCount - 1 do
@@ -5085,7 +5076,7 @@ begin
   Result := nil;
 end;
 
-procedure TSyntaxManager.OnReadError(Reader: TReader;
+procedure TecSyntaxManager.OnReadError(Reader: TReader;
   const Message: string; var Handled: Boolean);
 var S: string;
 begin
@@ -5105,8 +5096,8 @@ end;
 
 constructor TLibSyntAnalyzer.Create(AOwner: TComponent);
 begin
-  if Assigned(AOwner) and (AOwner is TSyntaxManager) then
-   inherited Create((AOwner as TSyntaxManager).Owner)
+  if Assigned(AOwner) and (AOwner is TecSyntaxManager) then
+   inherited Create((AOwner as TecSyntaxManager).Owner)
   else
    inherited Create(AOwner);
 end;
@@ -5141,9 +5132,9 @@ begin
   if FParent = Value then Exit;
   if FSkipNewName and (Value = nil) then Exit;
   if FParent <> nil then FParent.FList.Remove(Self);
-  if (Value <> nil) and (Value is TSyntaxManager) then
+  if (Value <> nil) and (Value is TecSyntaxManager) then
    begin
-     FParent := TSyntaxManager(Value);
+     FParent := TecSyntaxManager(Value);
      FParent.FList.Add(Self);
    end else FParent := nil;
 end;
@@ -5268,9 +5259,9 @@ begin
    else inherited;
 end;
 
-{ TSyntTextSource }
+{ TecSyntTextSource }
 
-procedure TSyntTextSource.AddClient(Client: TObject);
+procedure TecSyntTextSource.AddClient(Client: TObject);
 begin
   if (FClients.IndexOf(TObject(Client)) = -1)  then
    begin
@@ -5280,7 +5271,7 @@ begin
    end;
 end;
 
-constructor TSyntTextSource.Create(AOwner: TComponent);
+constructor TecSyntTextSource.Create(AOwner: TComponent);
 begin
   inherited;
   FLines := TATStringBuffer.Create;
@@ -5288,7 +5279,7 @@ begin
   FClients := TList.Create;
 end;
 
-destructor TSyntTextSource.Destroy;
+destructor TecSyntTextSource.Destroy;
 begin
   inherited;
   FreeAndNil(FSyntRanges);
@@ -5296,7 +5287,7 @@ begin
   FreeAndNil(FClients);
 end;
 
-procedure TSyntTextSource.TextChanged(Sender: TObject; Pos, Count,
+procedure TecSyntTextSource.TextChanged(Sender: TObject; Pos, Count,
   LineChange: integer);
 var i: integer;
     iObj: IecTextClient;
@@ -5308,7 +5299,7 @@ begin
     iObj.TextChanged(Sender, Pos, Count, LineChange);
 end;
 
-procedure TSyntTextSource.Finished;
+procedure TecSyntTextSource.Finished;
 var i: integer;
     iObj: IecSyntClient;
 begin
@@ -5317,7 +5308,7 @@ begin
     iObj.Finished;
 end;
 
-procedure TSyntTextSource.FormatChanged;
+procedure TecSyntTextSource.FormatChanged;
 var i: integer;
     iObj: IecSyntClient;
 begin
@@ -5326,7 +5317,7 @@ begin
     iObj.FormatChanged;
 end;
 
-function TSyntTextSource.GetSyntRanges: TSyntAnalyzer;
+function TecSyntTextSource.GetSyntRanges: TecSyntAnalyzer;
 begin
   if Assigned(FSyntRanges) then
    Result := FSyntRanges.Owner
@@ -5334,14 +5325,14 @@ begin
    Result := nil;
 end;
 
-procedure TSyntTextSource.Notification(AComponent: TComponent;
+procedure TecSyntTextSource.Notification(AComponent: TComponent;
   Operation: TOperation);
 begin
   inherited;
   if Operation = opRemove then
    begin
      FClients.Remove(AComponent);
-     if (AComponent is TSyntAnalyzer) and Assigned(FSyntRanges) and
+     if (AComponent is TecSyntAnalyzer) and Assigned(FSyntRanges) and
         (AComponent = GetSyntRanges) then
        begin
           FreeAndNil(FSyntRanges);
@@ -5351,18 +5342,18 @@ begin
    end;
 end;
 
-procedure TSyntTextSource.RemoveClient(Client: TObject);
+procedure TecSyntTextSource.RemoveClient(Client: TObject);
 begin
   FClients.Remove(Client);
 end;
 
-procedure TSyntTextSource.SetLines(const Value: TATStringBuffer);
+procedure TecSyntTextSource.SetLines(const Value: TATStringBuffer);
 begin
   /////FLines.Assign(Value);
   showmessage('not done TSyntTextSource.SetLines');
 end;
 
-procedure TSyntTextSource.SetSyntRanges(const Value: TSyntAnalyzer);
+procedure TecSyntTextSource.SetSyntRanges(const Value: TecSyntAnalyzer);
 begin
   if GetSyntRanges = Value then Exit;
   if Assigned(FSyntRanges) then
@@ -5379,29 +5370,29 @@ begin
    else Finished;
 end;
 
-function TSyntTextSource.GetLines: TATStringBuffer;
+function TecSyntTextSource.GetLines: TATStringBuffer;
 begin
   Result := FLines;
 end;
 
-function TSyntTextSource.CaretPosToStrPos(const p: TPoint): integer;
+function TecSyntTextSource.CaretPosToStrPos(const p: TPoint): integer;
 begin
   Result := Lines.CaretToStr(p);
 end;
 
-function TSyntTextSource.StrPosToCaretPos(p: integer): TPoint;
+function TecSyntTextSource.StrPosToCaretPos(p: integer): TPoint;
 begin
   Result := Lines.StrToCaret(p);
 end;
 
-function TSyntTextSource.LineLength(Index: integer): integer;
+function TecSyntTextSource.LineLength(Index: integer): integer;
 begin
   Result := Lines.LineLength(Index);
 end;
 
-{ TSubAnalyzerRule }
+{ TecSubAnalyzerRule }
 
-constructor TSubAnalyzerRule.Create(Collection: TCollection);
+constructor TecSubAnalyzerRule.Create(Collection: TCollection);
 begin
   inherited;
   FStartRegExpr := TecRegExpr.Create;
@@ -5410,18 +5401,18 @@ begin
   SetDefaultModifiers(FEndRegExpr);
 end;
 
-destructor TSubAnalyzerRule.Destroy;
+destructor TecSubAnalyzerRule.Destroy;
 begin
   FreeAndNil(FStartRegExpr);
   FreeAndNil(FEndRegExpr);
   inherited;
 end;
 
-procedure TSubAnalyzerRule.AssignTo(Dest: TPersistent);
+procedure TecSubAnalyzerRule.AssignTo(Dest: TPersistent);
 begin
   inherited;
-  if Dest is TSubAnalyzerRule then
-   with Dest as TSubAnalyzerRule do
+  if Dest is TecSubAnalyzerRule then
+   with Dest as TecSubAnalyzerRule do
     begin
      StartExpression := Self.StartExpression;
      EndExpression := Self.EndExpression;
@@ -5432,22 +5423,22 @@ begin
     end;
 end;
 
-function TSubAnalyzerRule.GetEndExpression: string;
+function TecSubAnalyzerRule.GetEndExpression: string;
 begin
   Result := FEndRegExpr.Expression;
 end;
 
-function TSubAnalyzerRule.GetItemBaseName: string;
+function TecSubAnalyzerRule.GetItemBaseName: string;
 begin
   Result := 'Sub lexer rule';
 end;
 
-function TSubAnalyzerRule.GetStartExpression: string;
+function TecSubAnalyzerRule.GetStartExpression: string;
 begin
   Result := FStartRegExpr.Expression;
 end;
 
-function TSubAnalyzerRule.MatchStart(const Source: ecString; Pos: integer): integer;
+function TecSubAnalyzerRule.MatchStart(const Source: ecString; Pos: integer): integer;
 begin
  try
   Result := FStartRegExpr.MatchLength(Source, Pos);
@@ -5456,7 +5447,7 @@ begin
  end;
 end;
 
-function TSubAnalyzerRule.MatchEnd(const Source: ecString; Pos: integer): integer;
+function TecSubAnalyzerRule.MatchEnd(const Source: ecString; Pos: integer): integer;
 begin
  try
   Result := FEndRegExpr.MatchLength(Source, Pos);
@@ -5465,26 +5456,26 @@ begin
  end;
 end;
 
-procedure TSubAnalyzerRule.SetEndExpression(const Value: string);
+procedure TecSubAnalyzerRule.SetEndExpression(const Value: string);
 begin
   FEndRegExpr.Expression := Value;
   Changed(False);
 end;
 
-procedure TSubAnalyzerRule.SetStartExpression(const Value: string);
+procedure TecSubAnalyzerRule.SetStartExpression(const Value: string);
 begin
   FStartRegExpr.Expression := Value;
   Changed(False);
 end;
 
-procedure TSubAnalyzerRule.SetSyntAnalyzer(const Value: TSyntAnalyzer);
-var own: TSyntAnalyzer;
+procedure TecSubAnalyzerRule.SetSyntAnalyzer(const Value: TecSyntAnalyzer);
+var own: TecSyntAnalyzer;
 
-  function IsLinked(SAnal: TSyntAnalyzer): Boolean;
+  function IsLinked(SAnal: TecSyntAnalyzer): Boolean;
   var i: integer;
   begin
     for i := 0 to Collection.Count - 1 do
-     if (Collection.Items[i] <> Self) and ((Collection.Items[i] as TSubAnalyzerRule).SyntAnalyzer = SAnal) then
+     if (Collection.Items[i] <> Self) and ((Collection.Items[i] as TecSubAnalyzerRule).SyntAnalyzer = SAnal) then
       begin
        Result := True;
        Exit;
@@ -5505,90 +5496,90 @@ begin
    end;
 end;
 
-procedure TSubAnalyzerRule.SetFromTextBegin(const Value: Boolean);
+procedure TecSubAnalyzerRule.SetFromTextBegin(const Value: Boolean);
 begin
   FFromTextBegin := Value;
   Changed(False);
 end;
 
-procedure TSubAnalyzerRule.SetToTextEnd(const Value: Boolean);
+procedure TecSubAnalyzerRule.SetToTextEnd(const Value: Boolean);
 begin
   FToTextEnd := Value;
   Changed(False);
 end;
 
-procedure TSubAnalyzerRule.SetIncludeBounds(const Value: Boolean);
+procedure TecSubAnalyzerRule.SetIncludeBounds(const Value: Boolean);
 begin
   FIncludeBounds := Value;
   Changed(False);
 end;
 
-{ TSubAnalyzerRules }
+{ TecSubAnalyzerRules }
 
-function TSubAnalyzerRules.Add: TSubAnalyzerRule;
+function TecSubAnalyzerRules.Add: TecSubAnalyzerRule;
 begin
-  Result := TSubAnalyzerRule(inherited Add);
+  Result := TecSubAnalyzerRule(inherited Add);
 end;
 
-constructor TSubAnalyzerRules.Create;
+constructor TecSubAnalyzerRules.Create;
 begin
-  inherited Create(TSubAnalyzerRule);
+  inherited Create(TecSubAnalyzerRule);
 end;
 
-function TSubAnalyzerRules.GetItem(Index: integer): TSubAnalyzerRule;
+function TecSubAnalyzerRules.GetItem(Index: integer): TecSubAnalyzerRule;
 begin
-  Result := TSubAnalyzerRule(inherited Items[Index]);
+  Result := TecSubAnalyzerRule(inherited Items[Index]);
 end;
 
-{ TSyntStyles }
+{ TecSyntStyles }
 
-constructor TSyntStyles.Create(AOwner: TComponent);
+constructor TecSyntStyles.Create(AOwner: TComponent);
 begin
   inherited;
-  FStyles := TStylesCollection.Create;
+  FStyles := TecStylesCollection.Create;
 end;
 
-destructor TSyntStyles.Destroy;
+destructor TecSyntStyles.Destroy;
 begin
   FreeAndNil(FStyles);
   inherited;
 end;
 
-procedure TSyntStyles.SetStyles(const Value: TStylesCollection);
+procedure TecSyntStyles.SetStyles(const Value: TecStylesCollection);
 begin
   FStyles.Assign(Value);
 end;
 
-{ TStyleCache }
+{ TecStyleCache }
 
-constructor TStyleCache.Create;
+constructor TecStyleCache.Create;
 begin
   inherited;
   FList := TObjectList.Create;
 end;
 
-destructor TStyleCache.Destroy;
+destructor TecStyleCache.Destroy;
 begin
   FreeAndNil(FList);
   inherited;
 end;
 
-procedure TStyleCache.Clear;
+procedure TecStyleCache.Clear;
 begin
   FList.Clear;
 end;
 
-function TStyleCache.GetCount: integer;
+function TecStyleCache.GetCount: integer;
 begin
   Result := FList.Count;
 end;
 
-function TStyleCache.GetItem(Index: integer): TSyntaxFormat;
+function TecStyleCache.GetItem(Index: integer): TecSyntaxFormat;
 begin
-  Result := TSyntaxFormat(FList[Index]);
+  Result := TecSyntaxFormat(FList[Index]);
 end;
 
-function TStyleCache.AddStyle(Style: TSyntaxFormat): integer;
+function TecStyleCache.AddStyle(Style: TecSyntaxFormat): integer;
 var i: integer;
 begin
   for i := 0 to FList.Count - 1 do
@@ -5601,19 +5592,19 @@ begin
   Result := FList.Add(Style);
 end;
 
-procedure TStyleCache.Delete(Index: integer);
+procedure TecStyleCache.Delete(Index: integer);
 begin
   FList.Delete(Index);
 end;
 
-procedure TStyleCache.AddNoCheck(Style: TSyntaxFormat);
+procedure TecStyleCache.AddNoCheck(Style: TecSyntaxFormat);
 begin
   FList.Add(Style);
 end;
 
-{ TStyleEntry }
+{ TecStyleEntry }
 
-constructor TStyleEntry.Create(AStyle: TSyntaxFormat; AStartPos,
+constructor TecStyleEntry.Create(AStyle: TecSyntaxFormat; AStartPos,
   AEndPos: integer; AIsDynoStyle: Boolean);
 begin
   inherited Create(AStartPos, AEndPos);
@@ -5621,17 +5612,17 @@ begin
   IsDynoStyle := AIsDynoStyle;
 end;
 
-{ TStyleEntries }
+{ TecStyleEntries }
 
-procedure TStyleEntries.Add(AStyle: TSyntaxFormat; AStartPos,
+procedure TecStyleEntries.Add(AStyle: TecSyntaxFormat; AStartPos,
   AEndPos: integer; AIsDynoStyle: Boolean);
 begin
-  Add(TStyleEntry.Create(AStyle, AStartPos, AEndPos, AIsDynoStyle));
+  Add(TecStyleEntry.Create(AStyle, AStartPos, AEndPos, AIsDynoStyle));
 end;
 
-function TStyleEntries.GetItems(Index: integer): TStyleEntry;
+function TecStyleEntries.GetItems(Index: integer): TecStyleEntry;
 begin
-  Result := TStyleEntry(inherited Items[Index]);
+  Result := TecStyleEntry(inherited Items[Index]);
 end;
 
 initialization
