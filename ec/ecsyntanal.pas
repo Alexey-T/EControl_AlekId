@@ -25,12 +25,6 @@ uses
   proc_StreamComponent;
 
 type
-  IecTextClient = interface
-    ['{359632FE-CC0F-463F-B9CC-2F40F292DE40}']
-    // Count < 0 => after delete, Pos = -1 => all text changed
-    procedure TextChanged(Sender: TObject; Pos, Count, LineChange: integer);
-  end;
-
   IecSyntClient = interface
     ['{045EAD6D-5584-4A60-849E-6B8994AA5B8F}']
     procedure FormatChanged; // Lexer properties changed (update without clear)
