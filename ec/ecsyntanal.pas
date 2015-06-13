@@ -739,8 +739,6 @@ type
     function RangeIdxAtPos(APos: integer): integer;
     function NearestRangeAtPos(APos: integer): TecTextRange;
     function NearestRangeIdxAtPos(APos: integer): integer;
-    function GetRangeAtLine(Line: integer): TecTextRange;
-    function GetNearestColRange(Pos: integer): TecTextRange;
 
     function RangeFormat(const FmtStr: ecString; Range: TecTextRange): ecString;
     function GetRangeName(Range: TecTextRange): ecString;
@@ -2816,23 +2814,11 @@ type
     constructor Create(Pos, Count: integer);
   end;
 
-  TCollapsibleRange = class(TRange)
-    FSource: integer;
-  public
-    constructor Create(ASource, AStart, AEnd: integer);
-  end;
-
 constructor TTextChangeInfo.Create(Pos, Count: integer);
 begin
   inherited Create;
   FPos := Pos;
   FCount := Count;
-end;
-
-constructor TCollapsibleRange.Create(ASource, AStart, AEnd: integer);
-begin
-  inherited Create(AStart, AEnd);
-  FSource := ASource;
 end;
 
 procedure TecParserResults.ApplyStates(Rule: TRuleCollectionItem);
@@ -3854,30 +3840,6 @@ begin
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
 end;
 
-function TecClientSyntAnalyzer.GetRangeAtLine(Line: integer): TecTextRange;
-var i, sp, ep: integer;
-    List: TList;
-begin
-  List := TList.Create;
-  try
-    sp := FSrcProc.LineIndex(Line) - 1;
-    ep := FChanges.CurToOld(sp + FSrcProc.LineSpace(Line));
-    sp := FChanges.CurToOld(sp);
-    FCollapsables.GetRangesAtRange(List, sp, ep);
-    for i := 0 to List.Count - 1 do
-     with TCollapsibleRange(List[i]) do
-      if (StartPos >= sp) and (EndPos >= ep) and (FSource < FRanges.Count) and
-         (Tags[TecTextRange(FRanges[FSource]).StartIdx].StartPos = StartPos) then
-       begin
-         Result := TecTextRange(FRanges[FSource]);
-         Exit;
-       end;
-    Result := nil;
-  finally
-    FreeAndNil(List);
-  end;
-end;
-
 function TecClientSyntAnalyzer.GetLineBreak(Line: integer): TecLineBreakRange;
 var List: TList;
 
@@ -3918,26 +3880,6 @@ begin
       ChangedAtPos(Pos);
       FChanges.Add(Pos, Count);
     end;
-end;
-
-function TecClientSyntAnalyzer.GetNearestColRange(Pos: integer): TecTextRange;
-var i: integer;
-    List: TList;
-begin
-  List := TList.Create;
-  try
-    FCollapsables.GetRangesAtPos(List, FChanges.CurToOld(Pos));
-    for i := List.Count - 1 downto 0 do
-     with TCollapsibleRange(List[i]) do
-       if  FSource < FRanges.Count then
-         begin
-           Result := TecTextRange(FRanges[FSource]);
-           Exit;
-         end;
-    Result := nil;
-  finally
-    FreeAndNil(List);
-  end;
 end;
 
 function TecClientSyntAnalyzer.GetTagPos(Index: integer): TPoint;
