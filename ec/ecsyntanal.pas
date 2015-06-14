@@ -691,9 +691,7 @@ type
     FIdleProc: Boolean;
     FIdleTimer: TTimer;
 
-    FCollapsables: TRangeCollection;   // ranges that can be collapsed
     FSavedTags: TRangeList;            // saved tokens
-    FCurDynamic: TList;                // currently highlighted ranges
     FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
     FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
     FDataAccess: TCriticalSection;
@@ -757,6 +755,7 @@ type
     property OpenCount: integer read GetOpenedCount;
     property Opened[Index: integer]: TecTextRange read GetOpened;
 
+    property LineBreaks: TList read FLineBreaks;
     property RangeCount: integer read GetRangeCount;
     property Ranges[Index: integer]: TecTextRange read GetRanges;
     property TagPos[Index: integer]: TPoint read GetTagPos;
@@ -2923,9 +2922,7 @@ begin
   FRanges := TSortedList.Create(True);
   FLineBreaks := TObjectList.Create;
   FOpenedBlocks := TSortedList.Create(False);
-  FCurDynamic := TList.Create;
 
-  FCollapsables := TRangeCollection.Create;
   FChanges := TecChangeFixer.Create;
   FSavedTags := TRangeList.Create;
   FLineBreakRanges := TRangeCollection.Create;
@@ -2952,8 +2949,6 @@ begin
   FreeAndNil(FRanges);
   FreeAndNil(FLineBreaks);
   FreeAndNil(FOpenedBlocks);
-  FreeAndNil(FCurDynamic);
-  FreeAndNil(FCollapsables);
   FreeAndNil(FDataAccess);
   inherited;
 end;
@@ -2968,8 +2963,6 @@ begin
     FRanges.Clear;
     FLineBreaks.Clear;
     FOpenedBlocks.Clear;
-    FCurDynamic.Clear;
-    FCollapsables.Clear;
     FChanges.Clear;
     FSavedTags.Clear;
     FLineBreakRanges.Clear;
