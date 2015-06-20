@@ -9,13 +9,13 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
     <Description Value="Core of EControl Syntax Editor SDK"/>
     <License Value="Licensed for open-source only. See readme.txt."/>
     <Version Major="1"/>
-    <Files Count="6">
+    <Files Count="8">
       <Item1>
         <Filename Value="eclists.pas"/>
         <UnitName Value="ecLists"/>
@@ -40,6 +40,14 @@
         <Filename Value="eczregexpr.pas"/>
         <UnitName Value="ecZRegExpr"/>
       </Item6>
+      <Item7>
+        <Filename Value="proc_lexer.pas"/>
+        <UnitName Value="proc_lexer"/>
+      </Item7>
+      <Item8>
+        <Filename Value="proc_streamcomponent.pas"/>
+        <UnitName Value="proc_StreamComponent"/>
+      </Item8>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>
