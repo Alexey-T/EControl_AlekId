@@ -11,6 +11,8 @@ uses
   ATStringProc;
 
 function DoFindLexerForFilename(LexLib: TecSyntaxManager; const FileName: string): TecSyntAnalyzer;
+function DoGetLexerFileFilter(an: TecSyntAnalyzer): string;
+function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
 
 implementation
 
@@ -70,6 +72,38 @@ begin
   finally
     st.Free;
   end;
+end;
+
+function DoGetLexerFileFilter(an: TecSyntAnalyzer): string;
+var
+  s: string;
+  st: TzStringList;
+  i: integer;
+begin
+  Result:= '';
+  st:= TzStringList.Create;
+  try
+    st.Delimiter:= ' ';
+    st.DelimitedText:= an.Extentions;
+    if st.Count=0 then Exit;
+    Result:= an.LexerName+'|';
+    for i:= 0 to st.Count-1 do
+      Result:= Result+'*.'+st[i]+';';
+    Result:= Result+'|';
+  finally
+    st.Free;
+  end;
+
+  Result:= Result+'All files|*|';
+end;
+
+function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
+var
+  n: integer;
+begin
+  Result:= an.Extentions;
+  n:= Pos(' ', Result);
+  if n>0 then Delete(Result, n, Maxint);
 end;
 
 
