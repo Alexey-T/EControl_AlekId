@@ -27,8 +27,17 @@ implementation
 
 uses SysUtils;
 
-{$J+}
+function SafeProcessMessages(Sender: TObject): integer;
+begin
+  Application.ProcessMessages;
+  if Application.Terminated then Result:= 1 else Result:= 0; 
+end;
 
+procedure SafeDestroying(Sender: TObject);
+begin
+end;
+
+(*
 // 0 - all is ok
 // 1 - application terminated
 // 2 - object destroyed
@@ -62,12 +71,14 @@ begin
   if RefList <> nil then
     RefList.Remove(Sender);
 end;
+*)
+
 
 initialization
-  RefList := TList.Create;
+  //RefList := TList.Create;
 
 finalization
-  FreeAndNil(RefList);
+  //FreeAndNil(RefList);
 
 
 end.
