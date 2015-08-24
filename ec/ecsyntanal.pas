@@ -588,19 +588,24 @@ type
     property Items[Index: integer]: TecSubAnalyzerRule read GetItem; default;
   end;
 
+  { TecCodeTemplate }
+
   TecCodeTemplate = class(TCollectionItem)
   private
     FName: string;
     FDescription: string;
     FAdvanced: boolean;
+    FCode: TStrings;
   protected
     function GetDisplayName: string; override;
   public
     constructor Create(Collection: TCollection); override;
+    destructor Destroy; override;
   published
     property Name: string read FName write FName;
     property Description: string read FDescription write FDescription;
     property Advanced: Boolean read FAdvanced write FAdvanced;
+    property Code: TStrings read FCode;
   end;
 
   TecCodeTemplates = class(TOwnedCollection)
@@ -4725,6 +4730,13 @@ begin
   FName:= '';
   FDescription:= '';
   FAdvanced:= false;
+  FCode:= TStringList.Create;
+end;
+
+destructor TecCodeTemplate.Destroy;
+begin
+  FreeAndNil(FCode);
+  inherited;
 end;
 
 function TecCodeTemplate.GetDisplayName: string;
