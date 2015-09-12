@@ -3887,7 +3887,10 @@ end;
 
 function TecClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
 begin
-  Result := FTagList.NextAt(Pos);
+  if Assigned(FTagList) then
+    Result := FTagList.NextAt(Pos)
+  else
+    Result := -1;
 end;
 
 procedure TecClientSyntAnalyzer.Lock;
