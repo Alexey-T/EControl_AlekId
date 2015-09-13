@@ -2614,8 +2614,11 @@ end;
 
 function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
-  with Tags[Index] do
-    Result := FSrcProc.SubString(StartPos + 1, EndPos - StartPos);
+  if (Index>=0) and (Index<TagCount) then //AT
+    with Tags[Index] do
+      Result := FSrcProc.SubString(StartPos + 1, EndPos - StartPos)
+  else
+    Result := '';
 end;
 
 function TecParserResults.GetLastPos(const Source: ecString): integer;
@@ -3887,10 +3890,7 @@ end;
 
 function TecClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
 begin
-  if Assigned(FTagList) then
-    Result := FTagList.NextAt(Pos)
-  else
-    Result := -1;
+  Result := FTagList.NextAt(Pos);
 end;
 
 procedure TecClientSyntAnalyzer.Lock;
