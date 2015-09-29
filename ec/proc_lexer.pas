@@ -27,13 +27,13 @@ begin
   fname:= '/' + LowerCase(ExtractFileName(FileName));
 
   ext1:= LowerCase(ExtractFileExt(FileName));
-  if SBegin(ext1, '.') then Delete(ext1, 1, 1);
+  if SBeginsWith(ext1, '.') then Delete(ext1, 1, 1);
 
   ext2:= '';
   if ext1<>'' then
   begin
     ext2:= LowerCase(ExtractFileExt(ChangeFileExt(FileName, '')));
-    if SBegin(ext2, '.') then Delete(ext2, 1, 1);
+    if SBeginsWith(ext2, '.') then Delete(ext2, 1, 1);
     if ext2<>'' then
       ext2:= ext2+'.'+ext1;
   end;
