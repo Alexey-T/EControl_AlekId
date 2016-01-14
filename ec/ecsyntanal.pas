@@ -3778,7 +3778,7 @@ begin
               N := FSrcProc.StrToCaret(Tags[idx].EndPos).Y;
               to_idx := FSrcProc.LineIndex(N) + FSrcProc.LineLength(N);
               N:= Tags[idx].StartPos + 1;
-              Insert(FSrcProc.SubString(N, to_idx - N), Result, i);
+              Insert(FSrcProc.SubString(N, to_idx - N + 1), Result, i); //AT: needed "to_idx-N+1" to fix missing last chr in tree in Cuda
             end;
          // HAW: new mode = 3 --- explicit range  idx...to_idx
          3: if  (to_idx >= 0)  and  (to_idx < FTagList.Count)  then  begin
