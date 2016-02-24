@@ -30,7 +30,7 @@ begin
         Writer := TWriter.Create(MemSt, 4096);
         try
           Writer.Root := Component.Owner;
-          //Delphi needs Writer.WriteSignature
+          Writer.WriteSignature; //Delphi/ FPC 3.0 needs
           Writer.WriteComponent(Component);
         finally
           FreeAndNil(Writer);
