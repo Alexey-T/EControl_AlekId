@@ -686,6 +686,8 @@ type
     property ParserState: integer read FCurState write FCurState;
   end;
 
+  { TecClientSyntAnalyzer }
+
   TecClientSyntAnalyzer = class(TecParserResults)
   private
     FLineBreaks: TList;
@@ -724,6 +726,7 @@ type
     constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); override;
     destructor Destroy; override;
     procedure Clear; override;
+    procedure Stop;
     procedure ChangedAtPos(APos: integer);
     function GetLineBreak(Line: integer): TecLineBreakRange;
     function TokenAtPos(Pos: integer): integer;
@@ -2967,6 +2970,18 @@ begin
   inherited;
 end;
 
+procedure TecClientSyntAnalyzer.Stop;
+//this is not done. Stop method still gives AV on closing Cudatext tab
+//when parsing in tab not done.
+//(e.g. open 1Mb Pascal code, quick close tab).
+//this code is better than none
+begin
+  FFinished := true;
+  FBreakIdle := true;
+  FIdleTimer.Enabled := false;
+  if FIdleProc then Sleep(300);
+end;
+
 procedure TecClientSyntAnalyzer.Clear;
 begin
   Lock;
@@ -3107,6 +3122,7 @@ begin
   FBreakIdle := False;
   FIdleProc := True;
   FPos := 0;
+ try
   try
     while not FBreakIdle and not FFinished do
     begin
@@ -3137,10 +3153,13 @@ begin
           Exit;   // Exit if analyzer is destroyed after processing messages
       end;
     end;
-  except
-    //MessageBox(0, 'Error while idle', 'Error', MB_OK);
+  finally
+    FIdleProc := False;
   end;
-  FIdleProc := False;
+ except
+   //just hide AV if object freed while parsing not done,
+   //cannot fix AV yet, even with Stop
+ end;
 end;
 
 procedure TecClientSyntAnalyzer.IdleAppend;
