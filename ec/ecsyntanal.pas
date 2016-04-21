@@ -642,7 +642,7 @@ type
 // *******************************************************************
   TecParserResults = class(TTokenHolder)
   private
-    FSrcProc: TATStringBuffer;
+    FBuffer: TATStringBuffer;
     FClient: IecSyntClient;
     FOwner: TecSyntAnalyzer;
     FFinished: Boolean;
@@ -2566,7 +2566,7 @@ begin
   if SrcProc = nil then
    raise Exception.Create('Source procedure not passed from syntax server');
   FOwner := AOwner;
-  FSrcProc := SrcProc;
+  FBuffer := SrcProc;
   FClient := AClient;
   FTagList := TRangeList.Create(False);
   FSubLexerBlocks := TObjectList.Create;
@@ -2623,7 +2623,7 @@ function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
   if (Index>=0) and (Index<TagCount) then //AT
     with Tags[Index] do
-      Result := FSrcProc.SubString(StartPos + 1, EndPos - StartPos)
+      Result := FBuffer.SubString(StartPos + 1, EndPos - StartPos)
   else
     Result := '';
 end;
@@ -3102,7 +3102,7 @@ begin
    with TecSubLexerRange(FSubLexerBlocks[i]) do
     if (EndPos = -1) and Rule.ToTextEnd then
      begin
-       FEndPos := FSrcProc.TextLength{ - 1};
+       FEndPos := FBuffer.TextLength{ - 1};
        FCondEndPos := FEndPos;
      end;
 
@@ -3125,17 +3125,17 @@ begin
   try
     while not FBreakIdle and not FFinished do
     begin
-     tmp := GetLastPos(FSrcProc.FText);
+     tmp := GetLastPos(FBuffer.FText);
      if tmp > FPos then FPos := tmp;
-     if ExtractTag(FSrcProc.FText, FPos, True) then
+     if ExtractTag(FBuffer.FText, FPos, True) then
       begin
        if FOwner.SeparateBlockAnalysis then
         for i := FStartSepRangeAnal + 1 to TagCount do
          begin
           own := Tags[i - 1].Rule.SyntOwner;
-          FOwner.SelectTokenFormat(Self, FSrcProc.FText, own <> FOwner, i);
+          FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
           if own <> FOwner then
-            own.SelectTokenFormat(Self, FSrcProc.FText, False, i);
+            own.SelectTokenFormat(Self, FBuffer.FText, False, i);
           if SafeProcessMessages(Self) <> 0 then
             Exit; // Exit if analyzer is destroyed after processing messages
           if FBreakIdle then
@@ -3177,12 +3177,12 @@ end;
 procedure TecClientSyntAnalyzer.AppendToPos(APos: integer);
 var FPos: integer;
 begin
-  if Length(FSrcProc.FText) = 0 then Exit;
+  if FBuffer.TextLength = 0 then Exit;
   if FFinished then Exit;
-  FPos := GetLastPos(FSrcProc.FText);
+  FPos := GetLastPos(FBuffer.FText);
   while FPos - 1 <= APos + 1 do
    begin
-     if ExtractTag(FSrcProc.FText, FPos, False) then
+     if ExtractTag(FBuffer.FText, FPos, False) then
       begin
        if not FOwner.SeparateBlockAnalysis then
          Finished else
@@ -3221,7 +3221,7 @@ var i, N: integer;
  end;
 
 begin
-{ if FSrcProc.TextLength <= Owner.FullRefreshSize then
+{ if FBuffer.TextLength <= Owner.FullRefreshSize then
   begin
    Clear;
    Exit;
@@ -3233,11 +3233,11 @@ begin
    Dec(APos);
    FBreakIdle := True;
    FIdleTimer.Enabled := False;
-   if FSrcProc.TextLength <= Owner.FullRefreshSize then
+   if FBuffer.TextLength <= Owner.FullRefreshSize then
      APos := 0
    else
    if Owner.RestartFromLineStart then
-     APos := Min(APos, FSrcProc.OffsetToOffsetOfLineStart(APos + 1));
+     APos := Min(APos, FBuffer.OffsetToOffsetOfLineStart(APos + 1));
 
    // Check sub lexer ranges
    for i := FSubLexerBlocks.Count - 1 downto 0 do
@@ -3382,11 +3382,11 @@ begin
       OldSep := FOwner.FSeparateBlocks;
       FOwner.FSeparateBlocks := 2; // disanle separation analysis
       Clear;
-      AppendToPos(Length(FSrcProc.FText));
+      AppendToPos(FBuffer.TextLength);
       FOwner.FSeparateBlocks := OldSep;
     end else
     begin
-      AppendToPos(Length(FSrcProc.FText));
+      AppendToPos(FBuffer.TextLength);
     end;
 end;
 
@@ -3394,14 +3394,14 @@ procedure TecClientSyntAnalyzer.CompleteAnalysis;
 var own: TecSyntAnalyzer;
     i: integer;
 begin
-  AppendToPos(Length(FSrcProc.FText));
+  AppendToPos(FBuffer.TextLength);
   if FOwner.SeparateBlockAnalysis then
     for i := FStartSepRangeAnal + 1 to TagCount do
      begin
       own := Tags[i - 1].Rule.SyntOwner;
-      FOwner.SelectTokenFormat(Self, FSrcProc.FText, own <> FOwner, i);
+      FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
       if own <> FOwner then
-        own.SelectTokenFormat(Self, FSrcProc.FText, False, i);
+        own.SelectTokenFormat(Self, FBuffer.FText, False, i);
       FBreakIdle := True;
       Finished;
      end;
@@ -3788,14 +3788,14 @@ begin
        case LineMode of
          0: Insert(TagStr[idx], Result, i);
          1: begin
-              N := FSrcProc.OffsetToOffsetOfLineStart(Tags[idx].StartPos);
+              N := FBuffer.OffsetToOffsetOfLineStart(Tags[idx].StartPos);
               to_idx := Tags[idx].EndPos;
-              Insert(FSrcProc.SubString(N, to_idx - N + 1), Result, i);
+              Insert(FBuffer.SubString(N, to_idx - N + 1), Result, i);
             end;
          2: begin
-              to_idx := FSrcProc.OffsetToOffsetOfLineEnd(Tags[idx].EndPos);
+              to_idx := FBuffer.OffsetToOffsetOfLineEnd(Tags[idx].EndPos);
               N := Tags[idx].StartPos + 1;
-              Insert(FSrcProc.SubString(N, to_idx - N + 1), Result, i); //AT: needed "to_idx-N+1" to fix missing last chr in tree in Cuda
+              Insert(FBuffer.SubString(N, to_idx - N + 1), Result, i); //AT: needed "to_idx-N+1" to fix missing last chr in tree in Cuda
             end;
          // HAW: new mode = 3 --- explicit range  idx...to_idx
          3: if  (to_idx >= 0)  and  (to_idx < FTagList.Count)  then  begin
@@ -3859,9 +3859,9 @@ var List: TList;
   var i, sp, ep: integer;
   begin
     Result := nil;
-    if (Line >= FSrcProc.Count) or (Line < 0) then Exit;
-    sp := FSrcProc.LineIndex(Line) - 1;
-    ep := FChanges.CurToOld(sp + FSrcProc.LineSpace(Line));
+    if (Line >= FBuffer.Count) or (Line < 0) then Exit;
+    sp := FBuffer.LineIndex(Line) - 1;
+    ep := FChanges.CurToOld(sp + FBuffer.LineSpace(Line));
     sp := FChanges.CurToOld(sp);
     FLineBreakRanges.GetRangesAtRange(List, sp, ep);
     for i := List.Count - 1 downto 0 do
@@ -3968,9 +3968,9 @@ begin
   lb.FRefTag := RefTag;
   lb.FRule := Rule;
   if Rule.LinePos = lbBottom then
-    lb.FLine := FSrcProc.StrToCaret(Tags[RefTag].EndPos).Y + 1
+    lb.FLine := FBuffer.StrToCaret(Tags[RefTag].EndPos).Y + 1
   else
-    lb.FLine := FSrcProc.StrToCaret(Tags[RefTag].StartPos).Y;
+    lb.FLine := FBuffer.StrToCaret(Tags[RefTag].StartPos).Y;
   AddLineBreak(lb);
   Result := True;
 end;
@@ -4286,7 +4286,7 @@ begin
             if (ColumnFrom > 0) or (ColumnTo > 0) then
               begin
                if lp = 0 then
-                 lp := Client.FSrcProc.OffsetToDistanceFromLineStart(APos - 1)+1;
+                 lp := Client.FBuffer.OffsetToDistanceFromLineStart(APos - 1)+1;
 
                if (ColumnFrom > 0) and (lp < ColumnFrom) or
                   (ColumnTo > 0) and (lp > ColumnTo) then
