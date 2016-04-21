@@ -669,7 +669,7 @@ type
     procedure SaveState;
     procedure RestoreState;
   public
-    constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); virtual;
+    constructor Create(AOwner: TecSyntAnalyzer; ABuffer: TATStringBuffer; const AClient: IecSyntClient); virtual;
     destructor Destroy; override;
     procedure Clear; virtual;
 
@@ -2560,13 +2560,13 @@ end;
 { TecParserResults }
 
 constructor TecParserResults.Create(AOwner: TecSyntAnalyzer;
-  SrcProc: TATStringBuffer; const AClient: IecSyntClient);
+  ABuffer: TATStringBuffer; const AClient: IecSyntClient);
 begin
   inherited Create;
-  if SrcProc = nil then
-   raise Exception.Create('Source procedure not passed from syntax server');
+  if ABuffer = nil then
+    raise Exception.Create('TextBuffer not passed to parser');
   FOwner := AOwner;
-  FBuffer := SrcProc;
+  FBuffer := ABuffer;
   FClient := AClient;
   FTagList := TRangeList.Create(False);
   FSubLexerBlocks := TObjectList.Create;
@@ -2593,12 +2593,10 @@ begin
 end;
 
 procedure TecParserResults.Finished;
-//var i: integer;
 begin
-//  if FFinished then Exit;
   FFinished := True;
   // Performs Gramma parsing
-//  AnalyzeGramma;
+  //AnalyzeGramma;
 end;
 
 function TecParserResults.IsEnabled(Rule: TRuleCollectionItem;
@@ -2621,7 +2619,7 @@ end;
 
 function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
-  if (Index>=0) and (Index<TagCount) then //AT
+  if Index >= 0 then
     with Tags[Index] do
       Result := FBuffer.SubString(StartPos + 1, EndPos - StartPos)
   else
