@@ -703,13 +703,12 @@ type
     FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
     FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
     FDataAccess: TCriticalSection;
-    FNextTokIndex: integer;
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
-    function GetTagPos(Index: integer): TPoint;
+    //function GetTagPos(Index: integer): TPoint;
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
@@ -767,7 +766,7 @@ type
     property LineBreaks: TList read FLineBreaks;
     property RangeCount: integer read GetRangeCount;
     property Ranges[Index: integer]: TecTextRange read GetRanges;
-    property TagPos[Index: integer]: TPoint read GetTagPos;
+    //property TagPos[Index: integer]: TPoint read GetTagPos;
     property DisableIdleAppend: Boolean read FDisableIdleAppend write SetDisableIdleAppend;
   end;
 
@@ -3235,14 +3234,10 @@ begin
    FBreakIdle := True;
    FIdleTimer.Enabled := False;
    if FSrcProc.TextLength <= Owner.FullRefreshSize then
-    begin
-      APos := 0;
-    end else
+     APos := 0
+   else
    if Owner.RestartFromLineStart then
-    begin
-      N := FSrcProc.StrToCaret(APos + 1).Y;
-      APos := min(APos, FSrcProc.CaretToStr(Classes.Point(0, N)));
-    end;
+     APos := Min(APos, FSrcProc.OffsetToOffsetOfLineStart(APos + 1));
 
    // Check sub lexer ranges
    for i := FSubLexerBlocks.Count - 1 downto 0 do
@@ -3793,15 +3788,13 @@ begin
        case LineMode of
          0: Insert(TagStr[idx], Result, i);
          1: begin
-              N := FSrcProc.StrToCaret(Tags[idx].StartPos).Y;
-              N := FSrcProc.LineIndex(N);
+              N := FSrcProc.OffsetToOffsetOfLineStart(Tags[idx].StartPos);
               to_idx := Tags[idx].EndPos;
               Insert(FSrcProc.SubString(N, to_idx - N + 1), Result, i);
             end;
          2: begin
-              N := FSrcProc.StrToCaret(Tags[idx].EndPos).Y;
-              to_idx := FSrcProc.LineIndex(N) + FSrcProc.LineLength(N);
-              N:= Tags[idx].StartPos + 1;
+              to_idx := FSrcProc.OffsetToOffsetOfLineEnd(Tags[idx].EndPos);
+              N := Tags[idx].StartPos + 1;
               Insert(FSrcProc.SubString(N, to_idx - N + 1), Result, i); //AT: needed "to_idx-N+1" to fix missing last chr in tree in Cuda
             end;
          // HAW: new mode = 3 --- explicit range  idx...to_idx
@@ -3901,6 +3894,7 @@ begin
     end;
 end;
 
+(*
 function TecClientSyntAnalyzer.GetTagPos(Index: integer): TPoint;
 var ln_pos, i: integer;
 begin
@@ -3911,6 +3905,7 @@ begin
    if Tags[i].EndPos > ln_pos then Result.X := Result.X + 1
     else Exit;
 end;
+*)
 
 function TecClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
 begin
@@ -4290,7 +4285,9 @@ begin
           begin
             if (ColumnFrom > 0) or (ColumnTo > 0) then
               begin
-               if lp = 0 then lp := Client.FSrcProc.StrToCaret(APos - 1).X + 1;
+               if lp = 0 then
+                 lp := Client.FSrcProc.OffsetToDistanceFromLineStart(APos - 1)+1;
+
                if (ColumnFrom > 0) and (lp < ColumnFrom) or
                   (ColumnTo > 0) and (lp > ColumnTo) then
                   Continue;
