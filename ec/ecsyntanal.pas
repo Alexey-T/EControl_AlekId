@@ -3793,7 +3793,7 @@ begin
          2: begin
               to_idx := FBuffer.OffsetToOffsetOfLineEnd(Tags[idx].EndPos);
               N := Tags[idx].StartPos;
-              Insert(FBuffer.SubString(N, to_idx - N + 1), Result, i); //AT: fixed missing last chr in tree in Cuda
+              Insert(FBuffer.SubString(N, to_idx - N + 2), Result, i); //AT: fixed missing last chr in tree in Cuda
             end;
          // HAW: new mode = 3 --- explicit range  idx...to_idx
          3: if  (to_idx >= 0)  and  (to_idx < FTagList.Count)  then  begin
