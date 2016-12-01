@@ -23,6 +23,15 @@ function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
 
 implementation
 
+{
+This finds lexer by Extensions-property of lexer.
+It is space-separated items.
+Items are
+- usual extension: "pas" finds "dir/filename.pas"
+- double extension (higher priority): "some.html" finds "dir/myfile.some.html"
+  (before lexer HTML finds it)
+- filename: "/name.ext" finds "any/dir/name.ext"
+}
 function DoFindLexerForFilename(LexLib: TecSyntaxManager; const FileName: string): TecSyntAnalyzer;
 var
   fname, ext1, ext2: string;
@@ -33,9 +42,11 @@ begin
 
   fname:= '/' + LowerCase(ExtractFileName(FileName));
 
+  //final extension
   ext1:= LowerCase(ExtractFileExt(FileName));
   if SBeginsWith(ext1, '.') then Delete(ext1, 1, 1);
 
+  //2nd+final extension
   ext2:= '';
   if ext1<>'' then
   begin
@@ -47,6 +58,7 @@ begin
 
   st:= TzStringList.Create;
   try
+    //space separated
     st.Delimiter:= ' ';
 
     //find by double extension
@@ -56,11 +68,8 @@ begin
           if not Internal then
           begin
             st.DelimitedText:= Extentions;
-            if (ext2<>'') and (st.IndexOf(ext2)>=0) then
-            begin
-              Result:= LexLib.Analyzers[i];
-              Exit;
-            end;
+            if (st.IndexOf(ext2)>=0) then
+              Exit(LexLib.Analyzers[i]);
           end;
 
     //find by usual extension + filename
@@ -71,10 +80,7 @@ begin
           st.DelimitedText:= Extentions;
           if ((ext1<>'') and (st.IndexOf(ext1)>=0)) or
                             (st.IndexOf(fname)>=0) then
-          begin
-            Result:= LexLib.Analyzers[i];
-            Exit;
-          end;
+            Exit(LexLib.Analyzers[i]);
         end;
   finally
     st.Free;
@@ -83,7 +89,6 @@ end;
 
 function DoGetLexerFileFilter(an: TecSyntAnalyzer; const AllFilesText: string): string;
 var
-  s: string;
   st: TzStringList;
   i: integer;
 begin
