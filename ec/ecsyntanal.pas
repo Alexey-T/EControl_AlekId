@@ -2951,7 +2951,7 @@ end;
 
 destructor TecClientSyntAnalyzer.Destroy;
 begin
-  SafeDestroying(Self);
+  //SafeDestroying(Self);
 
   if Assigned(FIdleTimer) then
     FIdleTimer.Enabled := False;
