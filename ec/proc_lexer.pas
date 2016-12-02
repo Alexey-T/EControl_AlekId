@@ -24,12 +24,13 @@ function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
 implementation
 
 function SItemListed(const AItem, AList: string): boolean;
+const
+  sep=' ';
 begin
-  //space separated list
   if (AItem='') or (AList='') then
     Result:= false
   else
-    Result:= Pos(' '+AItem+' ', ' '+AList+' ' )>0;
+    Result:= Pos(sep+AItem+sep, sep+AList+sep)>0;
 end;
 
 {
