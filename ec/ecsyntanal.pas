@@ -706,6 +706,8 @@ type
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
+    FEnabledLineSeparators: Boolean; //AT
+
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
     //function GetTagPos(Index: integer): TPoint;
@@ -768,6 +770,7 @@ type
     property Ranges[Index: integer]: TecTextRange read GetRanges;
     //property TagPos[Index: integer]: TPoint read GetTagPos;
     property DisableIdleAppend: Boolean read FDisableIdleAppend write SetDisableIdleAppend;
+    property EnabledLineSeparators: Boolean read FEnabledLineSeparators write FEnabledLineSeparators; //AT
   end;
 
 // *******************************************************************
@@ -842,6 +845,7 @@ type
     FIdleAppendDelayInit: Cardinal;
     FIdleAppendDelay: Cardinal;
     FOnParseToken: TParseTokenEvent;
+
     procedure SetSampleText(const Value: TStrings);
     procedure FormatsChanged(Sender: TCollection; Item: TSyntCollectionItem);
     procedure TokenRuleChanged(Sender: TCollection; Item: TSyntCollectionItem);
@@ -2946,6 +2950,8 @@ begin
   FIdleTimer.Enabled := False;
   FIdleTimer.Interval := 100;
 
+  FEnabledLineSeparators := True; //AT
+
   IdleAppend;
 end;
 
@@ -3962,6 +3968,9 @@ function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
   RefTag: integer): Boolean;
 var lb: TecLineBreak;
 begin
+  if not EnabledLineSeparators then //AT
+    begin Result:= True; exit end;
+
   lb := TecLineBreak.Create;
   lb.FRefTag := RefTag;
   lb.FRule := Rule;
