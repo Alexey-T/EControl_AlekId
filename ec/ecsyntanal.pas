@@ -4014,8 +4014,10 @@ begin
          Ind := IndentOf(TagStr[Range.StartIdx]);
          for j := Range.StartIdx+1 to TagCount-1 do
          begin
-           s := Owner.TokenTypeNames[Tags[j].FTokenType];
-           if (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= Ind) then
+           s := '';
+           if Range.FRule.SyntOwner<>nil then
+             s := Range.FRule.SyntOwner.TokenTypeNames[Tags[j].FTokenType];
+           if (s<>'') and (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= Ind) then
            begin
              Range.FEnd := j-1;
              Break
