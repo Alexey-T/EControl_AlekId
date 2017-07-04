@@ -7,6 +7,7 @@
 {     support@econtrol.ru                                                     }
 {                                                                             }
 { *************************************************************************** }
+//Much code stripped from Lazarus port, by Alexey T.
 
 {$mode delphi}
 
@@ -21,27 +22,6 @@ type
   ecChar = WideChar;
   UCString = UnicodeString;
   UCChar = WideChar;
-
-type
-  TzStringList = class(TStringList)
-  private
-    FDelimiter: Char;
-    FCaseSensitive: Boolean;
-    function GetDelimitedText: string;
-    procedure SetDelimitedText(const Value: string);
-    procedure SetCaseSensitive(const Value: Boolean);
-  public
-    function Find(const S: string; out Index: Integer): Boolean; override;
-    procedure Sort; override;
-    property Delimiter: Char read FDelimiter write FDelimiter;
-    property DelimitedText: string read GetDelimitedText write SetDelimitedText;
-    property CaseSensitive: Boolean read FCaseSensitive write SetCaseSensitive;
-  private
-    function GetValueFromIndex(Index: Integer): string;
-    procedure SetValueFromIndex(Index: Integer; const Value: string);
-  public
-    property ValueFromIndex[Index: Integer]: string read GetValueFromIndex write SetValueFromIndex;
-  end;
 
 function IsDigitChar(const c: UCChar): Boolean; overload;
 function IsHexDigitChar(const c: UCChar): Boolean; overload;
@@ -66,137 +46,6 @@ implementation
 
 uses
   Controls, Forms;
-
-function TzStringList.GetDelimitedText: string;
-var
-  S: string;
-  P: PChar;
-  I, NCount: Integer; //renamed Count
-begin
-  NCount := GetCount;
-  if (NCount = 1) and (Get(0) = '') then
-    Result := QuoteChar + QuoteChar
-  else
-  begin
-    Result := '';
-    for I := 0 to NCount - 1 do
-    begin
-      S := Get(I);
-      P := PChar(S);
-      while not (P^ in [#0..' ', QuoteChar, Delimiter]) do
-        Inc(P);
-      if (P^ <> #0) then S := AnsiQuotedStr(S, QuoteChar);
-      Result := Result + S + Delimiter;
-    end;
-      System.Delete(Result, Length(Result), 1);
-  end;
-end;
-
-procedure TzStringList.SetCaseSensitive(const Value: Boolean);
-begin
-  if Value <> FCaseSensitive then
-  begin
-    FCaseSensitive := Value;
-    if Sorted then Sort;
-  end;
-end;
-
-procedure TzStringList.SetDelimitedText(const Value: string);
-var
-  P, P1: PChar;
-  S: string;
-begin
-  BeginUpdate;
-  try
-    Clear;
-    P := PChar(Value);
-    while P^ in [#1..' '] do
-      Inc(P);
-    while P^ <> #0 do
-    begin
-      P1 := P;
-      while (P^ > ' ') and (P^ <> Delimiter) do
-        Inc(P);
-      SetString(S, P1, P - P1);
-      Add(S);
-      while P^ in [#1..' '] do
-        Inc(P);
-      if P^ = Delimiter then
-      begin
-        P1 := P;
-        Inc(P1);
-        if P1^ = #0 then
-          Add('');
-        repeat
-          Inc(P);
-        until not (P^ in [#1..' ']);
-      end;
-    end;
-  finally
-    EndUpdate;
-  end;
-end;
-
-function StrAnsiCompare(List: TStringList; const S1, S2: string): Integer;
-begin
-  with TzStringList(List) do
-   if CaseSensitive then
-     Result := AnsiCompareStr(S1, S2)
-   else
-     Result := AnsiCompareText(S1, S2);
-end;
-
-function StringListAnsiCompare(List: TStringList; Index1, Index2: Integer): Integer;
-begin
-  Result := StrAnsiCompare(List, List[Index1], List[Index2]);
-end;
-
-function TzStringList.Find(const S: string; out Index: Integer): Boolean;
-var
-  L, H, I, C: Integer;
-begin
-  Result := False;
-  L := 0;
-  H := Count - 1;
-  while L <= H do
-  begin
-    I := (L + H) shr 1;
-    C := StrAnsiCompare(Self, Strings[I], S);
-    if C < 0 then L := I + 1 else
-    begin
-      H := I - 1;
-      if C = 0 then
-      begin
-        Result := True;
-        if Duplicates <> dupAccept then L := I;
-      end;
-    end;
-  end;
-  Index := L;
-end;
-
-procedure TzStringList.Sort;
-begin
-  CustomSort(StringListAnsiCompare);
-end;
-
-function TzStringList.GetValueFromIndex(Index: Integer): string;
-begin
-  if Index >= 0 then
-    Result := Copy(Get(Index), Length(Names[Index]) + 2, MaxInt) else
-    Result := '';
-end;
-
-procedure TzStringList.SetValueFromIndex(Index: Integer; const Value: string);
-begin
-  if Value <> '' then
-  begin
-    if Index < 0 then Index := Add('');
-    Put(Index, Names[Index] + '=' + Value);
-  end
-  else
-    if Index >= 0 then Delete(Index);
-end;
 
 //==============================================================================
 //  Routines

@@ -1708,15 +1708,13 @@ constructor TecSingleTagCondition.Create(Collection: TCollection);
 begin
   inherited;
   FCondType := tcEqual;
-  FTagList := TzStringList.Create;
-  TzStringList(FTagList).Sorted := true;
-  TzStringList(FTagList).Delimiter := ' ';
-  TzStringList(FTagList).Duplicates := dupIgnore;
-  TzStringList(FTagList).CaseSensitive := True;
-  TzStringList(FTagList).OnChange := TagListChanged;
-  {$IFDEF EC_VCL6_UP}
-  TzStringList(FTagList).QuoteChar := ' ';
-  {$ENDIF}
+  FTagList := TStringList.Create;
+  TStringList(FTagList).Sorted := true;
+  TStringList(FTagList).Delimiter := ' ';
+  TStringList(FTagList).Duplicates := dupIgnore;
+  TStringList(FTagList).CaseSensitive := True;
+  TStringList(FTagList).OnChange := TagListChanged;
+  TStringList(FTagList).QuoteChar := ' ';
 end;
 
 destructor TecSingleTagCondition.Destroy;
@@ -1727,17 +1725,17 @@ end;
 
 procedure TecSingleTagCondition.SetIgnoreCase(const Value: Boolean);
 begin
-  TzStringList(FTagList).CaseSensitive := not Value;
+  TStringList(FTagList).CaseSensitive := not Value;
 end;
 
 function TecSingleTagCondition.GetIgnoreCase: Boolean;
 begin
-  Result := not TzStringList(FTagList).CaseSensitive;
+  Result := not TStringList(FTagList).CaseSensitive;
 end;
 
 procedure TecSingleTagCondition.SetTagList(const Value: TStrings);
 begin
-  TzStringList(FTagList).DelimitedText := Value.Text;
+  TStringList(FTagList).DelimitedText := Value.Text;
   Changed(False);
 end;
 
