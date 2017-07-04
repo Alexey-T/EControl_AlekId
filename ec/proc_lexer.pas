@@ -86,26 +86,30 @@ end;
 
 
 function DoGetLexerFileFilter(an: TecSyntAnalyzer; const AllFilesText: string): string;
+//Get filter-string for TSaveDialog:
+//- filter for given lexer
+//- and item "all files (*.*)"
 var
-  st: TzStringList;
+  L: TStringList;
   i: integer;
 begin
   Result:= '';
-  st:= TzStringList.Create;
+  L:= TStringList.Create;
   try
-    st.Delimiter:= ' ';
-    st.DelimitedText:= an.Extentions;
-    if st.Count=0 then Exit;
+    L.LineBreak:= ' ';
+    L.Text:= an.Extentions;
+    if L.Count=0 then Exit;
     Result:= an.LexerName+' ('+an.Extentions+')|';
-    for i:= 0 to st.Count-1 do
-      Result:= Result+'*.'+st[i]+';';
+    for i:= 0 to L.Count-1 do
+      if not SBeginsWith(L[i], '/') then //skip some for eg "Makefile" lexer
+        Result:= Result+('*.'+L[i]+';');
     Result:= Result+'|';
   finally
-    st.Free;
+    L.Free;
   end;
 
   if AllFilesText<>'' then
-    Result:= Result+AllFilesText+'|'+AllFilesMask+'|';
+    Result:= Result+(AllFilesText+'|'+AllFilesMask+'|');
 end;
 
 function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
@@ -113,8 +117,10 @@ var
   n: integer;
 begin
   Result:= an.Extentions;
+  if SBeginsWith(Result, '/') then exit('');
   n:= Pos(' ', Result);
-  if n>0 then Delete(Result, n, Maxint);
+  if n>0 then
+    Delete(Result, n, Maxint);
 end;
 
 
