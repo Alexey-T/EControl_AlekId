@@ -37,13 +37,14 @@ end;
 This finds lexer by Extensions-property of lexer.
 It is space-separated items. In lower case.
 Items are
-- usual extension: "pas" finds "dir/filename.pas"
+- usual extension: "pas" finds "anyname.pas"
 - double extension (higher priority): "some.html" finds "dir/myfile.some.html"
   (before lexer HTML finds it)
-- filename: "/name.ext" finds "any/dir/name.ext"
+- full filename: "/name.ext" finds "any/dir/name.ext"
 }
 function DoFindLexerForFilename(LexLib: TecSyntaxManager; FileName: string): TecSyntAnalyzer;
 var
+  An: TecSyntAnalyzer;
   fname, ext1, ext2: string;
   i: integer;
 begin
@@ -67,21 +68,33 @@ begin
       ext2:= ext2+'.'+ext1;
   end;
 
+  //find by filename
+  for i:= 0 to LexLib.AnalyzerCount-1 do
+  begin
+    An:= LexLib.Analyzers[i];
+    if not An.Internal then
+      if SItemListed(fname, An.Extentions) then
+        Exit(An);
+  end;
+
   //find by double extension
   if ext2<>'' then
     for i:= 0 to LexLib.AnalyzerCount-1 do
-      with LexLib.Analyzers[i] do
-        if not Internal then
-          if SItemListed(ext2, Extentions) then
-            Exit(LexLib.Analyzers[i]);
+    begin
+      An:= LexLib.Analyzers[i];
+      if not An.Internal then
+        if SItemListed(ext2, An.Extentions) then
+          Exit(An);
+    end;
 
-  //find by extension/filename
+  //find by usual extension
   for i:= 0 to LexLib.AnalyzerCount-1 do
-    with LexLib.Analyzers[i] do
-      if not Internal then
-        if SItemListed(ext1, Extentions) or
-           SItemListed(fname, Extentions) then
-          Exit(LexLib.Analyzers[i]);
+  begin
+    An:= LexLib.Analyzers[i];
+    if not An.Internal then
+      if SItemListed(ext1, An.Extentions) then
+        Exit(An);
+  end;
 end;
 
 
