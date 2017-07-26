@@ -242,17 +242,25 @@ type
 // description classes of text contents
 // *******************************************************************
 
+  { TecSyntToken }
+
   TecSyntToken = class(TRange)
   private
     FTokenType: integer;
     FRule: TRuleCollectionItem;
+    FPointStart: TPoint;
+    FPointEnd: TPoint;
     function GetStyle: TecSyntaxFormat;
   public
-    constructor Create(ARule: TRuleCollectionItem; AStartPos, AEndPos: integer);
+    constructor Create(ARule: TRuleCollectionItem;
+      AStartPos, AEndPos: integer;
+      APointStart, APointEnd: TPoint);
     function GetStr(const Source: ecString): ecString;
     property TokenType: integer read FTokenType;
     property Rule: TRuleCollectionItem read FRule;
     property Style: TecSyntaxFormat read GetStyle;
+    property PointStart: TPoint read FPointStart;
+    property PointEnd: TPoint read FPointEnd;
   end;
 
   TecLineBreak = class
@@ -677,6 +685,7 @@ type
     function ParserStateAtPos(TokenIndex: integer): integer;
 
     property Owner: TecSyntAnalyzer read FOwner;
+    property Buffer: TATStringBuffer read FBuffer;
     property IsFinished: Boolean read FFinished;
     property TagStr[Index: integer]: ecString read GetTokenStr;
     property TagCount: integer read GetTokenCount;
@@ -803,6 +812,8 @@ type
   TParseTokenEvent = procedure(Client: TecParserResults; const Text: ecString; Pos: integer;
       var TokenLength: integer; var Rule: TecTokenRule) of object;
 
+  { TecSyntAnalyzer }
+
   TecSyntAnalyzer = class(TLoadableComponent)
   private
     FClientList: TList;
@@ -903,7 +914,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
-    function AddClient(const Client: IecSyntClient; SrcProc: TATStringBuffer): TecClientSyntAnalyzer;
+    function AddClient(const Client: IecSyntClient; ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
     procedure ClearClientContents;
     procedure UpdateClients;
 
@@ -1049,11 +1060,13 @@ end;
 { TecSyntToken }
 
 constructor TecSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
-  AEndPos: integer);
+  AEndPos: integer; APointStart, APointEnd: TPoint);
 begin
   inherited Create(AStartPos, AEndPos);
   FRule := ARule;
   FTokenType := TecTokenRule(ARule).TokenType;
+  FPointStart := APointStart;
+  FPointEnd := APointEnd;
 end;
 
 function TecSyntToken.GetStr(const Source: ecString): ecString;
@@ -4255,10 +4268,11 @@ begin
   end;
 end;
 
-function TecSyntAnalyzer.AddClient(const Client: IecSyntClient;
-                         SrcProc: TATStringBuffer): TecClientSyntAnalyzer;
+function TecSyntAnalyzer.AddClient(
+         const Client: IecSyntClient;
+         ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
 begin
-  Result := TecClientSyntAnalyzer.Create(Self, SrcProc, Client);
+  Result := TecClientSyntAnalyzer.Create(Self, ABuffer, Client);
 end;
 
 procedure TecSyntAnalyzer.SetSampleText(const Value: TStrings);
@@ -4270,6 +4284,7 @@ function TecSyntAnalyzer.GetToken(Client: TecParserResults; const Source: ecStri
                               APos: integer; OnlyGlobal: Boolean): TecSyntToken;
 var i, N, lp: integer;
     Rule: TecTokenRule;
+    PntStart, PntEnd: TPoint;
 begin
   if Assigned(FOnParseToken) then
     begin
@@ -4277,7 +4292,12 @@ begin
       Rule := nil;
       FOnParseToken(Client, Source, APos, N, Rule);
       if Assigned(Rule) then
-        Result := TecSyntToken.Create(Rule, APos - 1, APos + N - 1)
+        Result := TecSyntToken.Create(Rule,
+               APos - 1,
+               APos + N - 1,
+               Client.Buffer.StrToCaret(APos-1),
+               Client.Buffer.StrToCaret(APos+N-1)
+               )
       else
         Result := nil;
       Exit;
@@ -4305,7 +4325,24 @@ begin
             if N > 0 then
               begin
                 Client.ApplyStates(Rule);
-                Result := TecSyntToken.Create(Rule, APos - 1, APos + N - 1);
+
+                PntStart := Client.Buffer.StrToCaret(APos-1);
+
+                //optimization: if token is short, get PntEnd simpler
+                if PntStart.X + N >= Client.Buffer.LineLength(PntStart.Y) then
+                  PntEnd := Client.Buffer.StrToCaret(APos+N-1)
+                else
+                begin
+                  PntEnd.Y := PntStart.Y;
+                  PntEnd.X := PntStart.X + N;
+                end;
+
+                Result := TecSyntToken.Create(Rule,
+                       APos - 1,
+                       APos + N - 1,
+                       PntStart,
+                       PntEnd
+                       );
                 Exit;
               end;
           end;
