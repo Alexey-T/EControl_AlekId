@@ -914,7 +914,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
-    function AddClient(const Client: IecSyntClient; ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
+    //function AddClient(const Client: IecSyntClient; ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
     procedure ClearClientContents;
     procedure UpdateClients;
 
@@ -4268,12 +4268,15 @@ begin
   end;
 end;
 
+{
 function TecSyntAnalyzer.AddClient(
          const Client: IecSyntClient;
          ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
 begin
   Result := TecClientSyntAnalyzer.Create(Self, ABuffer, Client);
+  //skipped: adding Client to list of clients
 end;
+}
 
 procedure TecSyntAnalyzer.SetSampleText(const Value: TStrings);
 begin
