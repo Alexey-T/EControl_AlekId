@@ -52,7 +52,7 @@ uses
 //==============================================================================
 function IsSpaceChar(const c: UCChar): Boolean;
 begin
-  Result := c = ' ';
+  Result := (c=' ') or (c=#9);
 end;
 
 function IsLineBreakChar(const c: UCChar): Boolean;
