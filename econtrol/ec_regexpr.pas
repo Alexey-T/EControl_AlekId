@@ -11,12 +11,12 @@
 {$mode delphi}
 {$define EC_UNICODE}
 
-unit ecZRegExpr;
+unit ec_RegExpr;
 
 interface
 
 uses
-  Classes, ecStrUtils,
+  Classes, ec_StrUtils,
   {$IFDEF RE_DEBUG}ComCtrls,{$ENDIF}
   Dialogs;
 

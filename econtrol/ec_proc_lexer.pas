@@ -5,7 +5,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 Copyright (c) Alexey Torgashin
 *)
-unit proc_lexer;
+unit ec_proc_lexer;
 
 {$mode objfpc}{$H+}
 
@@ -13,8 +13,8 @@ interface
 
 uses
   Classes, SysUtils,
-  ecSyntAnal,
-  ecStrUtils,
+  ec_SyntAnal,
+  ec_StrUtils,
   ATStringProc;
 
 function DoFindLexerForFilename(LexLib: TecSyntaxManager; FileName: string): TecSyntAnalyzer;

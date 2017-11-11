@@ -11,7 +11,7 @@
 
 {$mode delphi}
 
-unit ecStrUtils;
+unit ec_StrUtils;
 
 interface
 

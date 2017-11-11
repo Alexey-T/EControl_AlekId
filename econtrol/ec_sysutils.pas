@@ -10,7 +10,7 @@
 
 {$mode delphi}
 
-unit ecSysUtils;
+unit ec_SysUtils;
 
 interface
 

@@ -10,14 +10,16 @@
 
 {$mode delphi}
 
-unit ecSyntGramma;
+unit ec_SyntGramma;
 
 interface
 
 uses
+  SysUtils,
   Classes,
   Dialogs,
-  ecStrUtils,
+  Contnrs,
+  ec_StrUtils,
   ATStringProc_TextBuffer;
 
 type
@@ -180,7 +182,8 @@ var
 
 implementation
 
-uses SysUtils, Contnrs, ecSyntAnal;
+uses
+  ec_SyntAnal;
 
 { TParserRuleItem }
 

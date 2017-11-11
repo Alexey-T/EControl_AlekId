@@ -10,7 +10,7 @@
 
 {$mode delphi}
 
-unit ecSyntAnal;
+unit ec_SyntAnal;
 
 interface
 
@@ -18,12 +18,12 @@ uses
   Classes, Graphics, Controls, ExtCtrls,
   Contnrs, SyncObjs,
   LazUTF8Classes, //TFileStreamUTF8
-  eczRegExpr,
-  ecStrUtils,
-  ecLists,
-  ecSyntGramma,
+  ec_RegExpr,
+  ec_StrUtils,
+  ec_Lists,
+  ec_SyntGramma,
   ATStringProc_TextBuffer,
-  proc_StreamComponent;
+  ec_proc_StreamComponent;
 
 type
   IecSyntClient = interface
@@ -1030,7 +1030,7 @@ implementation
 uses
   SysUtils, Forms, Dialogs,
   Math,
-  ecSysUtils;
+  ec_SysUtils;
 
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +

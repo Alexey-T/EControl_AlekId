@@ -8,8 +8,8 @@ unit econtrol_package;
 interface
 
 uses
-  ecLists, ecStrUtils, ecSyntAnal, ecSyntGramma, ecSysUtils, ecZRegExpr, 
-  proc_lexer, proc_StreamComponent;
+  ec_Lists, ec_StrUtils, ec_SyntAnal, ec_SyntGramma, ec_SysUtils, ec_RegExpr, 
+  ec_proc_lexer, ec_proc_StreamComponent;
 
 implementation
 

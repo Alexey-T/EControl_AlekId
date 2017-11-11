@@ -11,7 +11,7 @@
 {$mode delphi}
 {$define EC_UNICODE}
 
-unit ecLists;
+unit ec_Lists;
 
 interface
 

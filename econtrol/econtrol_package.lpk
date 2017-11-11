@@ -4,7 +4,7 @@
     <PathDelim Value="\"/>
     <Name Value="econtrol_package"/>
     <Type Value="RunTimeOnly"/>
-    <Author Value="A. Torgashin"/>
+    <Author Value="Alexey Torgashin"/>
     <CompilerOptions>
       <Version Value="11"/>
       <PathDelim Value="\"/>
@@ -12,41 +12,41 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Description Value="Core of EControl Syntax Editor SDK"/>
+    <Description Value="Core of EControl Syntax Editor SDK. Contains parser (syntax analyzer) of source codes."/>
     <License Value="Licensed for open-source only. See readme.txt."/>
-    <Version Major="1"/>
+    <Version Major="1" Minor="1"/>
     <Files Count="8">
       <Item1>
-        <Filename Value="eclists.pas"/>
-        <UnitName Value="ecLists"/>
+        <Filename Value="ec_lists.pas"/>
+        <UnitName Value="ec_Lists"/>
       </Item1>
       <Item2>
-        <Filename Value="ecstrutils.pas"/>
-        <UnitName Value="ecStrUtils"/>
+        <Filename Value="ec_strutils.pas"/>
+        <UnitName Value="ec_StrUtils"/>
       </Item2>
       <Item3>
-        <Filename Value="ecsyntanal.pas"/>
-        <UnitName Value="ecSyntAnal"/>
+        <Filename Value="ec_syntanal.pas"/>
+        <UnitName Value="ec_SyntAnal"/>
       </Item3>
       <Item4>
-        <Filename Value="ecsyntgramma.pas"/>
-        <UnitName Value="ecSyntGramma"/>
+        <Filename Value="ec_syntgramma.pas"/>
+        <UnitName Value="ec_SyntGramma"/>
       </Item4>
       <Item5>
-        <Filename Value="ecsysutils.pas"/>
-        <UnitName Value="ecSysUtils"/>
+        <Filename Value="ec_sysutils.pas"/>
+        <UnitName Value="ec_SysUtils"/>
       </Item5>
       <Item6>
-        <Filename Value="eczregexpr.pas"/>
-        <UnitName Value="ecZRegExpr"/>
+        <Filename Value="ec_regexpr.pas"/>
+        <UnitName Value="ec_RegExpr"/>
       </Item6>
       <Item7>
-        <Filename Value="proc_lexer.pas"/>
-        <UnitName Value="proc_lexer"/>
+        <Filename Value="ec_proc_lexer.pas"/>
+        <UnitName Value="ec_proc_lexer"/>
       </Item7>
       <Item8>
-        <Filename Value="proc_streamcomponent.pas"/>
-        <UnitName Value="proc_StreamComponent"/>
+        <Filename Value="ec_proc_streamcomponent.pas"/>
+        <UnitName Value="ec_proc_StreamComponent"/>
       </Item8>
     </Files>
     <RequiredPkgs Count="3">
