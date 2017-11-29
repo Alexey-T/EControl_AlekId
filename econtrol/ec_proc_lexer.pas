@@ -16,9 +16,7 @@ uses
   ec_SyntAnal,
   ATStringProc;
 
-//not used now:
-//function DoFindLexerForFilename(LexLib: TecSyntaxManager; FileName: string): TecSyntAnalyzer;
-
+function DoFindLexerForFilename(LexLib: TecSyntaxManager; FileName: string): TecSyntAnalyzer;
 function DoGetLexerFileFilter(an: TecSyntAnalyzer; const AllFilesText: string): string;
 function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
 
