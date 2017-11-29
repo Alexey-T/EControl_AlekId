@@ -14,10 +14,11 @@ interface
 uses
   Classes, SysUtils,
   ec_SyntAnal,
-  ec_StrUtils,
   ATStringProc;
 
-function DoFindLexerForFilename(LexLib: TecSyntaxManager; FileName: string): TecSyntAnalyzer;
+//not used now:
+//function DoFindLexerForFilename(LexLib: TecSyntaxManager; FileName: string): TecSyntAnalyzer;
+
 function DoGetLexerFileFilter(an: TecSyntAnalyzer; const AllFilesText: string): string;
 function DoGetLexerDefaultExt(an: TecSyntAnalyzer): string;
 

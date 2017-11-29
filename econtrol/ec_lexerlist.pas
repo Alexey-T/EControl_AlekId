@@ -21,6 +21,7 @@ type
   TecLexerList = class(TComponent)
   private
     FList: TList;
+    FModified: boolean;
     function GetLexer(AIndex: integer): TecSyntAnalyzer;
   public
     constructor Create(AOwner: TComponent); override;
@@ -28,6 +29,7 @@ type
     procedure Clear;
     function LexerCount: integer;
     property Lexers[AIndex: integer]: TecSyntAnalyzer read GetLexer;
+    property Modified: boolean read FModified write FModified;
     function AddLexer: TecSyntAnalyzer;
     function FindLexerByFilename(AFilename: string): TecSyntAnalyzer;
     function FindLexerByName(const AName: string): TecSyntAnalyzer;
@@ -92,6 +94,15 @@ end;
 
 
 function TecLexerList.FindLexerByFilename(AFilename: string): TecSyntAnalyzer;
+{
+This finds lexer by Extensions-property of lexer.
+It is space-separated items. In lower case.
+Items are
+- usual extension: "pas" finds "anyname.pas"
+- double extension (higher priority): "some.html" finds "dir/myfile.some.html"
+  (before lexer HTML finds it)
+- full filename: "/name.ext" finds "any/dir/name.ext"
+}
 var
   An: TecSyntAnalyzer;
   fname, ext1, ext2: string;
