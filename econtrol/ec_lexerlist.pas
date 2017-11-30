@@ -31,6 +31,7 @@ type
     property Lexers[AIndex: integer]: TecSyntAnalyzer read GetLexer;
     property Modified: boolean read FModified write FModified;
     function AddLexer: TecSyntAnalyzer;
+    procedure DeleteLexer(An: TecSyntAnalyzer);
     function FindLexerByFilename(AFilename: string): TecSyntAnalyzer;
     function FindLexerByName(const AName: string): TecSyntAnalyzer;
     procedure SetSublexersFromString(An: TecSyntAnalyzer; const ALinks: string; ASep: char);
@@ -101,6 +102,18 @@ function TecLexerList.AddLexer: TecSyntAnalyzer;
 begin
   Result:= TecSyntAnalyzer.Create(Self);
   FList.Add(Result);
+end;
+
+procedure TecLexerList.DeleteLexer(An: TecSyntAnalyzer);
+var
+  N: integer;
+begin
+  N:= FList.IndexOf(An);
+  if N>=0 then
+  begin
+    TObject(FList[N]).Free;
+    FList.Delete(N);
+  end;
 end;
 
 
