@@ -3985,7 +3985,7 @@ begin
   *)
 
   //this works but not sure with delay
-  Sleep(60);
+  Sleep(100);
 end;
 
 function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
