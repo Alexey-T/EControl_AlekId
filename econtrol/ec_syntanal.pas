@@ -1033,6 +1033,9 @@ uses
   ec_SysUtils;
 
 const
+  cDelayToWaitTimerWork = 30;
+
+const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
                              'Comment' + #13#10 +
                              'Id'      + #13#10 +
@@ -2971,9 +2974,9 @@ begin
   if Assigned(FTimerIdle) then
   begin
     FTimerIdle.Enabled := False;
-    //prevent crash if object is freed during work of TimerIdleTick,
-    //wait when TikerIdleTick done
-    while FTimerIdleIsBusy do Sleep(30);
+    //prevent crash if object is freed during work of TimerIdleTick
+    while FTimerIdleIsBusy do
+      Sleep(cDelayToWaitTimerWork);
     FreeAndNil(FTimerIdle);
   end;
 
@@ -2988,23 +2991,12 @@ begin
 end;
 
 procedure TecClientSyntAnalyzer.Stop;
-//this is not done. Stop method still gives AV on closing Cudatext tab
-//when parsing in tab not done.
-//(e.g. open 1Mb Pascal code, quick close tab).
-//this code is better than none
-var
-  NDelay: integer;
 begin
   FFinished := true;
   FTimerIdleMustStop := true;
-  //if FTimerIdle.Enabled then
-  //  NDelay:= FTimerIdle.Interval+50
-  //else
-  //  NDelay:= 0;
   FTimerIdle.Enabled := false;
-
-  //if FTimerIdleIsBusy and (NDelay>0) then
-  //   Sleep(NDelay);
+  while FTimerIdleIsBusy do
+    Sleep(cDelayToWaitTimerWork);
 end;
 
 procedure TecClientSyntAnalyzer.Clear;
