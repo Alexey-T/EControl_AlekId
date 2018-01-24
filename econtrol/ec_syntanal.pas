@@ -755,7 +755,6 @@ type
     function GetRangeName(Range: TecTextRange): ecString;
     function GetRangeGroup(Range: TecTextRange): ecString;
     function GetCollapsedText(Range: TecTextRange): ecString;
-    function GetAutoCloseText(Range: TecTextRange; const Indent: string): ecString;
 
     procedure TextChanged(Pos, Count: integer);
     procedure TryAppend(APos: integer);   // Tries to analyze to APos
@@ -3938,24 +3937,6 @@ end;
 function TecClientSyntAnalyzer.GetOpenedCount: integer;
 begin
   Result := FOpenedBlocks.Count;
-end;
-
-function TecClientSyntAnalyzer.GetAutoCloseText(Range: TecTextRange;
-  const Indent: string): ecString;
-var St: TStringList; //AT stringlist instead of ecStringList
-    i: integer;
-begin
-  St := TStringList.Create;
-  try
-    St.Text := UTF8Encode(RangeFormat(Range.Rule.AutoCloseText, Range));
-    for i := 0 to St.Count - 1 do
-      St[i] := Indent + St[i];
-    Result := UTF8Decode(St.Text);
-    if Length(Result) > 2 then
-      Delete(Result, Length(Result) - 1, 2);
-  finally
-    FreeAndNil(St);
-  end;
 end;
 
 procedure TecClientSyntAnalyzer.SetDisableIdleAppend(const Value: Boolean);
