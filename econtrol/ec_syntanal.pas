@@ -1030,8 +1030,7 @@ implementation
 
 uses
   SysUtils, Forms, Dialogs,
-  Math,
-  ec_SysUtils;
+  Math;
 
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
@@ -3150,7 +3149,8 @@ begin
               FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
               if own <> FOwner then
                 own.SelectTokenFormat(Self, FBuffer.FText, False, i);
-              if SafeProcessMessages(Self) <> 0 then
+              Application.ProcessMessages;
+              if Application.Terminated then
                 Exit; // Exit if analyzer is destroyed after processing messages
               if FTimerIdleMustStop then
                 Exit; // Exit when breaking
@@ -3159,7 +3159,8 @@ begin
       end
       else
       begin
-        if SafeProcessMessages(Self) <> 0 then
+        Application.ProcessMessages;
+        if Application.Terminated then
           Exit;   // Exit if analyzer is destroyed after processing messages
       end;
     end;
