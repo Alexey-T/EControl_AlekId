@@ -3979,12 +3979,6 @@ begin
   end;
   *)
 
-  (*
-  //this gives loop forever
-  while FTimerIdleIsBusy do
-    Sleep(20);
-  *)
-
   //this works but not sure how good
   if FTimerIdleIsBusy then
     Sleep(100);
