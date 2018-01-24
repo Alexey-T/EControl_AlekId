@@ -723,6 +723,7 @@ type
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
+    procedure DoWaitTimerWorkDone;
   protected
     procedure AddLineBreak(lb: TecLineBreak);
     procedure AddRange(Range: TecTextRange);
@@ -1031,9 +1032,6 @@ uses
   SysUtils, Forms, Dialogs,
   Math,
   ec_SysUtils;
-
-const
-  cDelayToWaitTimerWork = 30;
 
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
@@ -2975,8 +2973,7 @@ begin
   begin
     FTimerIdle.Enabled := False;
     //prevent crash if object is freed during work of TimerIdleTick
-    while FTimerIdleIsBusy do
-      Sleep(cDelayToWaitTimerWork);
+    DoWaitTimerWorkDone;
     FreeAndNil(FTimerIdle);
   end;
 
@@ -2995,8 +2992,7 @@ begin
   FFinished := true;
   FTimerIdleMustStop := true;
   FTimerIdle.Enabled := false;
-  while FTimerIdleIsBusy do
-    Sleep(cDelayToWaitTimerWork);
+  DoWaitTimerWorkDone;
 end;
 
 procedure TecClientSyntAnalyzer.Clear;
@@ -3969,6 +3965,27 @@ begin
       if not IsFinished then
         TimerIdleTick(nil);
     end;
+end;
+
+procedure TecClientSyntAnalyzer.DoWaitTimerWorkDone;
+begin
+  (*
+  //this dont work
+  while FTimerIdleIsBusy do
+  begin
+    Sleep(20);
+    Application.ProcessMessages;
+  end;
+  *)
+
+  (*
+  //this gives loop forever
+  while FTimerIdleIsBusy do
+    Sleep(20);
+  *)
+
+  //this works but not sure with delay
+  Sleep(60);
 end;
 
 function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
