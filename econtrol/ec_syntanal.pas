@@ -704,9 +704,9 @@ type
     FRanges: TSortedList;
     FOpenedBlocks: TSortedList;    // Opened ranges (without end)
 
-    FBreakIdle: Boolean;
-    FIdleProc: Boolean;
-    FIdleTimer: TTimer;
+    FTimerIdleMustStop: Boolean;
+    FTimerIdleIsBusy: Boolean;
+    FTimerIdle: TTimer;
 
     FSavedTags: TRangeList;            // saved tokens
     FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
@@ -729,7 +729,7 @@ type
     function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
     function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
     procedure Finished; override;
-    procedure IntIdleAppend(Sender: TObject);
+    procedure TimerIdleTick(Sender: TObject);
     procedure CloseAtEnd(StartTagIdx: integer); override;
 
   public
@@ -2956,10 +2956,10 @@ begin
   FSavedTags := TRangeList.Create;
   FLineBreakRanges := TRangeCollection.Create;
 
-  FIdleTimer := TTimer.Create(nil);
-  FIdleTimer.OnTimer := IntIdleAppend;
-  FIdleTimer.Enabled := False;
-  FIdleTimer.Interval := 100;
+  FTimerIdle := TTimer.Create(nil);
+  FTimerIdle.OnTimer := TimerIdleTick;
+  FTimerIdle.Enabled := False;
+  FTimerIdle.Interval := 100;
 
   FEnabledLineSeparators := True; //AT
 
@@ -2970,9 +2970,9 @@ destructor TecClientSyntAnalyzer.Destroy;
 begin
   //SafeDestroying(Self);
 
-  if Assigned(FIdleTimer) then
-    FIdleTimer.Enabled := False;
-  FreeAndNil(FIdleTimer);
+  if Assigned(FTimerIdle) then
+    FTimerIdle.Enabled := False;
+  FreeAndNil(FTimerIdle);
 
   FreeAndNil(FChanges);
   FreeAndNil(FSavedTags);
@@ -2989,11 +2989,19 @@ procedure TecClientSyntAnalyzer.Stop;
 //when parsing in tab not done.
 //(e.g. open 1Mb Pascal code, quick close tab).
 //this code is better than none
+var
+  NDelay: integer;
 begin
   FFinished := true;
-  FBreakIdle := true;
-  FIdleTimer.Enabled := false;
-  if FIdleProc then Sleep(300);
+  FTimerIdleMustStop := true;
+  //if FTimerIdle.Enabled then
+  //  NDelay:= FTimerIdle.Interval+50
+  //else
+  //  NDelay:= 0;
+  FTimerIdle.Enabled := false;
+
+  //if FTimerIdleIsBusy and (NDelay>0) then
+  //   Sleep(NDelay);
 end;
 
 procedure TecClientSyntAnalyzer.Clear;
@@ -3011,7 +3019,7 @@ begin
     FLineBreakRanges.Clear;
 
     FFinished := False;
-    FBreakIdle := True;
+    FTimerIdleMustStop := True;
     FLastAnalPos := 0;
     FStartSepRangeAnal := 0;
   finally
@@ -3127,18 +3135,18 @@ begin
   FRepeateAnalysis := True;
 end;
 
-procedure TecClientSyntAnalyzer.IntIdleAppend(Sender: TObject);
+procedure TecClientSyntAnalyzer.TimerIdleTick(Sender: TObject);
 var FPos, tmp, i: integer;
     own: TecSyntAnalyzer;
 begin
-  if FIdleProc or FDisableIdleAppend then Exit;
-  FIdleTimer.Enabled := False;
-  FBreakIdle := False;
-  FIdleProc := True;
+  if FTimerIdleIsBusy or FDisableIdleAppend then Exit;
+  FTimerIdle.Enabled := False;
+  FTimerIdleMustStop := False;
+  FTimerIdleIsBusy := True;
   FPos := 0;
  try
   try
-    while not FBreakIdle and not FFinished do
+    while not FTimerIdleMustStop and not FFinished do
     begin
      tmp := GetLastPos(FBuffer.FText);
      if tmp > FPos then FPos := tmp;
@@ -3153,9 +3161,9 @@ begin
             own.SelectTokenFormat(Self, FBuffer.FText, False, i);
           if SafeProcessMessages(Self) <> 0 then
             Exit; // Exit if analyzer is destroyed after processing messages
-          if FBreakIdle then
+          if FTimerIdleMustStop then
             begin
-              FIdleProc := False;
+              FTimerIdleIsBusy := False;
               Exit; // Exit when breaking
             end;
          end;
@@ -3168,7 +3176,7 @@ begin
       end;
     end;
   finally
-    FIdleProc := False;
+    FTimerIdleIsBusy := False;
   end;
  except
    //just hide AV if object freed while parsing not done,
@@ -3180,12 +3188,12 @@ procedure TecClientSyntAnalyzer.IdleAppend;
 begin
   if not FFinished then
    begin
-     FIdleTimer.Enabled := False;
+     FTimerIdle.Enabled := False;
      if FRepeateAnalysis then
-       FIdleTimer.Interval := Owner.IdleAppendDelay
+       FTimerIdle.Interval := Owner.IdleAppendDelay
      else
-       FIdleTimer.Interval := Owner.IdleAppendDelayInit;
-     FIdleTimer.Enabled := True;
+       FTimerIdle.Interval := Owner.IdleAppendDelayInit;
+     FTimerIdle.Enabled := True;
    end;
 end;
 
@@ -3201,8 +3209,8 @@ begin
       begin
        if not FOwner.SeparateBlockAnalysis then
          Finished else
-       if not FIdleProc then
-          IdleAppend; //IntIdleAppend(nil)
+       if not FTimerIdleIsBusy then
+          IdleAppend; //TimerIdleTick(nil)
        Break;
       end;
    end;
@@ -3246,8 +3254,8 @@ begin
  try
    FFinished := False;
    Dec(APos);
-   FBreakIdle := True;
-   FIdleTimer.Enabled := False;
+   FTimerIdleMustStop := True;
+   FTimerIdle.Enabled := False;
    if FBuffer.TextLength <= Owner.FullRefreshSize then
      APos := 0
    else
@@ -3417,7 +3425,7 @@ begin
       FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
       if own <> FOwner then
         own.SelectTokenFormat(Self, FBuffer.FText, False, i);
-      FBreakIdle := True;
+      FTimerIdleMustStop := True;
       Finished;
      end;
 end;
@@ -3971,7 +3979,7 @@ begin
     begin
       FDisableIdleAppend := Value;
       if not IsFinished then
-        IntIdleAppend(nil);
+        TimerIdleTick(nil);
     end;
 end;
 
