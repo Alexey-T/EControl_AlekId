@@ -5,6 +5,7 @@
 { Copyright (c) 2004 - 2015 EControl Ltd., Zaharov Michael                    }
 {     www.econtrol.ru                                                         }
 {     support@econtrol.ru                                                     }
+{ Ported to Lazarus: Alexey T., UVviewsoft.com                                }
 {                                                                             }
 { *************************************************************************** }
 
@@ -5017,7 +5018,7 @@ var
   Stream: TResourceStream;
 begin
   Stream := TResourceStream.CreateFromID(Instance, ResID,
-    {$IFNDEF EC_DOTNET}Pchar(ResType){$ELSE}ResType{$ENDIF});
+    PChar(ResType));
   try
     LoadFromStream(Stream);
   finally
@@ -5031,7 +5032,7 @@ var
   Stream: TResourceStream;
 begin
   Stream := TResourceStream.Create(Instance, ResName,
-    {$IFNDEF EC_DOTNET}Pchar(ResType){$ELSE}ResType{$ENDIF});
+    PChar(ResType));
   try
     LoadFromStream(Stream);
   finally
