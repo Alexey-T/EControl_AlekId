@@ -3151,28 +3151,25 @@ begin
   try
     while not FTimerIdleMustStop and not FFinished do
     begin
-     tmp := GetLastPos(FBuffer.FText);
-     if tmp > FPos then FPos := tmp;
-     if ExtractTag(FBuffer.FText, FPos, True) then
+      tmp := GetLastPos(FBuffer.FText);
+      if tmp > FPos then FPos := tmp;
+      if ExtractTag(FBuffer.FText, FPos, True) then
       begin
-       if FOwner.SeparateBlockAnalysis then
-        for i := FStartSepRangeAnal + 1 to TagCount do
-         begin
-          own := Tags[i - 1].Rule.SyntOwner;
-          FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
-          if own <> FOwner then
-            own.SelectTokenFormat(Self, FBuffer.FText, False, i);
-          if SafeProcessMessages(Self) <> 0 then
-            Exit; // Exit if analyzer is destroyed after processing messages
-          if FTimerIdleMustStop then
+        if FOwner.SeparateBlockAnalysis then
+          for i := FStartSepRangeAnal + 1 to TagCount do
             begin
-              FTimerIdleIsBusy := False;
-              Exit; // Exit when breaking
+              own := Tags[i - 1].Rule.SyntOwner;
+              FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
+              if own <> FOwner then
+                own.SelectTokenFormat(Self, FBuffer.FText, False, i);
+              if SafeProcessMessages(Self) <> 0 then
+                Exit; // Exit if analyzer is destroyed after processing messages
+              if FTimerIdleMustStop then
+                Exit; // Exit when breaking
             end;
-         end;
-       Finished;
+        Finished;
       end
-     else
+      else
       begin
         if SafeProcessMessages(Self) <> 0 then
           Exit;   // Exit if analyzer is destroyed after processing messages
@@ -3181,25 +3178,19 @@ begin
   finally
     FTimerIdleIsBusy := False;
   end;
-
-  //try
-  //except
-   //just hide AV if object freed while parsing not done,
-   //cannot fix AV yet, even with Stop
-  //end;
 end;
 
 procedure TecClientSyntAnalyzer.IdleAppend;
 begin
   if not FFinished then
-   begin
-     FTimerIdle.Enabled := False;
-     if FRepeateAnalysis then
-       FTimerIdle.Interval := Owner.IdleAppendDelay
-     else
-       FTimerIdle.Interval := Owner.IdleAppendDelayInit;
-     FTimerIdle.Enabled := True;
-   end;
+  begin
+    FTimerIdle.Enabled := False;
+    if FRepeateAnalysis then
+      FTimerIdle.Interval := Owner.IdleAppendDelay
+    else
+      FTimerIdle.Interval := Owner.IdleAppendDelayInit;
+    FTimerIdle.Enabled := True;
+  end;
 end;
 
 procedure TecClientSyntAnalyzer.AppendToPos(APos: integer);
