@@ -3984,8 +3984,9 @@ begin
     Sleep(20);
   *)
 
-  //this works but not sure with delay
-  Sleep(100);
+  //this works but not sure how good
+  if FTimerIdleIsBusy then
+    Sleep(100);
 end;
 
 function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
