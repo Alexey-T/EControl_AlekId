@@ -2968,11 +2968,14 @@ end;
 
 destructor TecClientSyntAnalyzer.Destroy;
 begin
-  //SafeDestroying(Self);
-
   if Assigned(FTimerIdle) then
+  begin
     FTimerIdle.Enabled := False;
-  FreeAndNil(FTimerIdle);
+    //prevent crash if object is freed during work of TimerIdleTick,
+    //wait when TikerIdleTick done
+    while FTimerIdleIsBusy do Sleep(30);
+    FreeAndNil(FTimerIdle);
+  end;
 
   FreeAndNil(FChanges);
   FreeAndNil(FSavedTags);
@@ -3144,7 +3147,7 @@ begin
   FTimerIdleMustStop := False;
   FTimerIdleIsBusy := True;
   FPos := 0;
- try
+
   try
     while not FTimerIdleMustStop and not FFinished do
     begin
@@ -3168,8 +3171,8 @@ begin
             end;
          end;
        Finished;
-//       Exit;
-      end else
+      end
+     else
       begin
         if SafeProcessMessages(Self) <> 0 then
           Exit;   // Exit if analyzer is destroyed after processing messages
@@ -3178,10 +3181,12 @@ begin
   finally
     FTimerIdleIsBusy := False;
   end;
- except
+
+  //try
+  //except
    //just hide AV if object freed while parsing not done,
    //cannot fix AV yet, even with Stop
- end;
+  //end;
 end;
 
 procedure TecClientSyntAnalyzer.IdleAppend;
