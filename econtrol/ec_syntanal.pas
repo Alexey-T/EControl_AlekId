@@ -724,7 +724,7 @@ type
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
-    procedure DoWaitTimerWorkDone;
+    procedure DoStopTimer(AndWait: boolean);
   protected
     procedure AddLineBreak(lb: TecLineBreak);
     procedure AddRange(Range: TecTextRange);
@@ -2970,9 +2970,7 @@ destructor TecClientSyntAnalyzer.Destroy;
 begin
   if Assigned(FTimerIdle) then
   begin
-    FTimerIdle.Enabled := False;
-    //prevent crash if object is freed during work of TimerIdleTick
-    DoWaitTimerWorkDone;
+    DoStopTimer(true);
     FreeAndNil(FTimerIdle);
   end;
 
@@ -2989,9 +2987,7 @@ end;
 procedure TecClientSyntAnalyzer.Stop;
 begin
   FFinished := true;
-  FTimerIdleMustStop := true;
-  FTimerIdle.Enabled := false;
-  DoWaitTimerWorkDone;
+  DoStopTimer(true);
 end;
 
 procedure TecClientSyntAnalyzer.Clear;
@@ -3008,7 +3004,7 @@ begin
     FSavedTags.Clear;
     FLineBreakRanges.Clear;
 
-    FTimerIdleMustStop := True;
+    DoStopTimer(false);
     FFinished := False;
     FLastAnalPos := 0;
     FStartSepRangeAnal := 0;
@@ -3149,11 +3145,13 @@ begin
               FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
               if own <> FOwner then
                 own.SelectTokenFormat(Self, FBuffer.FText, False, i);
+
+              if FTimerIdleMustStop then
+                Exit; // Exit when breaking
+
               Application.ProcessMessages;
               if Application.Terminated then
                 Exit; // Exit if analyzer is destroyed after processing messages
-              if FTimerIdleMustStop then
-                Exit; // Exit when breaking
             end;
         Finished;
       end
@@ -3239,8 +3237,8 @@ begin
  try
    FFinished := False;
    Dec(APos);
-   FTimerIdleMustStop := True;
-   FTimerIdle.Enabled := False;
+   DoStopTimer(true);
+
    if FBuffer.TextLength <= Owner.FullRefreshSize then
      APos := 0
    else
@@ -3410,7 +3408,7 @@ begin
       FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
       if own <> FOwner then
         own.SelectTokenFormat(Self, FBuffer.FText, False, i);
-      FTimerIdleMustStop := True;
+      DoStopTimer(true);
       Finished;
      end;
 end;
@@ -3950,19 +3948,24 @@ begin
     end;
 end;
 
-procedure TecClientSyntAnalyzer.DoWaitTimerWorkDone;
+procedure TecClientSyntAnalyzer.DoStopTimer(AndWait: boolean);
 begin
-  (*
-  //this dont work
-  while FTimerIdleIsBusy do
+  FTimerIdleMustStop := True;
+  FTimerIdle.Enabled := False;
+  if AndWait then
   begin
-    Sleep(20);
-    Application.ProcessMessages;
-  end;
-  *)
+    (*
+    //this dont work
+    while FTimerIdleIsBusy do
+    begin
+      Sleep(20);
+      Application.ProcessMessages;
+    end;
+    *)
 
-  if FTimerIdleIsBusy then
-    Sleep(FTimerIdle.Interval+10);
+    if FTimerIdleIsBusy then
+      Sleep(FTimerIdle.Interval+10);
+  end;
 end;
 
 function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
