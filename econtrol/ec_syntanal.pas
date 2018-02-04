@@ -3008,9 +3008,8 @@ begin
     FSavedTags.Clear;
     FLineBreakRanges.Clear;
 
-    FFinished := False;
     FTimerIdleMustStop := True;
-    DoWaitTimerWorkDone;
+    FFinished := False;
     FLastAnalPos := 0;
     FStartSepRangeAnal := 0;
   finally
