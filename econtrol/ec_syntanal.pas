@@ -3952,20 +3952,12 @@ procedure TecClientSyntAnalyzer.DoStopTimer(AndWait: boolean);
 begin
   FTimerIdleMustStop := True;
   FTimerIdle.Enabled := False;
-  if AndWait then
-  begin
-    (*
-    //this dont work
-    while FTimerIdleIsBusy do
-    begin
-      Sleep(20);
-      Application.ProcessMessages;
-    end;
-    *)
 
-    if FTimerIdleIsBusy then
-      Sleep(FTimerIdle.Interval+10);
-  end;
+  if FTimerIdleIsBusy then
+    if AndWait then
+      Sleep(100)
+    else
+      Sleep(20);
 end;
 
 function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
