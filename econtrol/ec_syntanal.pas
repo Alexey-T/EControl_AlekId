@@ -3010,6 +3010,7 @@ begin
 
     FFinished := False;
     FTimerIdleMustStop := True;
+    DoWaitTimerWorkDone;
     FLastAnalPos := 0;
     FStartSepRangeAnal := 0;
   finally
@@ -3961,9 +3962,8 @@ begin
   end;
   *)
 
-  //this works but not sure how good
   if FTimerIdleIsBusy then
-    Sleep(100);
+    Sleep(FTimerIdle.Interval+10);
 end;
 
 function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
