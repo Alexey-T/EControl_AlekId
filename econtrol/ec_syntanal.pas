@@ -3146,20 +3146,17 @@ begin
               if own <> FOwner then
                 own.SelectTokenFormat(Self, FBuffer.FText, False, i);
 
-              if FTimerIdleMustStop then
-                Exit; // Exit when breaking
-
               Application.ProcessMessages;
-              if Application.Terminated then
-                Exit; // Exit if analyzer is destroyed after processing messages
+              if Application.Terminated then Exit;
+              if FTimerIdleMustStop then Exit;
             end;
         Finished;
       end
       else
       begin
         Application.ProcessMessages;
-        if Application.Terminated then
-          Exit;   // Exit if analyzer is destroyed after processing messages
+        if Application.Terminated then Exit;
+        if FTimerIdleMustStop then Exit;
       end;
     end;
   finally
