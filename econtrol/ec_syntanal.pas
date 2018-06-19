@@ -17,7 +17,7 @@ interface
 
 uses
   Classes, Graphics, Controls, ExtCtrls,
-  Contnrs, SyncObjs,
+  Contnrs,
   LazUTF8Classes, //TFileStreamUTF8
   ec_RegExpr,
   ec_StrUtils,
@@ -712,7 +712,6 @@ type
     FSavedTags: TRangeList;            // saved tokens
     FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
     FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
-    FDataAccess: TCriticalSection;
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
@@ -764,9 +763,6 @@ type
     procedure IdleAppend;                 // Start idle analysis
 
     procedure CompleteAnalysis;
-
-    procedure Lock;
-    procedure Unlock;
 
     function CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
     function CreateLineBreak(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
@@ -2944,9 +2940,6 @@ end;
 constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
   const AClient: IecSyntClient);
 begin
-//  FFinishEvent := TEvent.Create(nil, True, False, '');
-  FDataAccess := TCriticalSection.Create;
-
   inherited Create( AOwner, SrcProc, AClient);
   FRanges := TSortedList.Create(True);
   FLineBreaks := TObjectList.Create;
@@ -2980,7 +2973,6 @@ begin
   FreeAndNil(FRanges);
   FreeAndNil(FLineBreaks);
   FreeAndNil(FOpenedBlocks);
-  FreeAndNil(FDataAccess);
   inherited;
 end;
 
@@ -2992,25 +2984,21 @@ end;
 
 procedure TecClientSyntAnalyzer.Clear;
 begin
-  Lock;
-  try
-    inherited;
-    FRepeateAnalysis := False;
-    FTagList.Clear;
-    FRanges.Clear;
-    FLineBreaks.Clear;
-    FOpenedBlocks.Clear;
-    FChanges.Clear;
-    FSavedTags.Clear;
-    FLineBreakRanges.Clear;
+  inherited;
+  FRepeateAnalysis := False;
+  FTagList.Clear;
+  FRanges.Clear;
+  FLineBreaks.Clear;
+  FOpenedBlocks.Clear;
+  FChanges.Clear;
+  FSavedTags.Clear;
+  FLineBreakRanges.Clear;
 
-    DoStopTimer(false);
-    FFinished := False;
-    FLastAnalPos := 0;
-    FStartSepRangeAnal := 0;
-  finally
-    Unlock;
-  end;
+  DoStopTimer(false);
+  FFinished := False;
+  FLastAnalPos := 0;
+  FStartSepRangeAnal := 0;
+
   IdleAppend;
 end;
 
@@ -3230,8 +3218,6 @@ begin
    Exit;
   end;}
 
- Lock;
- try
    FFinished := False;
    Dec(APos);
    DoStopTimer(false);
@@ -3284,9 +3270,7 @@ begin
 
    // Restore parser state
    RestoreState;
- finally
-   Unlock;
- end;
+
  IdleAppend;
 end;
 
@@ -3913,16 +3897,6 @@ end;
 function TecClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
 begin
   Result := FTagList.NextAt(Pos);
-end;
-
-procedure TecClientSyntAnalyzer.Lock;
-begin
-  FDataAccess.Enter;
-end;
-
-procedure TecClientSyntAnalyzer.Unlock;
-begin
-  FDataAccess.Leave;
 end;
 
 function TecClientSyntAnalyzer.GetOpened(Index: integer): TecTextRange;
