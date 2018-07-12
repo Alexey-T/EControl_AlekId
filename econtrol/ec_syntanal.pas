@@ -758,7 +758,7 @@ type
 
     procedure TextChanged(Pos, Count: integer);
     procedure TryAppend(APos: integer);   // Tries to analyze to APos
-    procedure AppendToPos(APos: integer); // Requires analyzed to APos
+    procedure AppendToPos(APos: integer; AUseTimer: boolean= true); // Requires analyzed to APos
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
     procedure IdleAppend;                 // Start idle analysis
 
@@ -3154,6 +3154,7 @@ end;
 
 procedure TecClientSyntAnalyzer.IdleAppend;
 begin
+  //sets FTimerIdle interval and restarts it
   if not FFinished then
   begin
     FTimerIdle.Enabled := False;
@@ -3165,7 +3166,7 @@ begin
   end;
 end;
 
-procedure TecClientSyntAnalyzer.AppendToPos(APos: integer);
+procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; AUseTimer: boolean=true);
 var FPos: integer;
 begin
   if FBuffer.TextLength = 0 then Exit;
@@ -3178,7 +3179,10 @@ begin
        if not FOwner.SeparateBlockAnalysis then
          Finished else
        if not FTimerIdleIsBusy then
-          IdleAppend; //TimerIdleTick(nil)
+         if AUseTimer then
+           IdleAppend
+         else
+           TimerIdleTick(nil);
        Break;
       end;
    end;
