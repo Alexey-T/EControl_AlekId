@@ -2652,7 +2652,7 @@ begin
  else
    b := FCurState <> TRange(FStateChanges.Last).EndPos;
  if b then
-   FStateChanges.Add(TRange.Create(FTagList.Count, FCurState, Point(-1, -1), Point(-1, -1)));
+   FStateChanges.Add(TRange.Create(FTagList.Count, FCurState));
 end;
 
 // True if end of the text
@@ -2730,7 +2730,7 @@ var N: integer;
           (TecSubLexerRange(FSubLexerBlocks.Last).Rule = Rule) then Exit;
 
      ApplyStates(Rule);
-     sub := TecSubLexerRange.Create(0, 0, Point(-1, -1), Point(-1, -1));
+     sub := TecSubLexerRange.Create(0, 0);
      sub.FRule := Rule;
      sub.FCondStartPos := FPos - 1;
      if Rule.IncludeBounds then

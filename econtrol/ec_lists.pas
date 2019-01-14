@@ -58,6 +58,7 @@ type
   protected
     function GetKey: integer; override;
   public
+    constructor Create(AStartPos, AEndPos: integer);
     constructor Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
     property StartPos: integer read FStartPos;
     property EndPos: integer read FEndPos;
@@ -214,6 +215,17 @@ begin
   FEndPos := AEndPos;
   FPointStart := APointStart;
   FPointEnd := APointEnd;
+end;
+
+constructor TRange.Create(AStartPos, AEndPos: integer);
+begin
+  inherited Create;
+  FStartPos := AStartPos;
+  FEndPos := AEndPos;
+  FPointStart.X := -1;
+  FPointStart.Y := -1;
+  FPointEnd.X := -1;
+  FPointEnd.Y := -1;
 end;
 
 function TRange.GetKey: integer;
@@ -464,7 +476,7 @@ begin
     begin
       sp := R.StartPos;
       R.FStartPos := SplitPos;
-      R := TRangeClass(R.ClassType).Create(sp, SplitPos, Point(-1, -1), Point(-1, -1));
+      R := TRangeClass(R.ClassType).Create(sp, SplitPos);
       FList.Insert(RangeIdx, R);
     end;
 end;
