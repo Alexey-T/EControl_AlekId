@@ -15,7 +15,8 @@ unit ec_Lists;
 
 interface
 
-uses Classes;
+uses
+  Classes, fgl;
 
 type
   TSortedItem = class
@@ -65,6 +66,22 @@ type
     property Size: integer read GetLength;
   end;
 
+  { TRangeListIndexer }
+
+  PRangeListIndex = ^TRangeListIndex;
+  TRangeListIndex = record
+    NFrom, NTo: integer;
+    //class operator = (const N1, N2: TRangeListIndex): boolean;
+  end;
+
+  TRangeListIndexer = class(TFPSList)
+  public
+    constructor Create;
+    function GetItem(AIndex: integer): PRangeListIndex;
+  end;
+
+  { TRangeList }
+
   // Array of sorted ranges
   TRangeList = class
   private
@@ -81,6 +98,7 @@ type
     // Try to add range if there are no intersections
     function TryAdd(Range: TRange): Boolean;
   public
+    Indexer: TRangeListIndexer; //AT
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
     function Add(Range: TRange): integer; virtual;
@@ -90,6 +108,7 @@ type
     // Deletes ranges that intersect the bounds, returns number of deleted items
     function DeleteIntersected(AStart, AEnd: integer): integer;
     function SplitRange(RangeIdx, SplitPos: integer): Boolean;
+    procedure UpdateIndexer; //AT
 
     // Content has been changed, updates ranges upper Pos
     // Removes affected ranges
@@ -134,7 +153,9 @@ function QuickSearch(const List: TList; CompProc: TCompareProc;
 
 implementation
 
-uses SysUtils, Contnrs;
+uses
+  //Math, Dialogs,
+  SysUtils, Contnrs;
 
 function QuickSearch(const List: TList; CompProc: TCompareProc;
                      Key: TObject; var Index: integer): Boolean;
@@ -172,6 +193,18 @@ begin
     dec(Index);
 end;
 
+{ TRangeListIndexer }
+
+constructor TRangeListIndexer.Create;
+begin
+  inherited Create(SizeOf(TRangeListIndex));
+end;
+
+function TRangeListIndexer.GetItem(AIndex: integer): PRangeListIndex;
+begin
+  Result := PRangeListIndex(Get(AIndex));
+end;
+
 { TRange }
 
 constructor TRange.Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
@@ -200,10 +233,12 @@ begin
   inherited Create;
   FList := TObjectList.Create;
   FUnionSiblings := UnionSiblings;
+  Indexer := TRangeListIndexer.Create; //AT
 end;
 
 destructor TRangeList.Destroy;
 begin
+  FreeAndNil(Indexer); //AT
   FreeAndNil(FList); //AT
   inherited;
 end;
@@ -211,6 +246,7 @@ end;
 procedure TRangeList.Clear;
 begin
   FList.Clear;
+  Indexer.Clear;
 end;
 
 function TRangeList.UnionRanges(Index: integer): integer;
@@ -431,6 +467,53 @@ begin
       R := TRangeClass(R.ClassType).Create(sp, SplitPos, Point(-1, -1), Point(-1, -1));
       FList.Insert(RangeIdx, R);
     end;
+end;
+
+procedure TRangeList.UpdateIndexer;
+var
+  R: TRange;
+  Item: TRangeListIndex;
+  PItem: PRangeListIndex;
+  i, j: integer;
+  s: string;
+begin
+  Indexer.Clear;
+  for i:= 0 to FList.Count-1 do
+  begin
+    R:= TRange(FList[i]);
+
+    while R.PointStart.Y>Indexer.Count do
+    begin
+      Item.NFrom:= -1;
+      Item.NTo:= -1;
+      Indexer.Add(@Item);
+    end;
+
+    for j:= R.PointStart.Y to R.PointEnd.Y do
+    begin
+      if j<Indexer.Count then
+      begin
+        PItem:= Indexer.Items[j];
+        PItem^.NTo:= i;
+      end
+      else
+      begin
+        Item.NFrom:= i;
+        Item.NTo:= i;
+        Indexer.Add(@Item);
+      end;
+    end;
+  end;
+
+  {
+  s:= '==indexer=='#10;
+  for i:= 0 to Min(20, Indexer.Count-1) do
+  begin
+    PItem:= Indexer.Get(i);
+    s:= s+Format('[%d] %d..%d'#10, [i, PItem^.NFrom, PItem^.NTo]);
+  end;
+  ShowMessage(s);
+  }
 end;
 
 { TRangeCollection }
