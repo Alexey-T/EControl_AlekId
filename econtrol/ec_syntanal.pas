@@ -694,7 +694,7 @@ type
     property SubLexerRangeCount: integer read GetSubLexerRangeCount;
     property SubLexerRanges[Index: integer]: TecSubLexerRange read GetSubLexerRange;
     property ParserState: integer read FCurState write FCurState;
-    property TagIndexes[Index: integer]: TRangeListIndex read GetTagIndexes;
+    //property TagIndexes[Index: integer]: TRangeListIndex read GetTagIndexes;
   end;
 
   { TecClientSyntAnalyzer }
