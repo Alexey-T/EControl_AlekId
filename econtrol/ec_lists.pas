@@ -44,22 +44,24 @@ type
     property Count: integer read GetCount;
   end;
 
+  { TRange }
+
   TRange = class(TSortedItem)
-  private
-    function GetLength: integer;
-  {$IFDEF EC_DOTNET}
-  public
-  {$ELSE}
   protected
-  {$ENDIF}
     FStartPos: integer;
     FEndPos: integer;
+    FPointStart: TPoint;
+    FPointEnd: TPoint;
+  private
+    function GetLength: integer;
   protected
     function GetKey: integer; override;
   public
-    constructor Create(AStartPos, AEndPos: integer);
+    constructor Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
     property StartPos: integer read FStartPos;
     property EndPos: integer read FEndPos;
+    property PointStart: TPoint read FPointStart;
+    property PointEnd: TPoint read FPointEnd;
     property Size: integer read GetLength;
   end;
 
@@ -172,11 +174,13 @@ end;
 
 { TRange }
 
-constructor TRange.Create(AStartPos, AEndPos: integer);
+constructor TRange.Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
 begin
   inherited Create;
   FStartPos := AStartPos;
   FEndPos := AEndPos;
+  FPointStart := APointStart;
+  FPointEnd := APointEnd;
 end;
 
 function TRange.GetKey: integer;
@@ -424,7 +428,7 @@ begin
     begin
       sp := R.StartPos;
       R.FStartPos := SplitPos;
-      R := TRangeClass(R.ClassType).Create(sp, SplitPos);
+      R := TRangeClass(R.ClassType).Create(sp, SplitPos, Point(-1, -1), Point(-1, -1));
       FList.Insert(RangeIdx, R);
     end;
 end;

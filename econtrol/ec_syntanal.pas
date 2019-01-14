@@ -249,19 +249,15 @@ type
   private
     FTokenType: integer;
     FRule: TRuleCollectionItem;
-    FPointStart: TPoint;
-    FPointEnd: TPoint;
     function GetStyle: TecSyntaxFormat;
   public
     constructor Create(ARule: TRuleCollectionItem;
       AStartPos, AEndPos: integer;
-      APointStart, APointEnd: TPoint);
+      const APointStart, APointEnd: TPoint);
     function GetStr(const Source: ecString): ecString;
     property TokenType: integer read FTokenType;
     property Rule: TRuleCollectionItem read FRule;
     property Style: TecSyntaxFormat read GetStyle;
-    property PointStart: TPoint read FPointStart;
-    property PointEnd: TPoint read FPointEnd;
   end;
 
   TecLineBreak = class
@@ -1056,13 +1052,11 @@ end;
 { TecSyntToken }
 
 constructor TecSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
-  AEndPos: integer; APointStart, APointEnd: TPoint);
+  AEndPos: integer; const APointStart, APointEnd: TPoint);
 begin
-  inherited Create(AStartPos, AEndPos);
+  inherited Create(AStartPos, AEndPos, APointStart, APointEnd);
   FRule := ARule;
   FTokenType := TecTokenRule(ARule).TokenType;
-  FPointStart := APointStart;
-  FPointEnd := APointEnd;
 end;
 
 function TecSyntToken.GetStr(const Source: ecString): ecString;
@@ -2652,7 +2646,7 @@ begin
  else
    b := FCurState <> TRange(FStateChanges.Last).EndPos;
  if b then
-   FStateChanges.Add(TRange.Create(FTagList.Count, FCurState));
+   FStateChanges.Add(TRange.Create(FTagList.Count, FCurState, Point(-1, -1), Point(-1, -1)));
 end;
 
 // True if end of the text
@@ -2730,7 +2724,7 @@ var N: integer;
           (TecSubLexerRange(FSubLexerBlocks.Last).Rule = Rule) then Exit;
 
      ApplyStates(Rule);
-     sub := TecSubLexerRange.Create(0,0);
+     sub := TecSubLexerRange.Create(0, 0, Point(-1, -1), Point(-1, -1));
      sub.FRule := Rule;
      sub.FCondStartPos := FPos - 1;
      if Rule.IncludeBounds then
