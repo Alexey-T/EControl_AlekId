@@ -108,7 +108,7 @@ type
     // Deletes ranges that intersect the bounds, returns number of deleted items
     function DeleteIntersected(AStart, AEnd: integer): integer;
     function SplitRange(RangeIdx, SplitPos: integer): Boolean;
-    procedure UpdateIndexer; //AT
+    //procedure UpdateIndexer; //AT
 
     // Content has been changed, updates ranges upper Pos
     // Removes affected ranges
@@ -469,6 +469,7 @@ begin
     end;
 end;
 
+(*
 procedure TRangeList.UpdateIndexer;
 var
   R: TRange;
@@ -515,6 +516,7 @@ begin
   ShowMessage(s);
   }
 end;
+*)
 
 { TRangeCollection }
 

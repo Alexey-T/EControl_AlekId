@@ -2607,7 +2607,7 @@ begin
   FFinished := True;
   // Performs Gramma parsing
   //AnalyzeGramma;
-  FTagList.UpdateIndexer; //AT
+  //FTagList.UpdateIndexer; //AT
 end;
 
 function TecParserResults.IsEnabled(Rule: TRuleCollectionItem;
