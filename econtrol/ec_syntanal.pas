@@ -661,7 +661,6 @@ type
     FStateChanges: TList;
     function GetLastPos(const Source: ecString): integer;
     function ExtractTag(const Source: ecString; var FPos: integer; IsIdle: Boolean): Boolean;
-    function GetTagIndexes(ALineIndex: integer): TRangeListIndex;
     function GetTags(Index: integer): TecSyntToken;
     function GetSubLexerRangeCount: integer;
     function GetSubLexerRange(Index: integer): TecSubLexerRange;
@@ -2794,19 +2793,6 @@ begin
     FPos := p.EndPos + 1;
    end;
    FLastAnalPos := FPos;
-end;
-
-function TecParserResults.GetTagIndexes(ALineIndex: integer): TRangeListIndex;
-begin
-  if (ALineIndex>=0) and (ALineIndex<FTagList.Indexer.Count) then
-  begin
-    Result:= PRangeListIndex(FTagList.Indexer[ALineIndex])^;
-  end
-  else
-  begin
-    Result.NFrom:= -1;
-    Result.NTo:= -1;
-  end;
 end;
 
 function TecParserResults.AnalyzerAtPos(Pos: integer): TecSyntAnalyzer;
