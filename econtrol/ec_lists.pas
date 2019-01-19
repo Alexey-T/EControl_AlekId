@@ -272,7 +272,7 @@ function TRangeList.Add(Range: TRange): integer;
 var idx, k: integer;
 begin
   // Stream adding
-  if (Count = 0) or (Items[Count - 1].EndPos < Range.StartPos) then
+  if (Count = 0) or (Items[Count - 1].EndPos <= Range.StartPos) then
    begin
     Result := Count;
     FList.Add(Range);
