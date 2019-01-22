@@ -260,24 +260,6 @@ type
     property Style: TecSyntaxFormat read GetStyle;
   end;
 
-  TecLineBreak = class
-  private
-    FRefTag: integer;
-    FLine: integer;
-    FRule: TecTagBlockCondition;
-  public
-    property Rule: TecTagBlockCondition read FRule;
-    property Line: integer read FLine;
-    property RefIdx: integer read FRefTag;
-  end;
-
-  TecLineBreakRange = class(TRange)
-  private
-    FRule: TecTagBlockCondition;
-  public
-    property Rule: TecTagBlockCondition read FRule;
-  end;
-
   TecTextRange = class(TSortedItem)
   private
     FRule: TecTagBlockCondition;
@@ -700,8 +682,6 @@ type
 
   TecClientSyntAnalyzer = class(TecParserResults)
   private
-    FLineBreaks: TList;
-
     FRanges: TSortedList;
     FOpenedBlocks: TSortedList;    // Opened ranges (without end)
 
@@ -723,7 +703,6 @@ type
     procedure SetDisableIdleAppend(const Value: Boolean);
     procedure DoStopTimer(AndWait: boolean);
   protected
-    procedure AddLineBreak(lb: TecLineBreak);
     procedure AddRange(Range: TecTextRange);
     function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
     function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
@@ -761,18 +740,15 @@ type
     procedure CompleteAnalysis;
 
     function CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
-    function CreateLineBreak(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
     function DetectTag(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
 
     property OpenCount: integer read GetOpenedCount;
     property Opened[Index: integer]: TecTextRange read GetOpened;
 
-    property LineBreaks: TList read FLineBreaks;
     property RangeCount: integer read GetRangeCount;
     property Ranges[Index: integer]: TecTextRange read GetRanges;
     //property TagPos[Index: integer]: TPoint read GetTagPos;
     property DisableIdleAppend: Boolean read FDisableIdleAppend write SetDisableIdleAppend;
-    property EnabledLineSeparators: Boolean read FEnabledLineSeparators write FEnabledLineSeparators; //AT
   end;
 
 // *******************************************************************
@@ -2937,7 +2913,6 @@ constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATSt
 begin
   inherited Create( AOwner, SrcProc, AClient);
   FRanges := TSortedList.Create(True);
-  FLineBreaks := TObjectList.Create;
   FOpenedBlocks := TSortedList.Create(False);
 
   FChanges := TecChangeFixer.Create;
@@ -2962,7 +2937,6 @@ begin
 
   FreeAndNil(FChanges);
   FreeAndNil(FRanges);
-  FreeAndNil(FLineBreaks);
   FreeAndNil(FOpenedBlocks);
   inherited;
 end;
@@ -2979,7 +2953,6 @@ begin
   FRepeateAnalysis := False;
   FTagList.Clear;
   FRanges.Clear;
-  FLineBreaks.Clear;
   FOpenedBlocks.Clear;
   FChanges.Clear;
 
@@ -3240,11 +3213,6 @@ begin
          FOpenedBlocks.Add(FRanges[i]);
        end;
 
-   // Remove separators
-   for i := FLineBreaks.Count - 1 downto 0 do
-    if TecLineBreak(FLineBreaks[i]).RefIdx >= N then
-      FLineBreaks.Delete(i);
-
    // Restore parser state
    RestoreState;
 
@@ -3260,11 +3228,6 @@ end;
 function TecClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
 begin
   Result := FTagList.PriorAt(Pos);
-end;
-
-procedure TecClientSyntAnalyzer.AddLineBreak(lb: TecLineBreak);
-begin
-  FLineBreaks.Add(lb);
 end;
 
 function TecClientSyntAnalyzer.GetRangeBound(Range: TecTextRange): TPoint;
@@ -3875,24 +3838,6 @@ begin
       Sleep(20);
 end;
 
-function TecClientSyntAnalyzer.CreateLineBreak(Rule: TecTagBlockCondition;
-  RefTag: integer): Boolean;
-var lb: TecLineBreak;
-begin
-  if not EnabledLineSeparators then //AT
-    begin Result:= True; exit end;
-
-  lb := TecLineBreak.Create;
-  lb.FRefTag := RefTag;
-  lb.FRule := Rule;
-  if Rule.LinePos = lbBottom then
-    lb.FLine := FBuffer.StrToCaret(Tags[RefTag].EndPos).Y + 1
-  else
-    lb.FLine := FBuffer.StrToCaret(Tags[RefTag].StartPos).Y;
-  AddLineBreak(lb);
-  Result := True;
-end;
-
 function TecClientSyntAnalyzer.DetectTag(Rule: TecTagBlockCondition;
   RefTag: integer): Boolean;
 begin
@@ -4157,8 +4102,9 @@ begin
                  if not RClient.CloseRange(FBlockRules[i], strt) then
                    Continue;
                btLineBreak:
-                 if not RClient.CreateLineBreak(FBlockRules[i], ki) then
-                   Continue;
+                 begin
+                   //AT: deleted support for line separators
+                 end;
             end;
            if CancelNextRules then Break;
           end;
