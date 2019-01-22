@@ -709,7 +709,6 @@ type
     FTimerIdleIsBusy: Boolean;
     FTimerIdle: TTimer;
 
-    FSavedTags: TRangeList;            // saved tokens
     FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
@@ -755,7 +754,6 @@ type
     function GetCollapsedText(Range: TecTextRange): ecString;
 
     procedure TextChanged(Pos, Count: integer);
-    procedure TryAppend(APos: integer);   // Tries to analyze to APos
     procedure AppendToPos(APos: integer; AUseTimer: boolean= true); // Requires analyzed to APos
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
     procedure IdleAppend;                 // Start idle analysis
@@ -2943,7 +2941,6 @@ begin
   FOpenedBlocks := TSortedList.Create(False);
 
   FChanges := TecChangeFixer.Create;
-  FSavedTags := TRangeList.Create;
 
   FTimerIdle := TTimer.Create(nil);
   FTimerIdle.OnTimer := TimerIdleTick;
@@ -2964,7 +2961,6 @@ begin
   end;
 
   FreeAndNil(FChanges);
-  FreeAndNil(FSavedTags);
   FreeAndNil(FRanges);
   FreeAndNil(FLineBreaks);
   FreeAndNil(FOpenedBlocks);
@@ -2986,7 +2982,6 @@ begin
   FLineBreaks.Clear;
   FOpenedBlocks.Clear;
   FChanges.Clear;
-  FSavedTags.Clear;
 
   DoStopTimer(false);
   FFinished := False;
@@ -3182,20 +3177,6 @@ begin
    end;
 end;
 
-procedure TecClientSyntAnalyzer.TryAppend(APos: integer);
-var sPos, sPos1: integer;
-begin
-  if FSavedTags.Count = 0 then AppendToPos(APos) else
-   begin
-    sPos1 := FChanges.OldToCur(TecSyntToken(FSavedTags[0]).StartPos);
-    sPos := FChanges.UpOldNoChange;// + 1;
-    if sPos1 > sPos then
-       sPos := sPos1;
-    if (sPos <> 0) and (sPos < APos) then AppendToPos(sPos)
-     else AppendToPos(APos);
-   end;
-end;
-
 procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 var i, N: integer;
 
@@ -3241,10 +3222,8 @@ begin
         FCondEndPos := -1;
       end;
    // Remove tokens
-   if FSavedTags.Count = 0 then
-     FTagList.ClearFromPos(APos, FSavedTags)
-   else
-     FTagList.ClearFromPos(APos);
+   FTagList.ClearFromPos(APos);
+
    FLastAnalPos := 0;   // Reset current position
    N := FTagList.Count;
    FStartSepRangeAnal := N;
