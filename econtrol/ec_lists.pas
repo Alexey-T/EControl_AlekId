@@ -82,8 +82,6 @@ type
     // returns new range index (or union result)
     function UnionRanges(Index: integer): integer; virtual;
     function IsGreater(I1, I2: integer): Boolean;
-    // Try to add range if there are no intersections
-    function TryAdd(Range: TRange): Boolean;
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
@@ -107,25 +105,6 @@ type
 
     property Count: integer read GetCount;
     property Items[Index: integer]: TRange read GetItems; default;
-  end;
-
-  // collection of overlapped ranges
-  // all ranges are sorted for quick search
-  TRangeCollection = class
-  private
-    FRangeArrays: TList;
-    function GetLevelCount: integer;
-    function GetLevels(Index: integer): TRangeList;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Add(Range: TRange);
-    procedure Clear;
-    procedure ClearFromPos(APos: integer);
-    function GetRangesAtPos(List: TList; Pos: integer): integer;
-    function GetRangesAtRange(List: TList; StartPos, EndPos: integer): integer;
-    property LevelCount: integer read GetLevelCount;
-    property Levels[Index: integer]: TRangeList read GetLevels; default;
   end;
 
 // List[Index] > Key  =>  Result > 0
@@ -247,54 +226,11 @@ begin
     Result := I1 > I2;
 end;
 
-function TRangeList.TryAdd(Range: TRange): Boolean;
-var idx: integer;
-begin
-  Result := True;
-  if (Count = 0) or (Items[Count - 1].EndPos <= Range.StartPos) then
-    FList.Add(Range)
-  else
-  if Items[Count - 1].StartPos <= Range.StartPos then
-   Result := False
-  else
-   begin
-     idx := NextAt(Range.StartPos);
-     if idx = -1 then FList.Add(Range) else
-     if (Items[idx].StartPos >= Range.EndPos) and
-        ((idx = 0) or (Items[idx - 1].EndPos <= Range.StartPos)) then
-        FList.Insert(idx, Range)
-     else
-       Result := False;
-   end;
-end;
-
 function TRangeList.Add(Range: TRange): integer;
-var idx, k: integer;
 begin
-  // Stream adding
-  if (Count = 0) or (Items[Count - 1].EndPos <= Range.StartPos) then
-   begin
-    Result := Count;
-    FList.Add(Range);
-    Exit;
-   end;
-
-  idx := PriorAt(Range.StartPos);
-  if idx = Count - 1 then FList.Add(Range)
-   else FList.Insert(idx + 1, Range);
-  // Lower range check
-  if (idx <> -1) and IsGreater(Items[idx].EndPos, Range.StartPos) then
-    idx := UnionRanges(idx)
-  else
-    idx := idx + 1;
-  k := idx + 1;
-  while (k < Count) and IsGreater(Items[idx].EndPos, Items[k].StartPos) do
-   begin
-    idx := UnionRanges(idx);
-    k := idx + 1;
-   end;
-
-  Result := idx;
+  //AT: almost cleared this method from EControl's inserting of range into list
+  Result := Count;
+  FList.Add(Range);
 end;
 
 procedure TRangeList.Delete(Index: integer);
@@ -448,101 +384,6 @@ begin
       R := TRangeClass(R.ClassType).Create(sp, SplitPos);
       FList.Insert(RangeIdx, R);
     end;
-end;
-
-{ TRangeCollection }
-
-constructor TRangeCollection.Create;
-begin
-  inherited;
-  FRangeArrays := TObjectList.Create;
-end;
-
-destructor TRangeCollection.Destroy;
-begin
-  Clear;
-  FreeAndNil(FRangeArrays);
-end;
-
-procedure TRangeCollection.Clear;
-begin
-  FRangeArrays.Clear;
-end;
-
-procedure TRangeCollection.Add(Range: TRange);
-var i: integer;
-    R: TRangeList;
-begin
-  for i := 0 to FRangeArrays.Count - 1 do
-    if TRangeList(FRangeArrays[i]).TryAdd(Range) then Exit;
-  R := TRangeList.Create(False);
-  FRangeArrays.Add(R);
-  R.Add(Range);
-end;
-
-procedure TRangeCollection.ClearFromPos(APos: integer);
-var i: integer;
-    R: TRangeList;
-begin
-  for i := FRangeArrays.Count - 1 downto 0 do
-   begin
-     R := TRangeList(FRangeArrays[i]);
-     R.ClearFromPos(APos);
-     if R.Count = 0 then
-       FRangeArrays.Delete(i);
-   end;
-end;
-
-function TRangeCollection.GetRangesAtPos(List: TList; Pos: integer): integer;
-var i, idx: integer;
-    R: TRangeList;
-begin
-  Result := -1;
-  for i := 0 to FRangeArrays.Count - 1 do
-   begin
-     R := TRangeList(FRangeArrays[i]);
-     idx := R.NextAt(Pos);
-     if idx <> -1 then
-      begin
-       if R[idx].StartPos <= Pos then
-        begin
-         List.Add(R[idx]);
-         if (Result = -1) or (Result > R[idx].EndPos) then
-           Result := R[idx].EndPos;
-        end else
-         if (Result = -1) or (Result > R[idx].StartPos) then
-           Result := R[idx].StartPos;
-      end;
-   end;
-end;
-
-function TRangeCollection.GetRangesAtRange(List: TList; StartPos,
-  EndPos: integer): integer;
-var i, idx: integer;
-    R: TRangeList;
-begin
-  Result := -1;
-  for i := 0 to FRangeArrays.Count - 1 do
-   begin
-     R := TRangeList(FRangeArrays[i]);
-     idx := R.NextAt(StartPos);
-     if (idx <> -1) then
-      while (Idx < R.Count) and (R[idx].StartPos < EndPos) do
-       begin
-        List.Add(R[idx]);
-        Inc(Idx);
-       end;
-   end;
-end;
-
-function TRangeCollection.GetLevelCount: integer;
-begin
-  Result := FRangeArrays.Count;
-end;
-
-function TRangeCollection.GetLevels(Index: integer): TRangeList;
-begin
-  Result := TRangeList(FRangeArrays[Index]);
 end;
 
 { TSortedList }

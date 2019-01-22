@@ -711,7 +711,6 @@ type
 
     FSavedTags: TRangeList;            // saved tokens
     FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
-    FLineBreakRanges: TRangeCollection;// ranges maked with line breaks
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
@@ -739,7 +738,6 @@ type
     procedure Clear; override;
     procedure Stop;
     procedure ChangedAtPos(APos: integer);
-    function GetLineBreak(Line: integer): TecLineBreakRange;
     function TokenAtPos(Pos: integer): integer;
     function PriorTokenAt(Pos: integer): integer;
     function NextTokenAt(Pos: integer): integer;
@@ -2946,7 +2944,6 @@ begin
 
   FChanges := TecChangeFixer.Create;
   FSavedTags := TRangeList.Create;
-  FLineBreakRanges := TRangeCollection.Create;
 
   FTimerIdle := TTimer.Create(nil);
   FTimerIdle.OnTimer := TimerIdleTick;
@@ -2968,7 +2965,6 @@ begin
 
   FreeAndNil(FChanges);
   FreeAndNil(FSavedTags);
-  FreeAndNil(FLineBreakRanges);
   FreeAndNil(FRanges);
   FreeAndNil(FLineBreaks);
   FreeAndNil(FOpenedBlocks);
@@ -2991,7 +2987,6 @@ begin
   FOpenedBlocks.Clear;
   FChanges.Clear;
   FSavedTags.Clear;
-  FLineBreakRanges.Clear;
 
   DoStopTimer(false);
   FFinished := False;
@@ -3840,39 +3835,6 @@ function TecClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: 
 begin
   Result := inherited IsEnabled(Rule, OnlyGlobal) and
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
-end;
-
-function TecClientSyntAnalyzer.GetLineBreak(Line: integer): TecLineBreakRange;
-var List: TList;
-
-  function DoLine(Line: integer; Top: Boolean): TecLineBreakRange;
-  var i, sp, ep: integer;
-  begin
-    Result := nil;
-    if (Line >= FBuffer.Count) or (Line < 0) then Exit;
-    sp := FBuffer.LineIndex(Line) - 1;
-    ep := FChanges.CurToOld(sp + FBuffer.LineSpace(Line));
-    sp := FChanges.CurToOld(sp);
-    FLineBreakRanges.GetRangesAtRange(List, sp, ep);
-    for i := List.Count - 1 downto 0 do
-     with TecLineBreakRange(List[i]) do
-      if Top and (StartPos >= sp) and (Rule.LinePos = lbTop) or
-         not Top and (EndPos < ep) and (Rule.LinePos = lbBottom) then
-       begin
-         Result := TecLineBreakRange(List[i]);
-         Exit;
-       end;
-  end;
-
-begin
-  List := TList.Create;
-  try
-    Result := DoLine(Line, True);
-    if not Assigned(Result) then
-      Result := DoLine(Line - 1, False);
-  finally
-    FreeAndNil(List);
-  end;
 end;
 
 procedure TecClientSyntAnalyzer.TextChanged(Pos, Count: integer); //AT: Line, LineChange were not used, deled
