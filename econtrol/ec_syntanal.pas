@@ -2650,11 +2650,13 @@ var N: integer;
                if Rule.IncludeBounds then
                  begin // New mode in v2.35
                    FEndPos := FPos - 1 + N;
+                   FPointEnd := FBuffer.StrToCaret(FEndPos);
                    FCondEndPos := FEndPos;
                    own := Rule.SyntAnalyzer;
                  end else
                  begin
                    FEndPos := FPos - 1;
+                   FPointEnd := FBuffer.StrToCaret(FEndPos);
                    FCondEndPos := FEndPos + N;
                  end;
                // Close ranges which belongs to this sub-lexer range
@@ -2680,6 +2682,7 @@ var N: integer;
       if (p.EndPos > StartPos) and (p.StartPos < StartPos) then
        begin
         p.FEndPos := StartPos;
+        p.FPointEnd := FBuffer.StrToCaret(p.FEndPos);
         Exit;
        end;
    end;
@@ -2709,6 +2712,7 @@ var N: integer;
      else
        sub.FStartPos := FPos + N - 1;
      sub.FEndPos := -1;
+     sub.FPointStart := FBuffer.StrToCaret(sub.FStartPos);
      sub.FCondEndPos := -1;
      FSubLexerBlocks.Add(sub);
    end;
@@ -3062,6 +3066,9 @@ begin
     if (EndPos = -1) and Rule.ToTextEnd then
      begin
        FEndPos := FBuffer.TextLength{ - 1};
+       FPointEnd := Point(
+                      FBuffer.LineLength(FBuffer.Count-1),
+                      FBuffer.Count-1); //at end
        FCondEndPos := FEndPos;
      end;
 
