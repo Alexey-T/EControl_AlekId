@@ -227,11 +227,34 @@ begin
 end;
 
 function TRangeList.Add(Range: TRange): integer;
+var idx, k: integer;
 begin
-  //AT: almost cleared this method from EControl's inserting of range into list
-  Result := Count;
-  FList.Add(Range);
+  // Stream adding
+  if (Count = 0) or (Items[Count - 1].EndPos <= Range.StartPos) then
+   begin
+    Result := Count;
+    FList.Add(Range);
+    Exit;
+   end;
+
+  idx := PriorAt(Range.StartPos);
+  if idx = Count - 1 then FList.Add(Range)
+   else FList.Insert(idx + 1, Range);
+  // Lower range check
+  if (idx <> -1) and IsGreater(Items[idx].EndPos, Range.StartPos) then
+    idx := UnionRanges(idx)
+  else
+    idx := idx + 1;
+  k := idx + 1;
+  while (k < Count) and IsGreater(Items[idx].EndPos, Items[k].StartPos) do
+   begin
+    idx := UnionRanges(idx);
+    k := idx + 1;
+   end;
+
+  Result := idx;
 end;
+
 
 procedure TRangeList.Delete(Index: integer);
 begin
