@@ -604,19 +604,6 @@ type
     property Items[Index: integer]: TecCodeTemplate read GetItem; default;
   end;
 
-  TecChangeFixer = class
-  private
-    FList: TList;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Clear;
-    procedure Add(Pos, Count: integer);
-    function CurToOld(CurPos: integer): integer;
-    function OldToCur(OldPos: integer): integer;
-    function UpOldNoChange: integer;
-  end;
-
 // *******************************************************************
 //  Parser classes
 //
@@ -689,7 +676,6 @@ type
     FTimerIdleIsBusy: Boolean;
     FTimerIdle: TTimer;
 
-    FChanges: TecChangeFixer;            // fixes all changes before objects will be updated
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
@@ -2798,21 +2784,6 @@ begin
   Result := Tags[Index].TokenType;
 end;
 
-type
-  TTextChangeInfo = class
-    FPos: integer;
-    FCount: integer;
-  public
-    constructor Create(Pos, Count: integer);
-  end;
-
-constructor TTextChangeInfo.Create(Pos, Count: integer);
-begin
-  inherited Create;
-  FPos := Pos;
-  FCount := Count;
-end;
-
 procedure TecParserResults.ApplyStates(Rule: TRuleCollectionItem);
 begin
   if Rule.StatesRemove <> 0 then
@@ -2847,69 +2818,6 @@ begin
    Result := 0;
 end;
 
-{ TecChangeFixer }
-
-constructor TecChangeFixer.Create;
-begin
-  inherited Create;
-  FList := TObjectList.Create;
-end;
-
-destructor TecChangeFixer.Destroy;
-begin
-  FreeAndNil(FList);
-  inherited;
-end;
-
-procedure TecChangeFixer.Clear;
-begin
-  FList.Clear;
-end;
-
-procedure TecChangeFixer.Add(Pos, Count: integer);
-begin
-  FList.Add(TTextChangeInfo.Create(Pos, Count));
-end;
-
-function TecChangeFixer.CurToOld(CurPos: integer): integer;
-var i: integer;
-begin
-  for i := FList.Count - 1 downto 0 do
-   with TTextChangeInfo(FList[i]) do
-    if CurPos > FPos then
-     if (FCount > 0) and (FPos + FCount > CurPos) then CurPos := FPos
-      else Dec(CurPos, FCount);
-  Result := CurPos;
-end;
-
-function TecChangeFixer.OldToCur(OldPos: integer): integer;
-var i: integer;
-begin
-  for i := 0 to FList.Count - 1 do
-   with TTextChangeInfo(FList[i]) do
-    if OldPos >= FPos then
-     if (FCount < 0) and (FPos - FCount > OldPos) then OldPos := FPos
-      else Inc(OldPos, FCount);
-  Result := OldPos;
-end;
-
-function TecChangeFixer.UpOldNoChange: integer;
-var i, t: integer;
-begin
-  Result := 0;
-  for i := 0 to FList.Count - 1 do
-   with TTextChangeInfo(FList[i]) do
-    begin
-      if FPos < Result then
-       if (FCount < 0) and (FPos - FCount > Result) then Result := FPos
-        else Inc(Result, FCount);
-      if FCount > 0 then t := FPos + FCount
-       else t := FPos;
-      if Result < t then Result := t;
-    end;
-end;
-
-
 { TecClientSyntAnalyzer }
 
 constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
@@ -2918,8 +2826,6 @@ begin
   inherited Create( AOwner, SrcProc, AClient);
   FRanges := TSortedList.Create(True);
   FOpenedBlocks := TSortedList.Create(False);
-
-  FChanges := TecChangeFixer.Create;
 
   FTimerIdle := TTimer.Create(nil);
   FTimerIdle.OnTimer := TimerIdleTick;
@@ -2939,7 +2845,6 @@ begin
     FreeAndNil(FTimerIdle);
   end;
 
-  FreeAndNil(FChanges);
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);
   inherited;
@@ -2958,7 +2863,6 @@ begin
   FTagList.Clear;
   FRanges.Clear;
   FOpenedBlocks.Clear;
-  FChanges.Clear;
 
   DoStopTimer(false);
   FFinished := False;
@@ -3791,7 +3695,6 @@ begin
   if Pos = -1 then Clear else
     begin
       ChangedAtPos(Pos);
-      FChanges.Add(Pos, Count);
     end;
 end;
 
