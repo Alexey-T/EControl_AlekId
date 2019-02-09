@@ -245,8 +245,9 @@ type
 
   { TecSyntToken }
 
-  TecSyntToken = class(TRange)
+  TecSyntToken = class
   private
+    Range:TRange;
     FTokenType: integer;
     FRule: TRuleCollectionItem;
     function GetStyle: TecSyntaxFormat;
@@ -289,8 +290,9 @@ type
     property IsClosed: Boolean read GetIsClosed;
   end;
 
-  TecSubLexerRange = class(TRange)
+  TecSubLexerRange = class
   private
+    Range:TRange;
     FRule: TecSubAnalyzerRule;   // Rule reference
     FCondEndPos: integer;      // Start pos of the start condition
     FCondStartPos: integer;    // End pos of the end condition
@@ -1016,20 +1018,23 @@ end;
 constructor TecSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
   AEndPos: integer; const APointStart, APointEnd: TPoint);
 begin
-  inherited Create(AStartPos, AEndPos, APointStart, APointEnd);
+  Range:=TRange.Create(AStartPos, AEndPos, APointStart, APointEnd);
   FRule := ARule;
   FTokenType := TecTokenRule(ARule).TokenType;
 end;
 
 function TecSyntToken.GetStr(const Source: ecString): ecString;
 begin
+with Range do
   Result := Copy(Source, StartPos + 1, EndPos - StartPos);
 end;
 
 function TecSyntToken.GetStyle: TecSyntaxFormat;
 begin
-  if Rule = nil then Result := nil
-   else Result := Rule.Style;
+  if Rule = nil then
+    Result := nil
+  else
+    Result := Rule.Style;
 end;
 
 { TecTextRange }

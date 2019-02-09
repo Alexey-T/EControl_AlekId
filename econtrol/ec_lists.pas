@@ -47,7 +47,7 @@ type
 
   { TRange }
 
-  TRange = class
+  TRange = packed record
   private
     function GetLength: integer;
   public                                              
@@ -56,13 +56,13 @@ type
     constructor Create(AStartPos, AEndPos: integer);
     constructor Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
     property Size: integer read GetLength;
-    //class operator =(a,b:TRange):boolean;
+    class operator =(a,b:TRange):boolean;
   end;
 
   { TRangeList }
 
   // Array of sorted ranges
-  TRangeList = class (TFPGList<TRange>)
+  GRangeList<GRange> = class (TFPGList<GRange>)
   private
     //FList: TList;
     FUnionSiblings: Boolean;
@@ -72,11 +72,12 @@ type
     // returns new range index (or union result)
     function UnionRanges(Index: integer): integer; virtual;
     function IsGreater(I1, I2: integer): Boolean;
+    function CompProc(const Val:TRange; Key: integer): integer;
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
-    function Add(Range: TRange): integer;virtual;
-    function ClearFromPos(APos: integer; CopyTo: TRangeList = nil): integer; virtual;
+    function Add(Range: GRange): integer;virtual;
+    function ClearFromPos(APos: integer; CopyTo: GRangeList<GRange> = nil): integer; virtual;
     // Deletes ranges that intersect the bounds, returns number of deleted items
     function DeleteIntersected(AStart, AEnd: integer): integer;
     function SplitRange(RangeIdx, SplitPos: integer): Boolean;
@@ -91,6 +92,7 @@ type
     // At position or prior
     function PriorAt(APos: integer): integer;
   end;
+  TRRangeList=GRangeList<TRange>;
 
 implementation
 
@@ -123,25 +125,25 @@ begin
   Result := EndPos-StartPos;
 end;
 
-{class operator TRange.=(a,b:TRange):boolean;
+class operator TRange.=(a,b:TRange):boolean;
 begin                   
 Result:=(a.StartPos=b.StartPos)and(a.EndPos=b.EndPos)and(a.PointStart=b.PointStart)and(a.PointEnd=b.PointEnd);
-end;}
+end;
 
 { TRangeList }
 
-constructor TRangeList.Create(UnionSiblings: Boolean);
+constructor GRangeList<GRange>.Create(UnionSiblings: Boolean);
 begin
   inherited Create;
   FUnionSiblings := UnionSiblings;
 end;
 
-destructor TRangeList.Destroy;
+destructor GRangeList<GRange>.Destroy;
 begin
   inherited;
 end;
 
-function TRangeList.UnionRanges(Index: integer): integer;
+function GRangeList<GRange>.UnionRanges(Index: integer): integer;
 begin
   // Default action - union of ranges
   if Items[Index].EndPos < Items[Index + 1].EndPos then
@@ -150,7 +152,7 @@ begin
   Result := Index;
 end;
 
-function TRangeList.IsGreater(I1, I2: integer): Boolean;
+function GRangeList<GRange>.IsGreater(I1, I2: integer): Boolean;
 begin
   if FUnionSiblings then
     Result := I1 >= I2
@@ -158,7 +160,7 @@ begin
     Result := I1 > I2;
 end;
 
-function TRangeList.Add(Range: TRange): integer;
+function GRangeList<GRange>.Add(Range: GRange): integer;
 var idx, k: integer;
 begin
   // Stream adding
@@ -190,14 +192,14 @@ begin
   end;
 end;
 
-function TRangeList.RangeAt(APos: integer): integer;
+function GRangeList<GRange>.RangeAt(APos: integer): integer;
 begin
   Result := PriorAt(APos);
   if (Result <> -1) and (Items[Result].EndPos <= APos) then
     Result := -1;
 end;
 
-function TRangeList.NextAt(APos: integer): integer;
+function GRangeList<GRange>.NextAt(APos: integer): integer;
 begin
   Result := PriorAt(APos);
   if Result = -1 then
@@ -209,55 +211,24 @@ begin
      else Result := -1;
 end;
 
-function TRangeList.PriorAt(APos: integer): integer;
-  function CompProc(const Val:TRange; Key: integer): integer;
-  begin
-    with Val do
-      if StartPos > Key then
-        Result := 1
-      else if (StartPos <= Key)and(EndPos > Key) then
-        Result:= 0
-      else
-        Result := -1;
-  end;
-  function QuickSearch(const List: TRangeList;Key:integer; var Index: integer):boolean;
-  var
-    L, H, I, C: Integer;
-  begin
-    Result := False;
-    if List.Count = 0 then
-    begin
-      Index := -1;
-      Exit;
-    end;
 
-    L := 0;
-    H := List.Count - 1;
-    while L <= H do
-    begin
-      I := (L + H) shr 1;
-      C := CompProc(List[i], Key);
-      if C < 0 then L := I + 1 else
-      begin
-        if C = 0 then
-        begin
-          Result := True;
-          Index := I;
-          Exit;
-        end;
-        H := I - 1;
-      end;
-    end;
-    Index := L;
-    if Index >= List.Count then Index := List.Count - 1;
-    if Index >= 0 then
-     if CompProc(List[Index], Key) > 0 then
-      dec(Index);
-  end;
+function GRangeList<GRange>.CompProc(const Val:TRange; Key: integer): integer;
 begin
-  if (FPrevIdx >= 0) and (FPrevIdx < Count - 1) then
+  with Val do
+    if StartPos > Key then
+      Result := 1
+    else if (StartPos <= Key)and(EndPos > Key) then
+      Result:= 0
+    else
+      Result := -1;
+end;
+
+function GRangeList<GRange>.PriorAt(APos: integer): integer; 
+var
+  H, I, C: Integer;
+begin
+  if (FPrevIdx >= 0) and (FPrevIdx < Count - 1)and(Items[FPrevIdx].StartPos <= APos)then
   begin
-    if Items[FPrevIdx].StartPos <= APos then
       if (FPrevIdx >= Count - 1)or(Items[FPrevIdx + 1].StartPos > APos) then
       begin
         Result := FPrevIdx;
@@ -269,11 +240,42 @@ begin
         Exit;
       end;
   end;
-  QuickSearch(Self, APos, Result);
-  FPrevIdx := Result;
+  if Count = 0 then
+  begin
+    FPrevIdx := -1;
+    Exit(-1);
+  end
+  else
+  begin
+    Result := 0;
+    H := Count - 1;
+    while Result <= H do
+    begin
+      I := (Result + H) shr 1;
+      C := CompProc(TRange(Items[i]), APos);
+      if C < 0 then
+        Result := I + 1
+      else
+      begin
+        if C = 0 then
+        begin
+          FPrevIdx := I;
+          Exit(I);
+        end;
+        H := I - 1;
+      end;
+    end;
+    if Result >= Count then
+      Result := Count - 1;
+    if Result >= 0 then
+      if CompProc(TRange(Items[i]), APos) > 0 then
+        dec(Result);
+
+    FPrevIdx := Result;
+  end;
 end;
 
-function TRangeList.ContentChanged(Pos, Count: integer): Boolean;
+function GRangeList<GRange>.ContentChanged(Pos, Count: integer): Boolean;
 var idx: integer;
 begin
   idx := PriorAt(Pos);
@@ -301,7 +303,7 @@ begin
   Result := True;
 end;
 
-function TRangeList.ClearFromPos(APos: integer; CopyTo: TRangeList): integer;
+function GRangeList<GRange>.ClearFromPos(APos: integer; CopyTo: GRangeList<GRange>): integer;
 var idx, i: integer;
 begin
   Result := APos;
@@ -322,7 +324,7 @@ begin
   end;
 end;
 
-function TRangeList.DeleteIntersected(AStart, AEnd: integer): integer;
+function GRangeList<GRange>.DeleteIntersected(AStart, AEnd: integer): integer;
 var idx: integer;
 begin
   idx := NextAt(AStart);
@@ -339,8 +341,8 @@ end;
 //type
 //  TRangeClass = class of TRange;
 
-function TRangeList.SplitRange(RangeIdx, SplitPos: integer): Boolean;
-var R: TRange;
+function GRangeList<GRange>.SplitRange(RangeIdx, SplitPos: integer): Boolean;
+var R: GRange;
     sp: integer;
 begin
   R := Items[RangeIdx];
