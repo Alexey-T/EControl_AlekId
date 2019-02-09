@@ -16,7 +16,7 @@ unit ec_Lists;
 interface
 
 uses
-  Classes;
+  Classes,FGL;
 
 type
   TSortedItem = class
@@ -47,36 +47,26 @@ type
 
   { TRange }
 
-  TRange = class(TSortedItem)
-  protected
-    FStartPos: integer;
-    FEndPos: integer;
-    FPointStart: TPoint;
-    FPointEnd: TPoint;
+  TRange = class
   private
     function GetLength: integer;
-  protected
-    function GetKey: integer; override;
-  public
+  public                                              
+    StartPos,EndPos:integer;
+    PointStart,PointEnd:TPoint;
     constructor Create(AStartPos, AEndPos: integer);
     constructor Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
-    property StartPos: integer read FStartPos;
-    property EndPos: integer read FEndPos;
-    property PointStart: TPoint read FPointStart;
-    property PointEnd: TPoint read FPointEnd;
     property Size: integer read GetLength;
+    //class operator =(a,b:TRange):boolean;
   end;
 
   { TRangeList }
 
   // Array of sorted ranges
-  TRangeList = class
+  TRangeList = class (TFPGList<TRange>)
   private
-    FList: TList;
+    //FList: TList;
     FUnionSiblings: Boolean;
     FPrevIdx: integer;
-    function GetCount: integer;
-    function GetItems(Index: integer): TRange;
   protected
     // Union ranges with the [Index] and [Index + 1]
     // returns new range index (or union result)
@@ -85,9 +75,7 @@ type
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
-    function Add(Range: TRange): integer; virtual;
-    procedure Delete(Index: integer);
-    procedure Clear; virtual;
+    function Add(Range: TRange): integer;virtual;
     function ClearFromPos(APos: integer; CopyTo: TRangeList = nil): integer; virtual;
     // Deletes ranges that intersect the bounds, returns number of deleted items
     function DeleteIntersected(AStart, AEnd: integer): integer;
@@ -102,18 +90,7 @@ type
     function NextAt(APos: integer): integer;
     // At position or prior
     function PriorAt(APos: integer): integer;
-
-    property Count: integer read GetCount;
-    property Items[Index: integer]: TRange read GetItems; default;
   end;
-
-// List[Index] > Key  =>  Result > 0
-// List[Index] = Key  =>  Result = 0
-// List[Index] < Key  =>  Result < 0
-TCompareProc = function(const List: TList; Index: integer; Key: TObject): integer;
-// Search in sorted list
-function QuickSearch(const List: TList; CompProc: TCompareProc;
-                     Key: TObject; var Index: integer): Boolean;
 
 implementation
 
@@ -121,100 +98,55 @@ uses
   //Math, Dialogs,
   SysUtils, Contnrs;
 
-function QuickSearch(const List: TList; CompProc: TCompareProc;
-                     Key: TObject; var Index: integer): Boolean;
-var
-  L, H, I, C: Integer;
-begin
-  Result := False;
-  if List.Count = 0 then
-   begin
-    Index := -1;
-    Exit;
-   end;
-
-  L := 0;
-  H := List.Count - 1;
-  while L <= H do
-  begin
-    I := (L + H) shr 1;
-    C := CompProc(List, I, Key);
-    if C < 0 then L := I + 1 else
-    begin
-      if C = 0 then
-      begin
-        Result := True;
-        Index := I;
-        Exit;
-      end;
-      H := I - 1;
-    end;
-  end;
-  Index := L;
-  if Index >= List.Count then Index := List.Count - 1;
-  if Index >= 0 then
-   if CompProc(List, Index, Key) > 0 then
-    dec(Index);
-end;
-
 { TRange }
 
 constructor TRange.Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
 begin
-  inherited Create;
-  FStartPos := AStartPos;
-  FEndPos := AEndPos;
-  FPointStart := APointStart;
-  FPointEnd := APointEnd;
+  StartPos := AStartPos;
+  EndPos := AEndPos;
+  PointStart := APointStart;
+  PointEnd := APointEnd;
 end;
 
 constructor TRange.Create(AStartPos, AEndPos: integer);
 begin
-  inherited Create;
-  FStartPos := AStartPos;
-  FEndPos := AEndPos;
-  FPointStart.X := -1;
-  FPointStart.Y := -1;
-  FPointEnd.X := -1;
-  FPointEnd.Y := -1;
-end;
-
-function TRange.GetKey: integer;
-begin
-  Result := FStartPos;
+  StartPos := AStartPos;
+  EndPos := AEndPos;
+  PointStart.X := -1;
+  PointStart.Y := -1;
+  PointEnd.X := -1;
+  PointEnd.Y := -1;
 end;
 
 function TRange.GetLength: integer;
 begin
-  Result := FEndPos - FStartPos;
+  Result := EndPos-StartPos;
 end;
+
+{class operator TRange.=(a,b:TRange):boolean;
+begin                   
+Result:=(a.StartPos=b.StartPos)and(a.EndPos=b.EndPos)and(a.PointStart=b.PointStart)and(a.PointEnd=b.PointEnd);
+end;}
 
 { TRangeList }
 
 constructor TRangeList.Create(UnionSiblings: Boolean);
 begin
   inherited Create;
-  FList := TObjectList.Create;
   FUnionSiblings := UnionSiblings;
 end;
 
 destructor TRangeList.Destroy;
 begin
-  FreeAndNil(FList); //AT
   inherited;
-end;
-
-procedure TRangeList.Clear;
-begin
-  FList.Clear;
 end;
 
 function TRangeList.UnionRanges(Index: integer): integer;
 begin
   // Default action - union of ranges
-  if Items[Index].FEndPos < Items[Index + 1].FEndPos then
-    Items[Index].FEndPos := Items[Index + 1].FEndPos;
-  FList.Delete(Index + 1);
+  if Items[Index].EndPos < Items[Index + 1].EndPos then
+    TRange(InternalItems[Index]^).EndPos := Items[Index + 1].EndPos;
+  inherited Delete(Index + 1);
   Result := Index;
 end;
 
@@ -231,44 +163,31 @@ var idx, k: integer;
 begin
   // Stream adding
   if (Count = 0) or (Items[Count - 1].EndPos <= Range.StartPos) then
-   begin
+  begin
     Result := Count;
-    FList.Add(Range);
-    Exit;
-   end;
-
-  idx := PriorAt(Range.StartPos);
-  if idx = Count - 1 then FList.Add(Range)
-   else FList.Insert(idx + 1, Range);
-  // Lower range check
-  if (idx <> -1) and IsGreater(Items[idx].EndPos, Range.StartPos) then
-    idx := UnionRanges(idx)
+    inherited Add(Range);
+  end
   else
-    idx := idx + 1;
-  k := idx + 1;
-  while (k < Count) and IsGreater(Items[idx].EndPos, Items[k].StartPos) do
-   begin
-    idx := UnionRanges(idx);
+  begin
+    idx := PriorAt(Range.StartPos);
+    if idx = Count - 1 then
+       inherited Add(Range)
+    else
+       inherited Insert(idx + 1, Range);
+    // Lower range check
+    if (idx <> -1) and IsGreater(Items[idx].EndPos, Range.StartPos) then
+      idx := UnionRanges(idx)
+    else
+      idx := idx + 1;
     k := idx + 1;
-   end;
+    while (k < Count) and IsGreater(Items[idx].EndPos, Items[k].StartPos) do
+    begin
+      idx := UnionRanges(idx);
+      k := idx + 1;
+    end;
 
-  Result := idx;
-end;
-
-
-procedure TRangeList.Delete(Index: integer);
-begin
-  FList.Delete(Index);
-end;
-
-function TRangeList.GetCount: integer;
-begin
-  Result := FList.Count;
-end;
-
-function TRangeList.GetItems(Index: integer): TRange;
-begin
-  Result := TRange(FList[Index]);
+    Result := idx;
+  end;
 end;
 
 function TRangeList.RangeAt(APos: integer): integer;
@@ -290,33 +209,67 @@ begin
      else Result := -1;
 end;
 
-function RangeCmp(const List: TList; Index: integer; Key: TObject): integer;
-begin
- with TRange(List[Index]) do
-  if FStartPos > integer(Key) then Result := 1 else
-   if (FStartPos <= integer(Key)) and (FEndPos > integer(Key)) then Result:= 0
-     else Result := -1;
-end;
-
 function TRangeList.PriorAt(APos: integer): integer;
+  function CompProc(const Val:TRange; Key: integer): integer;
+  begin
+    with Val do
+      if StartPos > Key then
+        Result := 1
+      else if (StartPos <= Key)and(EndPos > Key) then
+        Result:= 0
+      else
+        Result := -1;
+  end;
+  function QuickSearch(const List: TRangeList;Key:integer; var Index: integer):boolean;
+  var
+    L, H, I, C: Integer;
+  begin
+    Result := False;
+    if List.Count = 0 then
+    begin
+      Index := -1;
+      Exit;
+    end;
+
+    L := 0;
+    H := List.Count - 1;
+    while L <= H do
+    begin
+      I := (L + H) shr 1;
+      C := CompProc(List[i], Key);
+      if C < 0 then L := I + 1 else
+      begin
+        if C = 0 then
+        begin
+          Result := True;
+          Index := I;
+          Exit;
+        end;
+        H := I - 1;
+      end;
+    end;
+    Index := L;
+    if Index >= List.Count then Index := List.Count - 1;
+    if Index >= 0 then
+     if CompProc(List[Index], Key) > 0 then
+      dec(Index);
+  end;
 begin
-  if (FPrevIdx >= 0) and (FPrevIdx < FList.Count - 1) then
-   begin
-     if TRange(FList[FPrevIdx]).StartPos <= APos then
-      if (FPrevIdx >= FList.Count - 1) or
-         (TRange(FList[FPrevIdx + 1]).StartPos > APos) then
-       begin
+  if (FPrevIdx >= 0) and (FPrevIdx < Count - 1) then
+  begin
+    if Items[FPrevIdx].StartPos <= APos then
+      if (FPrevIdx >= Count - 1)or(Items[FPrevIdx + 1].StartPos > APos) then
+      begin
         Result := FPrevIdx;
         Exit;
-       end else
-      if (FPrevIdx >= FList.Count - 2) or
-         (TRange(FList[FPrevIdx + 2]).StartPos > APos) then
-       begin
+      end
+      else if (FPrevIdx >= Count - 2)or(Items[FPrevIdx + 2].StartPos > APos) then
+      begin
         Result := FPrevIdx + 1;
         Exit;
-       end;
-   end;
-  QuickSearch(FList, RangeCmp, TObject(APos), Result);
+      end;
+  end;
+  QuickSearch(Self, APos, Result);
   FPrevIdx := Result;
 end;
 
@@ -328,7 +281,7 @@ begin
    else
     begin
      Inc(idx);
-     if idx >= FList.Count then // No change
+     if idx >= Count then // No change
       begin
        Result := False;
        Exit;
@@ -336,15 +289,15 @@ begin
     end;
 
   if Count < 0 then
-   while (idx < FList.Count) and (Items[idx].StartPos <= Pos - Count) do
-    Delete(idx);
+    while (idx < Count) and (Items[idx].StartPos <= Pos - Count) do
+      Delete(idx);
 
-  while idx < FList.Count do
-    begin
-      Inc(Items[idx].FStartPos, Count);
-      Inc(Items[idx].FEndPos, Count);
-      Inc(idx);
-    end;
+  while idx < Count do
+  begin
+    Inc(TRange(InternalItems[idx]^).StartPos, Count);
+    Inc(TRange(InternalItems[idx]^).EndPos, Count);
+    Inc(idx);
+  end;
   Result := True;
 end;
 
@@ -354,27 +307,19 @@ begin
   Result := APos;
   idx := NextAt(APos);
   if idx <> -1 then
-   begin
-     if Items[idx].StartPos < APos then
-       Result := Items[idx].StartPos;
-     if CopyTo <> nil then
-      begin
-        CopyTo.Clear;
-        CopyTo.FList.Capacity := Count - idx;
-        for i := idx to Count - 1 do
-         begin
-           CopyTo.FList.Add(FList[i]);
-           FList.List[i] := nil;
-         end;
-//        N := Count - idx;
-//        CopyTo.FList.Count := N;
-//        Move(FList.List[idx], CopyTo.FList.List[0], N * sizeof(pointer));
-//        for i := Count - 1 downto idx do
-//          FList.List[idx] := nil;
-      end;
-     for i := Count - 1 downto idx do
-       Delete(i);
-   end;
+  begin
+    if Items[idx].StartPos < APos then
+      Result := Items[idx].StartPos;
+    if CopyTo <> nil then
+    begin
+      CopyTo.Clear;
+      CopyTo.Capacity := Count - idx;
+      for i := idx to Count - 1 do
+        CopyTo.Add(Items[i]);
+    end;
+    for i := Count - 1 downto idx do
+      Delete(i);
+  end;
 end;
 
 function TRangeList.DeleteIntersected(AStart, AEnd: integer): integer;
@@ -391,8 +336,8 @@ begin
    end;
 end;
 
-type
-  TRangeClass = class of TRange;
+//type
+//  TRangeClass = class of TRange;
 
 function TRangeList.SplitRange(RangeIdx, SplitPos: integer): Boolean;
 var R: TRange;
@@ -403,9 +348,10 @@ begin
   if Result then
     begin
       sp := R.StartPos;
-      R.FStartPos := SplitPos;
-      R := TRangeClass(R.ClassType).Create(sp, SplitPos);
-      FList.Insert(RangeIdx, R);
+      R.StartPos := SplitPos;
+      Items[RangeIdx]:=R;
+      R := TRange.Create(sp, SplitPos);
+      Insert(RangeIdx, R);
     end;
 end;
 
@@ -479,14 +425,49 @@ begin
   Result := TSortedItem(FList[Index]);
 end;
 
-function ItemCmp(const List: TList; Index: integer; Key: TObject): integer;
-begin
-  Result := TSortedItem(List[Index]).GetKey - integer(Key);
-end;
-
 function TSortedList.PriorAt(Pos: integer): integer;
+  function CompProc(Item: pointer; Key: integer): integer;
+  begin
+    Result := TSortedItem(Item).GetKey - Key;
+  end;
+
+  function QuickSearch(const List: TList; Key: integer; var Index: integer): Boolean;
+  var
+    L, H, I, C: Integer;
+  begin
+    Result := False;
+    if List.Count = 0 then
+    begin
+      Index := -1;
+      Exit;
+    end;
+
+    L := 0;
+    H := List.Count - 1;
+    while L <= H do
+    begin
+      I := (L + H) shr 1;
+      C := CompProc(List[I], Key);
+      if C < 0 then L := I + 1 else
+      begin
+        if C = 0 then
+        begin
+          Result := True;
+          Index := I;
+          Exit;
+        end;
+        H := I - 1;
+      end;
+    end;
+    Index := L;
+    if Index >= List.Count then
+      Index := List.Count - 1;
+    if Index >= 0 then
+      if CompProc(List[Index], Key) > 0 then
+        dec(Index);
+  end;
 begin
-  QuickSearch(FList, ItemCmp, TObject(Pos), Result);
+  QuickSearch(FList, Pos, Result);
 end;
 
 procedure TSortedList.Remove(Item: TSortedItem);

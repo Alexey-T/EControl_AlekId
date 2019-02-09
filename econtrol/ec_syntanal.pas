@@ -2635,15 +2635,15 @@ var N: integer;
              begin
                if Rule.IncludeBounds then
                  begin // New mode in v2.35
-                   FEndPos := FPos - 1 + N;
-                   FPointEnd := FBuffer.StrToCaret(FEndPos);
-                   FCondEndPos := FEndPos;
+                   EndPos := FPos - 1 + N;
+                   PointEnd := FBuffer.StrToCaret(EndPos);
+                   FCondEndPos := EndPos;
                    own := Rule.SyntAnalyzer;
                  end else
                  begin
-                   FEndPos := FPos - 1;
-                   FPointEnd := FBuffer.StrToCaret(FEndPos);
-                   FCondEndPos := FEndPos + N;
+                   EndPos := FPos - 1;
+                   PointEnd := FBuffer.StrToCaret(EndPos);
+                   FCondEndPos := EndPos + N;
                  end;
                // Close ranges which belongs to this sub-lexer range
                CloseAtEnd(FTagList.PriorAt(StartPos));
@@ -2667,8 +2667,8 @@ var N: integer;
      with TecSubLexerRange(FSubLexerBlocks[i]) do
       if (p.EndPos > StartPos) and (p.StartPos < StartPos) then
        begin
-        p.FEndPos := StartPos;
-        p.FPointEnd := FBuffer.StrToCaret(p.FEndPos);
+        p.EndPos := StartPos;
+        p.PointEnd := FBuffer.StrToCaret(p.EndPos);
         Exit;
        end;
    end;
@@ -2694,11 +2694,11 @@ var N: integer;
      sub.FRule := Rule;
      sub.FCondStartPos := FPos - 1;
      if Rule.IncludeBounds then
-       sub.FStartPos := FPos - 1
+       sub.StartPos := FPos - 1
      else
-       sub.FStartPos := FPos + N - 1;
-     sub.FEndPos := -1;
-     sub.FPointStart := FBuffer.StrToCaret(sub.FStartPos);
+       sub.StartPos := FPos + N - 1;
+     sub.EndPos := -1;
+     sub.PointStart := FBuffer.StrToCaret(sub.StartPos);
      sub.FCondEndPos := -1;
      FSubLexerBlocks.Add(sub);
    end;
@@ -2969,11 +2969,11 @@ begin
    with TecSubLexerRange(FSubLexerBlocks[i]) do
     if (EndPos = -1) and Rule.ToTextEnd then
      begin
-       FEndPos := FBuffer.TextLength{ - 1};
-       FPointEnd := Point(
+       EndPos := FBuffer.TextLength{ - 1};
+       PointEnd := Point(
                       FBuffer.LineLength(FBuffer.Count-1),
                       FBuffer.Count-1); //at end
-       FCondEndPos := FEndPos;
+       FCondEndPos := EndPos;
      end;
 
   // Close blocks at the end of text
@@ -3102,7 +3102,7 @@ begin
      if APos < CondEndPos then
       begin
         if APos > EndPos then APos := EndPos;
-        FEndPos := -1;       // open sub lexer
+        EndPos := -1;       // open sub lexer
         FCondEndPos := -1;
       end;
    // Remove tokens
