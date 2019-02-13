@@ -704,9 +704,6 @@ type
     procedure ChangedAtPos(APos: integer);
     function PriorTokenAt(Pos: integer): integer;
 
-    function GetRangeBound(Range: TecTextRange): TPoint;
-    function GetColRangeBound(Range: TecTextRange): TPoint;
-
     function RangeFormat(const FmtStr: ecString; Range: TecTextRange): ecString;
     function GetRangeName(Range: TecTextRange): ecString;
     function GetRangeGroup(Range: TecTextRange): ecString;
@@ -3166,26 +3163,6 @@ end;
 function TecClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
 begin
   Result := FTagList.PriorAt(Pos);
-end;
-
-function TecClientSyntAnalyzer.GetRangeBound(Range: TecTextRange): TPoint;
-begin
-  Result.X := FTagList[Range.FStart].Range.StartPos;
-  if Range.FEnd = - 1 then Result.Y := Result.X
-   else Result.Y := FTagList[Range.FEnd].Range.EndPos;
-end;
-
-function TecClientSyntAnalyzer.GetColRangeBound(Range: TecTextRange): TPoint;
-var sIdx, eIdx: integer;
-begin
-  sIdx := Range.StartIdx;
-  eIdx := Range.EndIdx;
-  if Assigned(Owner.OnGetCollapseRange) then
-    Owner.OnGetCollapseRange(Self, Range, sIdx, eIdx);
-
-  Result.X := Tags[sIdx].Range.StartPos;
-  if eIdx = -1 then Result.Y := Result.X
-   else Result.Y := Tags[eIdx].Range.EndPos;
 end;
 
 function TecClientSyntAnalyzer.GetRangeCount: integer;
