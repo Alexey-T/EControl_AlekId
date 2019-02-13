@@ -35,7 +35,6 @@ type
 
     function Add(Item: TSortedItem): integer;
     procedure Delete(Index: integer);
-    procedure Remove(Item: TSortedItem);
     procedure Clear;
     function PriorAt(Pos: integer): integer;
 
@@ -421,11 +420,6 @@ function TSortedList.PriorAt(Pos: integer): integer;
   end;
 begin
   QuickSearch(FList, Pos, Result);
-end;
-
-procedure TSortedList.Remove(Item: TSortedItem);
-begin
-  FList.Remove(Item);
 end;
 
 end.
