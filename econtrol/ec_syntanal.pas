@@ -710,10 +710,6 @@ type
 
     function GetRangeBound(Range: TecTextRange): TPoint;
     function GetColRangeBound(Range: TecTextRange): TPoint;
-    function RangeAtPos(APos: integer): TecTextRange;
-    function RangeIdxAtPos(APos: integer): integer;
-    function NearestRangeAtPos(APos: integer): TecTextRange;
-    function NearestRangeIdxAtPos(APos: integer): integer;
 
     function RangeFormat(const FmtStr: ecString; Range: TecTextRange): ecString;
     function GetRangeName(Range: TecTextRange): ecString;
@@ -3200,46 +3196,6 @@ begin
   Result.X := Tags[sIdx].Range.StartPos;
   if eIdx = -1 then Result.Y := Result.X
    else Result.Y := Tags[eIdx].Range.EndPos;
-end;
-
-function TecClientSyntAnalyzer.RangeAtPos(APos: integer): TecTextRange;
-begin
-  Result := TecTextRange(FRanges.GetAt(APos));
-end;
-
-function TecClientSyntAnalyzer.RangeIdxAtPos(APos: integer): integer;
-begin
-  Result := FRanges.GetIndexAt(APos);
-end;
-
-function TecClientSyntAnalyzer.NearestRangeAtPos(APos: integer): TecTextRange;
-var idx: integer;
-begin
-  idx := NearestRangeIdxAtPos(APos);
-  if idx <> -1 then Result := Ranges[idx]
-    else Result := nil;
-{  idx := FRanges.PriorAt(APos);
-  if idx <> -1 then
-  for i := idx downto 0 do
-   with TecTextRange(FRanges[i]) do
-    if (EndIdx <> -1) and (Tags[EndIdx].EndPos >= APos) then
-     begin
-       Result := TecTextRange(FRanges[i]);
-       Exit;
-     end;
-  Result := nil;}
-end;
-
-function TecClientSyntAnalyzer.NearestRangeIdxAtPos(APos: integer): integer;
-begin
-  Result := FRanges.PriorAt(APos);
-  if Result <> -1 then
-    while Result >= 0 do
-     with TecTextRange(FRanges[Result]) do
-      if (EndIdx <> -1) and (Tags[EndIdx].Range.EndPos >= APos) then
-        Exit
-      else
-        Dec(Result);
 end;
 
 function TecClientSyntAnalyzer.GetRangeCount: integer;
