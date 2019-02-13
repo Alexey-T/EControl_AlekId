@@ -73,7 +73,7 @@ type
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
     property Sorted: boolean read FSorted write FSorted;
-    function Add(const Range: GRange): integer;virtual;
+    function Add(const Range: GRange): integer; virtual;
     function ClearFromPos(APos: integer; CopyTo: GRangeList<GRange> = nil): integer; virtual;
     // Deletes ranges that intersect the bounds, returns number of deleted items
     function DeleteIntersected(AStart, AEnd: integer): integer;
@@ -81,8 +81,6 @@ type
     // Content has been changed, updates ranges upper Pos
     // Removes affected ranges
     function ContentChanged(Pos, Count: integer): Boolean;
-    // Exactly at position
-    function RangeAt(APos: integer): integer;
     // At position or next
     function NextAt(APos: integer): integer;
     // At position or prior
@@ -170,13 +168,6 @@ begin
     else
       inherited Insert(Result, Range);
   end;
-end;
-
-function GRangeList<GRange>.RangeAt(APos: integer): integer;
-begin
-  Result := PriorAt(APos);
-  if (Result <> -1) and (TRange(InternalItems[Result]^).EndPos <= APos) then
-    Result := -1;
 end;
 
 function GRangeList<GRange>.NextAt(APos: integer): integer;
