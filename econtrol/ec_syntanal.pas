@@ -264,7 +264,6 @@ type
   private
     FCondIndex: integer;
     FEndCondIndex: integer;
-    FIndex: integer;
     function GetLevel: integer;
     function GetIsClosed: Boolean;
   protected
@@ -275,12 +274,10 @@ type
     IdentIdx: integer;
     Rule: TecTagBlockCondition;
     Parent: TecTextRange;
+    Index: integer;
 
     constructor Create(AStartIdx, AStartPos: integer);
-
     property Level: integer read GetLevel;
-    property Index: integer read FIndex;
-
     property IsClosed: Boolean read GetIsClosed;
   end;
 
@@ -1045,7 +1042,7 @@ begin
   StartPos := AStartPos;
   EndIdx := -1;
   FEndCondIndex := -1;
-  FIndex := -1;
+  Index := -1;
 end;
 
 function TecTextRange.GetIsClosed: Boolean;
@@ -2884,7 +2881,7 @@ end;
 
 procedure TecClientSyntAnalyzer.AddRange(Range: TecTextRange);
 begin
-  Range.FIndex := FRanges.Count;
+  Range.Index := FRanges.Count;
   FRanges.Add(Range);
   if FOpenedBlocks.Count > 0 then
     Range.Parent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
