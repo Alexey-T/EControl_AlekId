@@ -682,7 +682,6 @@ type
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
-    FEnabledLineSeparators: Boolean; //AT
 
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
@@ -2867,8 +2866,6 @@ begin
   FTimerIdle.OnTimer := TimerIdleTick;
   FTimerIdle.Enabled := False;
   FTimerIdle.Interval := 100;
-
-  FEnabledLineSeparators := True; //AT
 
   IdleAppend;
 end;
