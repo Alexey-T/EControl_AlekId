@@ -2643,56 +2643,63 @@ var N: integer;
    // Select current lexer
    procedure GetOwner;
    var i, N: integer;
+     Sub: TecSubLexerRange;
    begin
     own := FOwner;
     for i := FSubLexerBlocks.Count - 1 downto 0 do
-     with FSubLexerBlocks[i] do
-       if FPos > Range.StartPos then
-        if Range.EndPos = -1 then
+     begin
+       Sub:= FSubLexerBlocks[i];
+       if FPos > Sub.Range.StartPos then
+        if Sub.Range.EndPos = -1 then
           begin
             // try close sub lexer
     //        if Rule.ToTextEnd then N := 0 else
-            N := Rule.MatchEnd(Source, FPos);
+            N := Sub.Rule.MatchEnd(Source, FPos);
             if N > 0 then
              begin
-               if Rule.IncludeBounds then
+               if Sub.Rule.IncludeBounds then
                  begin // New mode in v2.35
-                   Range.EndPos := FPos - 1 + N;
-                   Range.PointEnd := FBuffer.StrToCaret(Range.EndPos);
-                   CondEndPos := Range.EndPos;
-                   own := Rule.SyntAnalyzer;
+                   Sub.Range.EndPos := FPos - 1 + N;
+                   Sub.Range.PointEnd := FBuffer.StrToCaret(Sub.Range.EndPos);
+                   Sub.CondEndPos := Sub.Range.EndPos;
+                   own := Sub.Rule.SyntAnalyzer;
                  end else
                  begin
-                   Range.EndPos := FPos - 1;
-                   Range.PointEnd := FBuffer.StrToCaret(Range.EndPos);
-                   CondEndPos := Range.EndPos + N;
+                   Sub.Range.EndPos := FPos - 1;
+                   Sub.Range.PointEnd := FBuffer.StrToCaret(Sub.Range.EndPos);
+                   Sub.CondEndPos := Sub.Range.EndPos + N;
                  end;
                // Close ranges which belongs to this sub-lexer range
-               CloseAtEnd(FTagList.PriorAt(Range.StartPos));
+               CloseAtEnd(FTagList.PriorAt(Sub.Range.StartPos));
+               FSubLexerBlocks[i] := Sub; // Write back to list
              end else
              begin
-               own := Rule.SyntAnalyzer;
+               own := Sub.Rule.SyntAnalyzer;
                Exit;
              end;
           end else
-       if FPos < Range.EndPos then
+       if FPos < Sub.Range.EndPos then
          begin
-               own := Rule.SyntAnalyzer;
+               own := Sub.Rule.SyntAnalyzer;
                Exit;
          end;
+    end;
    end;
 
    procedure CheckIntersect;
    var i: integer;
+     Sub: TecSubLexerRange;
    begin
     for i := FSubLexerBlocks.Count - 1 downto 0 do
-     with FSubLexerBlocks[i] do
-      if (p.Range.EndPos > Range.StartPos) and (p.Range.StartPos < Range.StartPos) then
+    begin
+      Sub := FSubLexerBlocks[i];
+      if (p.Range.EndPos > Sub.Range.StartPos) and (p.Range.StartPos < Sub.Range.StartPos) then
        begin
-        p.Range.EndPos := Range.StartPos;
+        p.Range.EndPos := Sub.Range.StartPos;
         p.Range.PointEnd := FBuffer.StrToCaret(p.Range.EndPos);
         Exit;
        end;
+    end;
    end;
 
    function CanOpen(Rule: TecSubAnalyzerRule): Boolean;
@@ -2708,8 +2715,11 @@ var N: integer;
      if not Result then Exit;
      // To prevent repeated opening
      if FSubLexerBlocks.Count > 0 then
-       if (FSubLexerBlocks.Last.Range.EndPos = FPos - 1) and
-          (FSubLexerBlocks.Last.Rule = Rule) then Exit;
+     begin
+       sub := FSubLexerBlocks.Last;
+       if (sub.Range.EndPos = FPos - 1) and
+          (sub.Rule = Rule) then Exit;
+     end;
 
      ApplyStates(Rule);
 
@@ -2988,21 +2998,25 @@ end;
 
 procedure TecClientSyntAnalyzer.Finished;
 var i: integer;
+  Sub: TecSubLexerRange;
 begin
   if FFinished then Exit;
   inherited Finished;
 
   // Close SubLexers at the End of Text
   for i := FSubLexerBlocks.Count - 1 downto 0 do
-   with FSubLexerBlocks[i] do
-    if (Range.EndPos = -1) and Rule.ToTextEnd then
+  begin
+    Sub := FSubLexerBlocks[i];
+    if (Sub.Range.EndPos = -1) and Sub.Rule.ToTextEnd then
      begin
-       Range.EndPos := FBuffer.TextLength{ - 1};
-       Range.PointEnd := Point(
+       Sub.Range.EndPos := FBuffer.TextLength{ - 1};
+       Sub.Range.PointEnd := Point(
                       FBuffer.LineLength(FBuffer.Count-1),
                       FBuffer.Count-1); //at end
-       CondEndPos := Range.EndPos;
+       Sub.CondEndPos := Sub.Range.EndPos;
+       FSubLexerBlocks[i] := Sub;
      end;
+  end;
 
   // Close blocks at the end of text
   CloseAtEnd(0);
@@ -3091,6 +3105,7 @@ end;
 
 procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 var i, N: integer;
+  Sub: TecSubLexerRange;
 
  procedure CleanRangeList(List: TSortedList; IsClosed: Boolean);
  var i: integer;
@@ -3121,18 +3136,21 @@ begin
 
    // Check sub lexer ranges
    for i := FSubLexerBlocks.Count - 1 downto 0 do
-    with FSubLexerBlocks[i] do
-     if APos < Range.StartPos then
+   begin
+     Sub:= FSubLexerBlocks[i];
+     if APos < Sub.Range.StartPos then
       begin
-        if APos > CondStartPos then APos := CondStartPos;
+        if APos > Sub.CondStartPos then APos := Sub.CondStartPos;
         FSubLexerBlocks.Delete(i);  // remove sub lexer
       end else
-     if APos < CondEndPos then
+     if APos < Sub.CondEndPos then
       begin
-        if APos > Range.EndPos then APos := Range.EndPos;
-        Range.EndPos := -1;       // open sub lexer
-        CondEndPos := -1;
+        if APos > Sub.Range.EndPos then APos := Sub.Range.EndPos;
+        Sub.Range.EndPos := -1;       // open sub lexer
+        Sub.CondEndPos := -1;
+        FSubLexerBlocks[i] := Sub;
       end;
+   end;
    // Remove tokens
    FTagList.ClearFromPos(APos);
 
