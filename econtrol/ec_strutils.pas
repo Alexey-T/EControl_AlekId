@@ -23,19 +23,19 @@ type
   UCString = UnicodeString;
   UCChar = WideChar;
 
-function IsDigitChar(const c: UCChar): Boolean; overload;
-function IsHexDigitChar(const c: UCChar): Boolean; overload;
-function IsLineBreakChar(const c: UCChar): Boolean; overload;
-function IsWordChar(const c: UCChar): Boolean; overload;
-function IsSpaceChar(const c: UCChar): Boolean; overload;
-function IsAlphaChar(const c: UCChar): Boolean; overload;
+function IsDigitChar(C: UCChar): Boolean; inline;
+function IsHexDigitChar(C: UCChar): Boolean;
+function IsLineBreakChar(c: UCChar): Boolean;
+function IsWordChar(c: UCChar): Boolean;
+function IsSpaceChar(c: UCChar): Boolean; inline;
+function IsAlphaChar(c: UCChar): Boolean;
 
-function IsIdentChar(const C: UCChar): Boolean; overload;
-function IsIdentDigitChar(const C: UCChar): Boolean; overload;
-function IsIdentLetterChar(const C: UCChar): Boolean; overload;
+function IsIdentChar(C: UCChar): Boolean;
+function IsIdentDigitChar(C: UCChar): Boolean; inline;
+function IsIdentLetterChar(C: UCChar): Boolean;
 function IsWordBreak(aPos: integer; const Text: UCString): Boolean; overload;
 
-function ecUpCase(const C: UCChar): UCChar; overload;
+function ecUpCase(C: UCChar): UCChar; inline;
 function SkipSpaces(const Source: ecString; var APos: integer): integer;
 function SkipSpacesNoLineBreak(const Source: ecString; var APos: integer): integer;
 function ecEncodeString(const S: string): string;
@@ -50,31 +50,42 @@ uses
 //==============================================================================
 //  Routines
 //==============================================================================
-function IsSpaceChar(const c: UCChar): Boolean;
+function IsSpaceChar(c: UCChar): Boolean; inline;
 begin
   Result := (c=' ') or (c=#9);
 end;
 
-function IsLineBreakChar(const c: UCChar): Boolean;
+function IsLineBreakChar(c: UCChar): Boolean;
 begin
    case C of
      #$000A, #$000D,
-     #$2028, #$2029, #$0085: Result := True;
-     else Result := False;
+     #$2028, #$2029, #$0085:
+       Result := True;
+     else
+       Result := False;
    end;
 end;
 
-function IsDigitChar(const C: UCChar): Boolean;
+function IsDigitChar(C: UCChar): Boolean; inline;
 begin
-  Result := Pos(c, '1234567890') > 0;
+  Result := (C>='0') and (C<='9');
 end;
 
-function IsHexDigitChar(const C: UCChar): Boolean;
+function IsHexDigitChar(C: UCChar): Boolean;
 begin
-  Result := Pos(c, '1234567890abcdefABCDEF') > 0;
+  case C of
+    '0'..'9':
+       Result := true;
+    'a'..'f':
+      Result := true;
+    'A'..'F':
+      Result := true;
+    else
+      Result := false;
+  end;
 end;
 
-function IsWordChar(const C: UCChar): Boolean;
+function IsWordChar(c: UCChar): Boolean;
 begin
   if IsDigitChar(C) then Result := True
   else
@@ -92,19 +103,19 @@ begin
     Result := False;
 end;
 
-function IsAlphaChar(const C: UCChar): Boolean;
+function IsAlphaChar(c: UCChar): Boolean;
 begin
   Result :=
     ((C >= 'a') and (C <= 'z')) or
     ((C >= 'A') and (C <= 'Z'));
 end;
 
-function IsIdentChar(const C: UCChar): Boolean;
+function IsIdentChar(C: UCChar): Boolean;
 begin
   Result := IsIdentLetterChar(C) or IsIdentDigitChar(C);
 end;
 
-function IsIdentLetterChar(const C: UCChar): Boolean;
+function IsIdentLetterChar(C: UCChar): Boolean;
 begin
   Result :=
     ((C >= 'a') and (C <= 'z')) or
@@ -112,7 +123,7 @@ begin
     (C = '_');
 end;
 
-function IsIdentDigitChar(const C: UCChar): Boolean;
+function IsIdentDigitChar(C: UCChar): Boolean; inline;
 begin
   Result := (C >= '0') and (C <= '9');
 end;
@@ -123,7 +134,7 @@ begin
             (IsWordChar(Text[aPos]) xor IsWordChar(Text[aPos - 1]));
 end;
 
-function ecUpCase(const C: UCChar): UCChar;
+function ecUpCase(C: UCChar): UCChar; inline;
 begin
   Result := UpCase(C);
 end;
