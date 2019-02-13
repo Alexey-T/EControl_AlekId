@@ -38,8 +38,6 @@ type
     procedure Remove(Item: TSortedItem);
     procedure Clear;
     function PriorAt(Pos: integer): integer;
-    function GetAt(Pos: integer): TSortedItem;
-    function GetIndexAt(Pos: integer): integer;
 
     property Items[Index: integer]: TSortedItem read GetItem; default;
     property Count: integer read GetCount;
@@ -365,21 +363,6 @@ destructor TSortedList.Destroy;
 begin
   FreeAndNil(FList);//AT
   inherited;
-end;
-
-function TSortedList.GetAt(Pos: integer): TSortedItem;
-var idx: integer;
-begin
-  idx := GetIndexAt(Pos);
-  if idx = -1 then Result := nil
-   else Result := Items[idx];
-end;
-
-function TSortedList.GetIndexAt(Pos: integer): integer;
-begin
-  Result := PriorAt(Pos);
-  if (Result <> -1) and (Items[Result].GetKey <> Pos) then
-    Result := -1;
 end;
 
 function TSortedList.GetCount: integer;
