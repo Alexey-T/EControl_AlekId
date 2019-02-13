@@ -16,7 +16,7 @@ unit ec_Lists;
 interface
 
 uses
-  Classes, FGL, Dialogs;
+  Classes, FGL;
 
 type
   TSortedItem = class
@@ -69,7 +69,6 @@ type
   protected
     // Union ranges with the [Index] and [Index + 1]
     // returns new range index (or union result)
-    function UnionRanges(Index: integer): integer; virtual;
     function IsGreater(I1, I2: integer): Boolean;
     function CompProc(const Val:TRange; Key: integer): integer;
   public
@@ -79,7 +78,6 @@ type
     function ClearFromPos(APos: integer; CopyTo: GRangeList<GRange> = nil): integer; virtual;
     // Deletes ranges that intersect the bounds, returns number of deleted items
     function DeleteIntersected(AStart, AEnd: integer): integer;
-    //function SplitRange(RangeIdx, SplitPos: integer): Boolean;
 
     // Content has been changed, updates ranges upper Pos
     // Removes affected ranges
@@ -126,12 +124,11 @@ begin
 end;
 
 class operator TRange.=(const a,b: TRange):boolean;
-begin                   
+// Not used in real work
+begin
   Result:=
     (a.StartPos=b.StartPos) and
-    (a.EndPos=b.EndPos) and
-    (a.PointStart=b.PointStart) and
-    (a.PointEnd=b.PointEnd);
+    (a.EndPos=b.EndPos);
 end;
 
 { TRangeList }
@@ -147,17 +144,6 @@ begin
   inherited;
 end;
 
-function GRangeList<GRange>.UnionRanges(Index: integer): integer;
-begin
-  ShowMessage('Union at '+Inttostr(Index));
-
-  // Default action - union of ranges
-  if TRange(InternalItems[Index]^).EndPos < TRange(InternalItems[Index + 1]^).EndPos then
-    TRange(InternalItems[Index]^).EndPos := TRange(InternalItems[Index + 1]^).EndPos;
-  inherited Delete(Index + 1);
-  Result := Index;
-end;
-
 function GRangeList<GRange>.IsGreater(I1, I2: integer): Boolean;
 begin
   if FUnionSiblings then
@@ -167,36 +153,9 @@ begin
 end;
 
 function GRangeList<GRange>.Add(const Range: GRange): integer;
-var idx, k: integer;
-  _Range: TRange absolute Range;
 begin
-  // Stream adding
-  if (Count = 0) or ( TRange(InternalItems[Count - 1]^).EndPos <= _Range.StartPos) then
-  begin
-    Result := Count;
-    inherited Add(Range);
-  end
-  else
-  begin
-    idx := PriorAt(_Range.StartPos);
-    if idx = Count - 1 then
-       inherited Add(Range)
-    else
-       inherited Insert(idx + 1, Range);
-    // Lower range check
-    if (idx <> -1) and IsGreater(TRange(InternalItems[idx]^).EndPos, _Range.StartPos) then
-      idx := UnionRanges(idx)
-    else
-      idx := idx + 1;
-    k := idx + 1;
-    while (k < Count) and IsGreater(TRange(InternalItems[idx]^).EndPos, TRange(InternalItems[k]^).StartPos) do
-    begin
-      idx := UnionRanges(idx);
-      k := idx + 1;
-    end;
-
-    Result := idx;
-  end;
+  Result := Count;
+  inherited Add(Range);
 end;
 
 function GRangeList<GRange>.RangeAt(APos: integer): integer;
