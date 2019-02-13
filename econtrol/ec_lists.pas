@@ -386,7 +386,8 @@ begin
 end;
 
 function TSortedList.PriorAt(Pos: integer): integer;
-  function CompProc(Item: pointer; Key: integer): integer;
+
+  function CompProc(Item: pointer; Key: integer): integer; inline;
   begin
     Result := TSortedItem(Item).GetKey - Key;
   end;
