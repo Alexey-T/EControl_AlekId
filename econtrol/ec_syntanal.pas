@@ -3095,6 +3095,8 @@ begin
 
    FFinished := False;
    Dec(APos);
+   if APos<0 then
+     APos := 0;
    DoStopTimer(false);
 
    if FBuffer.TextLength <= Owner.FullRefreshSize then

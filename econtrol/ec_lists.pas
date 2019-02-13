@@ -278,6 +278,12 @@ function GRangeList<GRange>.ClearFromPos(APos: integer; CopyTo: GRangeList<GRang
 var idx, i: integer;
 begin
   Result := APos;
+  if APos<=0 then
+  begin
+    Clear;
+    exit;
+  end;
+
   idx := NextAt(APos);
   if idx <> -1 then
   begin
