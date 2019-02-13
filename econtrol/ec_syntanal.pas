@@ -262,8 +262,7 @@ type
 
   TecTextRange = class(TSortedItem)
   private
-    FRule: TecTagBlockCondition;
-    FStart, FEnd, FIdent: integer;
+    FIdent: integer;
     FStartPos: integer;
     FParent: TecTextRange;
     FCondIndex: integer;
@@ -274,11 +273,11 @@ type
   protected
     function GetKey: integer; override;
   public
+    StartIdx, EndIdx: integer;
+    Rule: TecTagBlockCondition;
+
     constructor Create(AStartIdx, AStartPos: integer);
 
-    property Rule: TecTagBlockCondition read FRule;
-    property StartIdx: integer read FStart;
-    property EndIdx: integer read FEnd;
     property IdentIdx: integer read FIdent;
     property Parent: TecTextRange read FParent;
     property Level: integer read GetLevel;
@@ -1045,16 +1044,16 @@ end;
 constructor TecTextRange.Create(AStartIdx, AStartPos: integer);
 begin
   inherited Create;
-  FStart := AStartIdx;
+  StartIdx := AStartIdx;
   FStartPos := AStartPos;
-  FEnd := -1;
+  EndIdx := -1;
   FEndCondIndex := -1;
   FIndex := -1;
 end;
 
 function TecTextRange.GetIsClosed: Boolean;
 begin
-  Result := FEnd <> -1;
+  Result := EndIdx <> -1;
 end;
 
 function TecTextRange.GetKey: integer;
@@ -2892,7 +2891,7 @@ begin
   FRanges.Add(Range);
   if FOpenedBlocks.Count > 0 then
     Range.FParent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
-  if Range.FEnd = -1 then
+  if Range.EndIdx = -1 then
     FOpenedBlocks.Add(Range);
 end;
 
@@ -2915,20 +2914,20 @@ var j: integer;
 begin
   for j := FOpenedBlocks.Count - 1 downto 0 do
    with TecTextRange(FOpenedBlocks[j]) do
-     if Assigned(FRule) then
+     if Assigned(Rule) then
        begin
          if Cond.BlockType = btRangeStart then
-           b := Cond.SelfClose and (FRule = Cond)
+           b := Cond.SelfClose and (Rule = Cond)
          else
-           b := (FRule.FBlockEndCond = Cond) or (FRule = Cond.FBlockEndCond);
+           b := (Rule.FBlockEndCond = Cond) or (Rule = Cond.FBlockEndCond);
          if b then
            begin
              if Cond.SameIdent and not SameText(TagStr[RefTag - Cond.IdentIndex] , TagStr[FIdent]) then Continue;
-             FEnd := RefTag - Cond.BlockOffset;
-             if (FRule = Cond) and (FEnd > 0) then Dec(FEnd); // for self closing
+             EndIdx := RefTag - Cond.BlockOffset;
+             if (Rule = Cond) and (EndIdx > 0) then Dec(EndIdx); // for self closing
              FEndCondIndex := RefTag;
              if Assigned(Owner.OnCloseTextRange) then
-               Owner.OnCloseTextRange(Self, TecTextRange(FOpenedBlocks[j]), FStart, FEnd);
+               Owner.OnCloseTextRange(Self, TecTextRange(FOpenedBlocks[j]), StartIdx, EndIdx);
              FOpenedBlocks.Delete(j);
              Result := True;
              Exit;
@@ -3088,8 +3087,8 @@ var i, N: integer;
  begin
    for i := List.Count - 1 downto 0 do
     with TecTextRange(List[i]) do
-     if (FCondIndex >= N) or (FStart >= N) or IsClosed and
-        ((FEndCondIndex >= N) or (FEnd >= N)) then
+     if (FCondIndex >= N) or (StartIdx >= N) or IsClosed and
+        ((FEndCondIndex >= N) or (EndIdx >= N)) then
       List.Delete(i);
  end;
 
@@ -3138,10 +3137,10 @@ begin
    // Remove text ranges from main storage
    for i := FRanges.Count - 1 downto 0 do
     with TecTextRange(FRanges[i]) do
-     if (FCondIndex >= N) or (FStart >= N) then FRanges.Delete(i)  else
-      if (FEndCondIndex >= N) or (FEnd >= N) then
+     if (FCondIndex >= N) or (StartIdx >= N) then FRanges.Delete(i)  else
+      if (FEndCondIndex >= N) or (EndIdx >= N) then
        begin
-         FEnd := -1;
+         EndIdx := -1;
          FEndCondIndex := -1;
          FOpenedBlocks.Add(FRanges[i]);
        end;
@@ -3713,21 +3712,21 @@ begin
   for i := FOpenedBlocks.Count - 1 downto 0 do
    begin
     Range := TecTextRange(FOpenedBlocks[i]);
-    if Range.FRule.EndOfTextClose and
+    if Range.Rule.EndOfTextClose and
        ((StartTagIdx = 0) or (Range.StartIdx >= StartTagIdx)) then
      begin
-       Range.FEnd := TagCount - 1;
-       if Range.FRule.GroupIndex = cSpecIndentID then
+       Range.EndIdx := TagCount - 1;
+       if Range.Rule.GroupIndex = cSpecIndentID then
        begin
          Ind := IndentOf(TagStr[Range.StartIdx]);
          for j := Range.StartIdx+1 to TagCount-1 do
          begin
            s := '';
-           if Range.FRule.SyntOwner<>nil then
-             s := Range.FRule.SyntOwner.TokenTypeNames[Tags[j].TokenType];
+           if Range.Rule.SyntOwner<>nil then
+             s := Range.Rule.SyntOwner.TokenTypeNames[Tags[j].TokenType];
            if (s<>'') and (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= Ind) then
            begin
-             Range.FEnd := j-1;
+             Range.EndIdx := j-1;
              Break
            end;
          end;
@@ -3944,13 +3943,13 @@ begin
                    begin
                     Range := TecTextRange.Create(li, RClient.Tags[li].Range.StartPos);
                     Range.FIdent := ki;
-                    Range.FRule := FBlockRules[i];
+                    Range.Rule := FBlockRules[i];
                     Range.FCondIndex := N - 1;
                     if NoEndRule then
                      begin
-                      Range.FEnd := N - 1 - CheckOffset;
+                      Range.EndIdx := N - 1 - CheckOffset;
                       Range.FEndCondIndex := N - 1;
-                      Range.FStart := RefIdx - BlockOffset;
+                      Range.StartIdx := RefIdx - BlockOffset;
                      end;
                     RClient.AddRange(Range);
                    end;
