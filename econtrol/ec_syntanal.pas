@@ -275,7 +275,6 @@ type
     function GetKey: integer; override;
   public
     constructor Create(AStartIdx, AStartPos: integer);
-    function IsParent(Range: TecTextRange): Boolean;
 
     property Rule: TecTagBlockCondition read FRule;
     property StartIdx: integer read FStart;
@@ -1073,13 +1072,6 @@ begin
      inc(Result);
      prn := prn.Parent;
    end;
-end;
-
-function TecTextRange.IsParent(Range: TecTextRange): Boolean;
-begin
-  if Range = FParent then Result := True else
-    if Assigned(FParent) then Result := FParent.IsParent(Range)
-      else Result := False;
 end;
 
 { TSyntCollectionItem }
