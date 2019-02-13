@@ -262,9 +262,6 @@ type
 
   TecTextRange = class(TSortedItem)
   private
-    FIdent: integer;
-    FStartPos: integer;
-    FParent: TecTextRange;
     FCondIndex: integer;
     FEndCondIndex: integer;
     FIndex: integer;
@@ -273,16 +270,16 @@ type
   protected
     function GetKey: integer; override;
   public
+    StartPos: integer;
     StartIdx, EndIdx: integer;
+    IdentIdx: integer;
     Rule: TecTagBlockCondition;
+    Parent: TecTextRange;
 
     constructor Create(AStartIdx, AStartPos: integer);
 
-    property IdentIdx: integer read FIdent;
-    property Parent: TecTextRange read FParent;
     property Level: integer read GetLevel;
     property Index: integer read FIndex;
-    property StartPos: Integer read FStartPos;
 
     property IsClosed: Boolean read GetIsClosed;
   end;
@@ -1045,7 +1042,7 @@ constructor TecTextRange.Create(AStartIdx, AStartPos: integer);
 begin
   inherited Create;
   StartIdx := AStartIdx;
-  FStartPos := AStartPos;
+  StartPos := AStartPos;
   EndIdx := -1;
   FEndCondIndex := -1;
   FIndex := -1;
@@ -1058,7 +1055,7 @@ end;
 
 function TecTextRange.GetKey: integer;
 begin
-  Result := FStartPos;
+  Result := StartPos;
 end;
 
 function TecTextRange.GetLevel: integer;
@@ -2890,7 +2887,7 @@ begin
   Range.FIndex := FRanges.Count;
   FRanges.Add(Range);
   if FOpenedBlocks.Count > 0 then
-    Range.FParent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
+    Range.Parent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
   if Range.EndIdx = -1 then
     FOpenedBlocks.Add(Range);
 end;
@@ -2922,7 +2919,7 @@ begin
            b := (Rule.FBlockEndCond = Cond) or (Rule = Cond.FBlockEndCond);
          if b then
            begin
-             if Cond.SameIdent and not SameText(TagStr[RefTag - Cond.IdentIndex] , TagStr[FIdent]) then Continue;
+             if Cond.SameIdent and not SameText(TagStr[RefTag - Cond.IdentIndex] , TagStr[IdentIdx]) then Continue;
              EndIdx := RefTag - Cond.BlockOffset;
              if (Rule = Cond) and (EndIdx > 0) then Dec(EndIdx); // for self closing
              FEndCondIndex := RefTag;
@@ -3942,7 +3939,7 @@ begin
                   if CheckIndex(li) then
                    begin
                     Range := TecTextRange.Create(li, RClient.Tags[li].Range.StartPos);
-                    Range.FIdent := ki;
+                    Range.IdentIdx := ki;
                     Range.Rule := FBlockRules[i];
                     Range.FCondIndex := N - 1;
                     if NoEndRule then
