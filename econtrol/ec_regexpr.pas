@@ -270,11 +270,6 @@ type
 // Utils functions
 // =============================================================================
 
-function Min(a, b: integer): integer;
-begin
-  if a < b then Result := a else Result := b;
-end;
-
 function GetAbsoluteNext(Node: TRENodeBase):TRENodeBase;
 begin
   Result := Node.Next;
@@ -282,7 +277,7 @@ begin
     Result := GetAbsoluteNext(Node.Owner);
 end;
 
-function IsInRange(const RngType: UCChar; const C: AnsiChar): Boolean; overload;
+function IsInRange(RngType: UCChar; C: AnsiChar): Boolean; overload;
 begin
   Result := False;
   if not Assigned(CheckCustomCharClassProc) or
@@ -308,7 +303,7 @@ begin
   end;
 end;
 
-function IsInRange(const RngType: UCChar; const C: UCChar): Boolean; overload;
+function IsInRange(RngType: UCChar; C: UCChar): Boolean; overload;
 begin
   Result := False;
   if not Assigned(CheckCustomCharClassProc) or
