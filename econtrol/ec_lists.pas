@@ -16,7 +16,7 @@ unit ec_Lists;
 interface
 
 uses
-  Classes,FGL;
+  Classes, FGL, Dialogs;
 
 type
   TSortedItem = class
@@ -149,6 +149,8 @@ end;
 
 function GRangeList<GRange>.UnionRanges(Index: integer): integer;
 begin
+  ShowMessage('Union at '+Inttostr(Index));
+
   // Default action - union of ranges
   if TRange(InternalItems[Index]^).EndPos < TRange(InternalItems[Index + 1]^).EndPos then
     TRange(InternalItems[Index]^).EndPos := TRange(InternalItems[Index + 1]^).EndPos;

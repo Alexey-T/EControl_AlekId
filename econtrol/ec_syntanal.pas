@@ -2646,7 +2646,7 @@ var N: integer;
    begin
     own := FOwner;
     for i := FSubLexerBlocks.Count - 1 downto 0 do
-     with TecSubLexerRange(FSubLexerBlocks[i]) do
+     with FSubLexerBlocks[i] do
        if FPos > Range.StartPos then
         if Range.EndPos = -1 then
           begin
@@ -2686,7 +2686,7 @@ var N: integer;
    var i: integer;
    begin
     for i := FSubLexerBlocks.Count - 1 downto 0 do
-     with TecSubLexerRange(FSubLexerBlocks[i]) do
+     with FSubLexerBlocks[i] do
       if (p.Range.EndPos > Range.StartPos) and (p.Range.StartPos < Range.StartPos) then
        begin
         p.Range.EndPos := Range.StartPos;
@@ -2708,8 +2708,8 @@ var N: integer;
      if not Result then Exit;
      // To prevent repeated opening
      if FSubLexerBlocks.Count > 0 then
-       if (TecSubLexerRange(FSubLexerBlocks.Last).Range.EndPos = FPos - 1) and
-          (TecSubLexerRange(FSubLexerBlocks.Last).Rule = Rule) then Exit;
+       if (FSubLexerBlocks.Last.Range.EndPos = FPos - 1) and
+          (FSubLexerBlocks.Last.Rule = Rule) then Exit;
 
      ApplyStates(Rule);
 
@@ -2786,7 +2786,7 @@ begin
  Result := FOwner;
  if Pos >= 0 then
  for i := 0 to FSubLexerBlocks.Count - 1 do
-  with TecSubLexerRange(FSubLexerBlocks[i]) do
+  with FSubLexerBlocks[i] do
    if Pos < Range.StartPos then Break else
     if (Range.EndPos = -1) or (Pos < Range.EndPos) then
       Result := Rule.SyntAnalyzer;
@@ -2799,7 +2799,7 @@ end;
 
 function TecParserResults.GetSubLexerRange(Index: integer): TecSubLexerRange;
 begin
-  Result := TecSubLexerRange(FSubLexerBlocks[Index]);
+  Result := FSubLexerBlocks[Index];
 end;
 
 procedure TecParserResults.SetTags(Index: integer; const AValue: TecSyntToken);
@@ -2994,7 +2994,7 @@ begin
 
   // Close SubLexers at the End of Text
   for i := FSubLexerBlocks.Count - 1 downto 0 do
-   with TecSubLexerRange(FSubLexerBlocks[i]) do
+   with FSubLexerBlocks[i] do
     if (Range.EndPos = -1) and Rule.ToTextEnd then
      begin
        Range.EndPos := FBuffer.TextLength{ - 1};
@@ -3121,7 +3121,7 @@ begin
 
    // Check sub lexer ranges
    for i := FSubLexerBlocks.Count - 1 downto 0 do
-    with TecSubLexerRange(FSubLexerBlocks[i]) do
+    with FSubLexerBlocks[i] do
      if APos < Range.StartPos then
       begin
         if APos > CondStartPos then APos := CondStartPos;
