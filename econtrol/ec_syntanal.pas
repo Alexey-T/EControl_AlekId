@@ -1003,26 +1003,30 @@ end;
 
 { TecSyntToken }
 
-constructor TecSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
-  AEndPos: integer; const APointStart, APointEnd: TPoint);
+constructor TecSyntToken.Create(ARule: TRuleCollectionItem;
+  AStartPos, AEndPos: integer;
+  const APointStart, APointEnd: TPoint);
 begin
-  Range:= TRange.Create(AStartPos, AEndPos, APointStart, APointEnd);
+  Range.StartPos := AStartPos;
+  Range.EndPos := AEndPos;
+  Range.PointStart := APointStart;
+  Range.PointEnd := APointEnd;
   Rule := ARule;
   if Assigned(ARule) then
-    TokenType := TecTokenRule(ARule).TokenType;
+    TokenType := TecTokenRule(ARule).TokenType
+  else
+    TokenType := 0;
 end;
 
 function TecSyntToken.GetStr(const Source: ecString): ecString;
 begin
-with Range do
-  Result := Copy(Source, StartPos + 1, EndPos - StartPos);
+  with Range do
+    Result := Copy(Source, StartPos + 1, EndPos - StartPos);
 end;
 
 class operator TecSyntToken.=(const A, B: TecSyntToken): boolean;
 begin
-  Result:=
-    (A.Range=B.Range) and
-    (A.Rule=B.Rule);
+  Result:= false;
 end;
 
 function TecSyntToken.GetStyle: TecSyntaxFormat;
@@ -3966,16 +3970,6 @@ begin
   end;
 end;
 
-{
-function TecSyntAnalyzer.AddClient(
-         const Client: IecSyntClient;
-         ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
-begin
-  Result := TecClientSyntAnalyzer.Create(Self, ABuffer, Client);
-  //skipped: adding Client to list of clients
-end;
-}
-
 procedure TecSyntAnalyzer.SetSampleText(const Value: TStrings);
 begin
   FSampleText.Assign(Value);
@@ -3987,7 +3981,9 @@ var i, N, lp: integer;
     Rule: TecTokenRule;
     PntStart, PntEnd: TPoint;
 begin
-  Result := TecSyntToken.Create(nil, -1, -1, Point(-1, -1), Point(-1, -1));
+  PntStart.X := -1;
+  PntStart.Y := -1;
+  Result := TecSyntToken.Create(nil, -1, -1, PntStart, PntStart);
 
   if Assigned(FOnParseToken) then
     begin
