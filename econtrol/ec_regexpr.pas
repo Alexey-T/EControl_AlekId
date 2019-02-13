@@ -29,7 +29,7 @@ const
   MaskModX = 32; // -"- /x
 
 type
-  TecRegExpr = class(TPersistent)
+  TecRegExpr = class //(TPersistent)
   private
     FProgRoot: TObject;
     FModifiers: Word;
@@ -55,7 +55,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    procedure Assign(Source: TPersistent); override;
+    procedure Assign(Source: TecRegExpr);
 
     function Compile: Boolean; overload;
     function Compile(AsUnicode: Boolean): Boolean; overload;
@@ -2119,15 +2119,10 @@ begin
    end;
 end;
 
-procedure TecRegExpr.Assign(Source: TPersistent);
+procedure TecRegExpr.Assign(Source: TecRegExpr);
 begin
-  if Source is TecRegExpr then
-    with Source as TecRegExpr do
-      begin
-        Self.Expression := Expression;
-        Self.ModifierMask := ModifierMask;
-      end
-  else inherited;
+  Self.Expression := Source.Expression;
+  Self.ModifierMask := Source.ModifierMask;
 end;
 
 procedure TecRegExpr.SetCodePage(const Value: Cardinal);
