@@ -685,7 +685,6 @@ type
 
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
-    //function GetTagPos(Index: integer): TPoint;
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
@@ -704,7 +703,6 @@ type
     procedure Clear; override;
     procedure ChangedAtPos(APos: integer);
     function PriorTokenAt(Pos: integer): integer;
-    function NextTokenAt(Pos: integer): integer;
 
     function GetRangeBound(Range: TecTextRange): TPoint;
     function GetColRangeBound(Range: TecTextRange): TPoint;
@@ -730,7 +728,6 @@ type
 
     property RangeCount: integer read GetRangeCount;
     property Ranges[Index: integer]: TecTextRange read GetRanges;
-    //property TagPos[Index: integer]: TPoint read GetTagPos;
     property DisableIdleAppend: Boolean read FDisableIdleAppend write SetDisableIdleAppend;
   end;
 
@@ -3686,24 +3683,6 @@ begin
     begin
       ChangedAtPos(Pos);
     end;
-end;
-
-(*
-function TecClientSyntAnalyzer.GetTagPos(Index: integer): TPoint;
-var ln_pos, i: integer;
-begin
-  Result := FSrcProc.StrToCaret(Tags[Index].StartPos);
-  ln_pos := FSrcProc.LineIndex(Result.y) - 1;
-  Result.X := 0;
-  for i := Index - 1 downto 0 do
-   if Tags[i].EndPos > ln_pos then Result.X := Result.X + 1
-    else Exit;
-end;
-*)
-
-function TecClientSyntAnalyzer.NextTokenAt(Pos: integer): integer;
-begin
-  Result := FTagList.NextAt(Pos);
 end;
 
 function TecClientSyntAnalyzer.GetOpened(Index: integer): TecTextRange;
