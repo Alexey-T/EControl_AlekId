@@ -68,7 +68,7 @@ type
     // Union ranges with the [Index] and [Index + 1]
     // returns new range index (or union result)
     function IsGreater(I1, I2: integer): Boolean;
-    function CompProc(const Val:TRange; Key: integer): integer;
+    function CompProc(const AValue: TRange; AKey: integer): integer;
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
@@ -183,15 +183,15 @@ begin
 end;
 
 
-function GRangeList<GRange>.CompProc(const Val:TRange; Key: integer): integer;
+function GRangeList<GRange>.CompProc(const AValue: TRange; AKey: integer): integer;
 begin
-  with Val do
-    if StartPos > Key then
-      Result := 1
-    else if (StartPos <= Key)and(EndPos > Key) then
-      Result:= 0
-    else
-      Result := -1;
+  if AValue.StartPos > AKey then
+    Result := 1
+  else
+   if (AValue.StartPos <= AKey) and (AValue.EndPos > AKey) then
+    Result := 0
+  else
+    Result := -1;
 end;
 
 function GRangeList<GRange>.PriorAt(APos: integer): integer; 
