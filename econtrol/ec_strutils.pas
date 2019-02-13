@@ -136,7 +136,10 @@ end;
 
 function ecUpCase(C: UCChar): UCChar; inline;
 begin
-  Result := UpCase(C);
+  if Ord(C) <= $FF then
+    Result := UpCase(char(C))
+  else
+    Result := UpCase(C);
 end;
 
 function SkipSpacesNoLineBreak(const Source: ecString; var APos: integer): integer;
