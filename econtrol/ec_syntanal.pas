@@ -322,7 +322,7 @@ type
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
-    function CheckToken(const Source: ecString; Token: TecSyntToken): Boolean;
+    function CheckToken(const Source: ecString; const Token: TecSyntToken): Boolean;
   published
     property TagList: TStrings read FTagList write SetTagList;
     property CondType: TecTagConditionType read FCondType write SetCondType default tcEqual;
@@ -626,9 +626,8 @@ type
     FClient: IecSyntClient;
     FOwner: TecSyntAnalyzer;
     FFinished: Boolean;
-
-    FSubLexerBlocks: TecSubLexerRanges;     // Sub Lexer Text Ranges
-    FTagList: TecTokenList;       // List of tokens
+    FSubLexerBlocks: TecSubLexerRanges;
+    FTagList: TecTokenList;
     FCurState: integer;
     FStateChanges: TRangeList;
     function GetLastPos(const Source: ecString): integer;
@@ -1635,8 +1634,7 @@ begin
    end;
 end;
 
-function TecSingleTagCondition.CheckToken(const Source: ecString;
-  Token: TecSyntToken): Boolean;
+function TecSingleTagCondition.CheckToken(const Source: ecString; const Token: TecSyntToken): Boolean;
 var s: ecString;
     i, N: integer;
     RE: TecRegExpr;
