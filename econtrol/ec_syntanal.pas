@@ -3894,10 +3894,12 @@ var i, li, ki, strt, RefIdx: integer;
     Range: TecTextRange;
     Accept: Boolean;
     RClient: TecClientSyntAnalyzer;
-  function CheckIndex(Idx: integer): Boolean;
+
+  function CheckIndex(Idx: integer): Boolean; inline;
   begin
    Result := (Idx >= 0) and (Idx < N);
   end;
+
 begin
   if N = -1 then
     N := Client.TagCount;
