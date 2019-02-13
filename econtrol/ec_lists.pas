@@ -63,6 +63,7 @@ type
   private
     FUnionSiblings: Boolean;
     FPrevIdx: integer;
+    FSorted: boolean;
   protected
     // Union ranges with the [Index] and [Index + 1]
     // returns new range index (or union result)
@@ -71,6 +72,7 @@ type
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
+    property Sorted: boolean read FSorted write FSorted;
     function Add(const Range: GRange): integer;virtual;
     function ClearFromPos(APos: integer; CopyTo: GRangeList<GRange> = nil): integer; virtual;
     // Deletes ranges that intersect the bounds, returns number of deleted items
@@ -134,6 +136,7 @@ constructor GRangeList<GRange>.Create(UnionSiblings: Boolean);
 begin
   inherited Create;
   FUnionSiblings := UnionSiblings;
+  FSorted := false;
 end;
 
 destructor GRangeList<GRange>.Destroy;
@@ -150,9 +153,23 @@ begin
 end;
 
 function GRangeList<GRange>.Add(const Range: GRange): integer;
+var
+  _Range: TRange absolute Range;
 begin
-  Result := Count;
-  inherited Add(Range);
+  if not FSorted or (Count=0) then
+  begin
+    Result := Count;
+    inherited Add(Range);
+  end
+  else
+  begin
+    Result := PriorAt(_Range.StartPos);
+    Inc(Result);
+    if Result = Count then
+      inherited Add(Range)
+    else
+      inherited Insert(Result, Range);
+  end;
 end;
 
 function GRangeList<GRange>.RangeAt(APos: integer): integer;
