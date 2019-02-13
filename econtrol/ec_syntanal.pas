@@ -245,20 +245,19 @@ type
 
   { TecSyntToken }
 
-  TecSyntToken = class
+  TecSyntToken = record
   private
-    Range:TRange;
-    FTokenType: integer;
-    FRule: TRuleCollectionItem;
     function GetStyle: TecSyntaxFormat;
   public
+    Range: TRange;
+    TokenType: integer;
+    Rule: TRuleCollectionItem;
     constructor Create(ARule: TRuleCollectionItem;
       AStartPos, AEndPos: integer;
       const APointStart, APointEnd: TPoint);
     function GetStr(const Source: ecString): ecString;
-    property TokenType: integer read FTokenType;
-    property Rule: TRuleCollectionItem read FRule;
     property Style: TecSyntaxFormat read GetStyle;
+    class operator =(const A,B: TecSyntToken): boolean;
   end;
 
   TecTextRange = class(TSortedItem)
@@ -290,16 +289,15 @@ type
     property IsClosed: Boolean read GetIsClosed;
   end;
 
-  TecSubLexerRange = class
-  private
-    Range:TRange;
-    FRule: TecSubAnalyzerRule;   // Rule reference
-    FCondEndPos: integer;      // Start pos of the start condition
-    FCondStartPos: integer;    // End pos of the end condition
+  { TecSubLexerRange }
+
+  TecSubLexerRange = record
   public
-    property Rule: TecSubAnalyzerRule read FRule;
-    property CondStartPos: integer read FCondStartPos;
-    property CondEndPos: integer read FCondEndPos;
+    Range: TRange;
+    Rule: TecSubAnalyzerRule;   // Rule reference
+    CondEndPos: integer;      // Start pos of the start condition
+    CondStartPos: integer;    // End pos of the end condition
+    class operator =(const a, b: TecSubLexerRange): boolean;
   end;
 
 // *******************************************************************
@@ -617,6 +615,9 @@ type
 //            container of description objects
 // *******************************************************************
 
+  TecTokenList = GRangeList<TecSyntToken>;
+  TecSubLexerRanges = GRangeList<TecSubLexerRange>;
+
   { TecParserResults }
 
   TecParserResults = class(TTokenHolder)
@@ -626,15 +627,16 @@ type
     FOwner: TecSyntAnalyzer;
     FFinished: Boolean;
 
-    FSubLexerBlocks: TList;     // Sub Lexer Text Ranges
-    FTagList: TRangeList;       // List of tokens
+    FSubLexerBlocks: TecSubLexerRanges;     // Sub Lexer Text Ranges
+    FTagList: TecTokenList;       // List of tokens
     FCurState: integer;
-    FStateChanges: TList;
+    FStateChanges: TRangeList;
     function GetLastPos(const Source: ecString): integer;
     function ExtractTag(const Source: ecString; var FPos: integer; IsIdle: Boolean): Boolean;
     function GetTags(Index: integer): TecSyntToken;
     function GetSubLexerRangeCount: integer;
     function GetSubLexerRange(Index: integer): TecSubLexerRange;
+    procedure SetTags(Index: integer; const AValue: TecSyntToken);
   protected
     function GetTokenCount: integer; override;
     function GetTokenStr(Index: integer): ecString; override;
@@ -660,7 +662,7 @@ type
     property IsFinished: Boolean read FFinished;
     property TagStr[Index: integer]: ecString read GetTokenStr;
     property TagCount: integer read GetTokenCount;
-    property Tags[Index: integer]: TecSyntToken read GetTags; default;
+    property Tags[Index: integer]: TecSyntToken read GetTags write SetTags; default;
     property SubLexerRangeCount: integer read GetSubLexerRangeCount;
     property SubLexerRanges[Index: integer]: TecSubLexerRange read GetSubLexerRange;
     property ParserState: integer read FCurState write FCurState;
@@ -1013,20 +1015,35 @@ begin
   RE.ModifierR := False;
 end;
 
+{ TecSubLexerRange }
+
+class operator TecSubLexerRange.=(const a, b: TecSubLexerRange): boolean;
+begin
+  Result := false;
+end;
+
 { TecSyntToken }
 
 constructor TecSyntToken.Create(ARule: TRuleCollectionItem; AStartPos,
   AEndPos: integer; const APointStart, APointEnd: TPoint);
 begin
-  Range:=TRange.Create(AStartPos, AEndPos, APointStart, APointEnd);
-  FRule := ARule;
-  FTokenType := TecTokenRule(ARule).TokenType;
+  Range:= TRange.Create(AStartPos, AEndPos, APointStart, APointEnd);
+  Rule := ARule;
+  if Assigned(ARule) then
+    TokenType := TecTokenRule(ARule).TokenType;
 end;
 
 function TecSyntToken.GetStr(const Source: ecString): ecString;
 begin
 with Range do
   Result := Copy(Source, StartPos + 1, EndPos - StartPos);
+end;
+
+class operator TecSyntToken.=(const A, B: TecSyntToken): boolean;
+begin
+  Result:=
+    (A.Range=B.Range) and
+    (A.Rule=B.Rule);
 end;
 
 function TecSyntToken.GetStyle: TecSyntaxFormat;
@@ -2540,11 +2557,11 @@ begin
   FOwner := AOwner;
   FBuffer := ABuffer;
   FClient := AClient;
-  FTagList := TRangeList.Create(False);
-  FSubLexerBlocks := TObjectList.Create;
+  FTagList := TecTokenList.Create(False);
+  FSubLexerBlocks := TecSubLexerRanges.Create;
   FOwner.FClientList.Add(Self);
   FCurState := 0;
-  FStateChanges := TObjectList.Create;
+  FStateChanges := TRangeList.Create;
 end;
 
 destructor TecParserResults.Destroy;
@@ -2587,14 +2604,14 @@ end;
 
 function TecParserResults.GetTags(Index: integer): TecSyntToken;
 begin
-  Result := TecSyntToken(FTagList[Index]);
+  Result := FTagList[Index];
 end;
 
 function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
   if Index >= 0 then
     with Tags[Index] do
-      Result := FBuffer.SubString(StartPos + 1, EndPos - StartPos)
+      Result := FBuffer.SubString(Range.StartPos + 1, Range.EndPos - Range.StartPos)
   else
     Result := '';
 end;
@@ -2602,7 +2619,7 @@ end;
 function TecParserResults.GetLastPos(const Source: ecString): integer;
 begin
   if FTagList.Count = 0 then Result := 1 else
-    Result := TecSyntToken(FTagList[FTagList.Count - 1]).EndPos + 1;
+    Result := FTagList[FTagList.Count - 1].Range.EndPos + 1;
   if FLastAnalPos > Result then Result := FLastAnalPos;
 end;
 
@@ -2630,8 +2647,8 @@ var N: integer;
     own := FOwner;
     for i := FSubLexerBlocks.Count - 1 downto 0 do
      with TecSubLexerRange(FSubLexerBlocks[i]) do
-       if FPos > StartPos then
-        if EndPos = -1 then
+       if FPos > Range.StartPos then
+        if Range.EndPos = -1 then
           begin
             // try close sub lexer
     //        if Rule.ToTextEnd then N := 0 else
@@ -2640,25 +2657,25 @@ var N: integer;
              begin
                if Rule.IncludeBounds then
                  begin // New mode in v2.35
-                   EndPos := FPos - 1 + N;
-                   PointEnd := FBuffer.StrToCaret(EndPos);
-                   FCondEndPos := EndPos;
+                   Range.EndPos := FPos - 1 + N;
+                   Range.PointEnd := FBuffer.StrToCaret(Range.EndPos);
+                   CondEndPos := Range.EndPos;
                    own := Rule.SyntAnalyzer;
                  end else
                  begin
-                   EndPos := FPos - 1;
-                   PointEnd := FBuffer.StrToCaret(EndPos);
-                   FCondEndPos := EndPos + N;
+                   Range.EndPos := FPos - 1;
+                   Range.PointEnd := FBuffer.StrToCaret(Range.EndPos);
+                   CondEndPos := Range.EndPos + N;
                  end;
                // Close ranges which belongs to this sub-lexer range
-               CloseAtEnd(FTagList.PriorAt(StartPos));
+               CloseAtEnd(FTagList.PriorAt(Range.StartPos));
              end else
              begin
                own := Rule.SyntAnalyzer;
                Exit;
              end;
           end else
-       if FPos < EndPos then
+       if FPos < Range.EndPos then
          begin
                own := Rule.SyntAnalyzer;
                Exit;
@@ -2670,10 +2687,10 @@ var N: integer;
    begin
     for i := FSubLexerBlocks.Count - 1 downto 0 do
      with TecSubLexerRange(FSubLexerBlocks[i]) do
-      if (p.EndPos > StartPos) and (p.StartPos < StartPos) then
+      if (p.Range.EndPos > Range.StartPos) and (p.Range.StartPos < Range.StartPos) then
        begin
-        p.EndPos := StartPos;
-        p.PointEnd := FBuffer.StrToCaret(p.EndPos);
+        p.Range.EndPos := Range.StartPos;
+        p.Range.PointEnd := FBuffer.StrToCaret(p.Range.EndPos);
         Exit;
        end;
    end;
@@ -2691,20 +2708,21 @@ var N: integer;
      if not Result then Exit;
      // To prevent repeated opening
      if FSubLexerBlocks.Count > 0 then
-       if (TecSubLexerRange(FSubLexerBlocks.Last).EndPos = FPos - 1) and
+       if (TecSubLexerRange(FSubLexerBlocks.Last).Range.EndPos = FPos - 1) and
           (TecSubLexerRange(FSubLexerBlocks.Last).Rule = Rule) then Exit;
 
      ApplyStates(Rule);
-     sub := TecSubLexerRange.Create(0, 0);
-     sub.FRule := Rule;
-     sub.FCondStartPos := FPos - 1;
+
+     FillChar(sub, SizeOf(sub), 0);
+     sub.Rule := Rule;
+     sub.CondStartPos := FPos - 1;
      if Rule.IncludeBounds then
-       sub.StartPos := FPos - 1
+       sub.Range.StartPos := FPos - 1
      else
-       sub.StartPos := FPos + N - 1;
-     sub.EndPos := -1;
-     sub.PointStart := FBuffer.StrToCaret(sub.StartPos);
-     sub.FCondEndPos := -1;
+       sub.Range.StartPos := FPos + N - 1;
+     sub.Range.EndPos := -1;
+     sub.Range.PointStart := FBuffer.StrToCaret(sub.Range.StartPos);
+     sub.CondEndPos := -1;
      FSubLexerBlocks.Add(sub);
    end;
 
@@ -2735,9 +2753,9 @@ begin
   if Result then Exit;
 
   p := FOwner.GetToken(Self, Source, FPos, own <> FOwner);
-  if (own <> FOwner) and (p = nil) then
+  if (own <> FOwner) and (p.Range.StartPos < 0) then
     p := own.GetToken(Self, Source, FPos, False);
-  if p = nil then  // no token
+  if p.Range.StartPos < 0 then  // no token
    begin
      Inc(FPos);
    end else
@@ -2757,7 +2775,7 @@ begin
       if own <> FOwner then
         own.HighlightKeywords(Self, Source, False);
      end;
-    FPos := p.EndPos + 1;
+    FPos := p.Range.EndPos + 1;
    end;
    FLastAnalPos := FPos;
 end;
@@ -2769,8 +2787,8 @@ begin
  if Pos >= 0 then
  for i := 0 to FSubLexerBlocks.Count - 1 do
   with TecSubLexerRange(FSubLexerBlocks[i]) do
-   if Pos < StartPos then Break else
-    if (EndPos = -1) or (Pos < EndPos) then
+   if Pos < Range.StartPos then Break else
+    if (Range.EndPos = -1) or (Pos < Range.EndPos) then
       Result := Rule.SyntAnalyzer;
 end;
 
@@ -2782,6 +2800,11 @@ end;
 function TecParserResults.GetSubLexerRange(Index: integer): TecSubLexerRange;
 begin
   Result := TecSubLexerRange(FSubLexerBlocks[Index]);
+end;
+
+procedure TecParserResults.SetTags(Index: integer; const AValue: TecSyntToken);
+begin
+  FTagList[Index] := AValue
 end;
 
 function TecParserResults.GetTokenType(Index: integer): integer;
@@ -2972,13 +2995,13 @@ begin
   // Close SubLexers at the End of Text
   for i := FSubLexerBlocks.Count - 1 downto 0 do
    with TecSubLexerRange(FSubLexerBlocks[i]) do
-    if (EndPos = -1) and Rule.ToTextEnd then
+    if (Range.EndPos = -1) and Rule.ToTextEnd then
      begin
-       EndPos := FBuffer.TextLength{ - 1};
-       PointEnd := Point(
+       Range.EndPos := FBuffer.TextLength{ - 1};
+       Range.PointEnd := Point(
                       FBuffer.LineLength(FBuffer.Count-1),
                       FBuffer.Count-1); //at end
-       FCondEndPos := EndPos;
+       CondEndPos := Range.EndPos;
      end;
 
   // Close blocks at the end of text
@@ -3099,16 +3122,16 @@ begin
    // Check sub lexer ranges
    for i := FSubLexerBlocks.Count - 1 downto 0 do
     with TecSubLexerRange(FSubLexerBlocks[i]) do
-     if APos < StartPos then
+     if APos < Range.StartPos then
       begin
         if APos > CondStartPos then APos := CondStartPos;
         FSubLexerBlocks.Delete(i);  // remove sub lexer
       end else
      if APos < CondEndPos then
       begin
-        if APos > EndPos then APos := EndPos;
-        EndPos := -1;       // open sub lexer
-        FCondEndPos := -1;
+        if APos > Range.EndPos then APos := Range.EndPos;
+        Range.EndPos := -1;       // open sub lexer
+        CondEndPos := -1;
       end;
    // Remove tokens
    FTagList.ClearFromPos(APos);
@@ -3148,9 +3171,9 @@ end;
 
 function TecClientSyntAnalyzer.GetRangeBound(Range: TecTextRange): TPoint;
 begin
-  Result.X := TecSyntToken(FTagList[Range.FStart]).StartPos;
+  Result.X := FTagList[Range.FStart].Range.StartPos;
   if Range.FEnd = - 1 then Result.Y := Result.X
-   else Result.Y := TecSyntToken(FTagList[Range.FEnd]).EndPos;
+   else Result.Y := FTagList[Range.FEnd].Range.EndPos;
 end;
 
 function TecClientSyntAnalyzer.GetColRangeBound(Range: TecTextRange): TPoint;
@@ -3161,9 +3184,9 @@ begin
   if Assigned(Owner.OnGetCollapseRange) then
     Owner.OnGetCollapseRange(Self, Range, sIdx, eIdx);
 
-  Result.X := Tags[sIdx].StartPos;
+  Result.X := Tags[sIdx].Range.StartPos;
   if eIdx = -1 then Result.Y := Result.X
-   else Result.Y := Tags[eIdx].EndPos;
+   else Result.Y := Tags[eIdx].Range.EndPos;
 end;
 
 function TecClientSyntAnalyzer.RangeAtPos(APos: integer): TecTextRange;
@@ -3200,7 +3223,7 @@ begin
   if Result <> -1 then
     while Result >= 0 do
      with TecTextRange(FRanges[Result]) do
-      if (EndIdx <> -1) and (Tags[EndIdx].EndPos >= APos) then
+      if (EndIdx <> -1) and (Tags[EndIdx].Range.EndPos >= APos) then
         Exit
       else
         Dec(Result);
@@ -3631,13 +3654,13 @@ begin
        case LineMode of
          0: Insert(TagStr[idx], Result, i);
          1: begin
-              N := FBuffer.OffsetToOffsetOfLineStart(Tags[idx].StartPos);
-              to_idx := Tags[idx].EndPos;
+              N := FBuffer.OffsetToOffsetOfLineStart(Tags[idx].Range.StartPos);
+              to_idx := Tags[idx].Range.EndPos;
               Insert(FBuffer.SubString(N, to_idx - N + 1), Result, i);
             end;
          2: begin
-              to_idx := FBuffer.OffsetToOffsetOfLineEnd(Tags[idx].EndPos);
-              N := Tags[idx].StartPos;
+              to_idx := FBuffer.OffsetToOffsetOfLineEnd(Tags[idx].Range.EndPos);
+              N := Tags[idx].Range.StartPos;
               Insert(FBuffer.SubString(N+1, to_idx - N + 1), Result, i); //AT: fixed substring offset/len (2 patches)
             end;
          // HAW: new mode = 3 --- explicit range  idx...to_idx
@@ -3651,7 +3674,7 @@ begin
                   rngResult := rngResult+' ...';
                   break;
                 end;
-                if  (rngResult <> '') and (idx > 0) and (Tags[idx-1].EndPos <> Tags[idx].StartPos) then //MZ fix
+                if  (rngResult <> '') and (idx > 0) and (Tags[idx-1].Range.EndPos <> Tags[idx].Range.StartPos) then //MZ fix
                   rngResult := rngResult + ' ';
                 rngResult := rngResult + TagStr[idx];
                 inc( idx );  dec( rngmax );
@@ -3755,10 +3778,14 @@ end;
 
 function TecClientSyntAnalyzer.DetectTag(Rule: TecTagBlockCondition;
   RefTag: integer): Boolean;
+var
+  Tag: TecSyntToken;
 begin
-  Tags[RefTag].FRule := Rule;
+  Tag := Tags[RefTag];
+  Tag.Rule := Rule;
   if Rule.TokenType >= 0 then
-    Tags[RefTag].FTokenType := Rule.TokenType;
+    Tag.TokenType := Rule.TokenType;
+  Tags[RefTag] := Tag;
   Result := True;
 end;
 
@@ -3787,7 +3814,7 @@ begin
          begin
            s := '';
            if Range.FRule.SyntOwner<>nil then
-             s := Range.FRule.SyntOwner.TokenTypeNames[Tags[j].FTokenType];
+             s := Range.FRule.SyntOwner.TokenTypeNames[Tags[j].TokenType];
            if (s<>'') and (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= Ind) then
            begin
              Range.FEnd := j-1;
@@ -3923,6 +3950,7 @@ procedure TecSyntAnalyzer.HighlightKeywords(Client: TecParserResults;
   const Source: ecString; OnlyGlobal: Boolean);
 var i, N, ki, RefIdx: integer;
     Accept: Boolean;
+    Tag: TecSyntToken;
 begin
   N := Client.TagCount;
   for i := 0 to FBlockRules.Count - 1 do
@@ -3939,9 +3967,13 @@ begin
          begin
            if FRefToCondEnd then ki := RefIdx - IdentIndex
              else ki := N - 1 - CheckOffset - IdentIndex;
-           TecClientSyntAnalyzer(Client).Tags[ki].FRule := FBlockRules[i];
+
+           Tag := TecClientSyntAnalyzer(Client).Tags[ki];
+           Tag.Rule := FBlockRules[i];
            if TokenType >= 0 then
-              TecClientSyntAnalyzer(Client).Tags[ki].FTokenType := TokenType;
+              Tag.TokenType := TokenType;
+           TecClientSyntAnalyzer(Client).Tags[ki] := Tag;
+
            if CancelNextRules then Exit;   // 2.27
          end;
       end;
@@ -4000,7 +4032,7 @@ begin
                   li := strt - BlockOffset;
                   if CheckIndex(li) then
                    begin
-                    Range := TecTextRange.Create(li, RClient.Tags[li].StartPos);
+                    Range := TecTextRange.Create(li, RClient.Tags[li].Range.StartPos);
                     Range.FIdent := ki;
                     Range.FRule := FBlockRules[i];
                     Range.FCondIndex := N - 1;
@@ -4050,6 +4082,8 @@ var i, N, lp: integer;
     Rule: TecTokenRule;
     PntStart, PntEnd: TPoint;
 begin
+  Result := TecSyntToken.Create(nil, -1, -1, Point(-1, -1), Point(-1, -1));
+
   if Assigned(FOnParseToken) then
     begin
       N := 0;
@@ -4061,9 +4095,7 @@ begin
                APos + N - 1,
                Client.Buffer.StrToCaret(APos-1),
                Client.Buffer.StrToCaret(APos+N-1)
-               )
-      else
-        Result := nil;
+               );
       Exit;
     end;
 
@@ -4111,7 +4143,6 @@ begin
               end;
           end;
     end;
-  Result := nil;
 end;
 
 procedure TecSyntAnalyzer.FormatsChanged(Sender: TCollection; Item: TSyntCollectionItem);
