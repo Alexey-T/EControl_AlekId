@@ -702,9 +702,7 @@ type
     constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer; const AClient: IecSyntClient); override;
     destructor Destroy; override;
     procedure Clear; override;
-    procedure Stop;
     procedure ChangedAtPos(APos: integer);
-    function TokenAtPos(Pos: integer): integer;
     function PriorTokenAt(Pos: integer): integer;
     function NextTokenAt(Pos: integer): integer;
 
@@ -715,6 +713,7 @@ type
     function GetRangeName(Range: TecTextRange): ecString;
     function GetRangeGroup(Range: TecTextRange): ecString;
     function GetCollapsedText(Range: TecTextRange): ecString;
+    procedure Stop;
 
     procedure TextChanged(Pos, Count: integer);
     procedure AppendToPos(APos: integer; AUseTimer: boolean= true); // Requires analyzed to APos
@@ -3165,12 +3164,6 @@ begin
    RestoreState;
 
  IdleAppend;
-end;
-
-function TecClientSyntAnalyzer.TokenAtPos(Pos: integer): integer;
-begin
-  AppendToPos(Pos);
-  Result := FTagList.RangeAt(Pos);
 end;
 
 function TecClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
