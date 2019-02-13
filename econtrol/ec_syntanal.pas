@@ -978,10 +978,10 @@ const
                              'Number'  + #13#10 +
                              'Preprocessor';
 
-//local copy of ecUpCase. it is faster, uses AnsiChar UpCase.
-function ecUpCase(ch: WideChar): char;
+// Local copy of ecUpCase. it is faster, uses AnsiChar UpCase
+function ecUpCase(ch: WideChar): char; inline;
 begin
-  Result:= system.UpCase(char(ch));
+  Result:= System.UpCase(char(ch));
 end;
 
 procedure SetDefaultModifiers(RE: TecRegExpr);
