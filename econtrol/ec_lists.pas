@@ -129,6 +129,7 @@ begin
   inherited Create;
   FUnionSiblings := UnionSiblings;
   FSorted := false;
+  Capacity := 512; // Usually editor has many tokens
 end;
 
 destructor GRangeList<GRange>.Destroy;
@@ -307,10 +308,7 @@ end;
 
 function TSortedList.GetCount: integer;
 begin
-  if Assigned(FList) then
-    Result := FList.Count
-  else
-    Result:= 0;
+  Result := FList.Count;
 end;
 
 function TSortedList.GetItem(Index: integer): TSortedItem;
