@@ -315,42 +315,23 @@ begin
    end;
 end;
 
-//type
-//  TRangeClass = class of TRange;
-
-(*
-function GRangeList<GRange>.SplitRange(RangeIdx, SplitPos: integer): Boolean;
-var R: GRange;
-    sp: integer;
-begin
-  R := Items[RangeIdx];
-  Result := (SplitPos > R.StartPos) and (SplitPos < R.EndPos);
-  if Result then
-    begin
-      sp := R.StartPos;
-      R.StartPos := SplitPos;
-      Items[RangeIdx]:=R;
-      R := TRange.Create(sp, SplitPos);
-      Insert(RangeIdx, R);
-    end;
-end;
-*)
-
 { TSortedList }
 
 function TSortedList.Add(Item: TSortedItem): integer;
 begin
   if (Count = 0) or (Items[Count - 1].GetKey <= Item.GetKey) then
-   begin
+  begin
     Result := Count;
     FList.Add(Item);
-   end else
-   begin
+  end else
+  begin
     Result := PriorAt(Item.GetKey);
     Inc(Result);
-    if Result = Count then FList.Add(Item)
-     else FList.Insert(Result, Item);
-   end;
+    if Result = Count then
+      FList.Add(Item)
+    else
+      FList.Insert(Result, Item);
+  end;
 end;
 
 procedure TSortedList.Clear;
