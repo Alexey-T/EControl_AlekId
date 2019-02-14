@@ -16,7 +16,7 @@ unit ec_Lists;
 interface
 
 uses
-  Classes, FGL;
+  Classes, ec_FGL;
 
 type
   TSortedItem = class
@@ -242,7 +242,7 @@ begin
 end;
 
 function GRangeList<GRange>.ClearFromPos(APos: integer): integer;
-var idx, i, NStart: integer;
+var idx, NStart: integer;
 begin
   Result := APos;
   if APos <= 0 then
@@ -257,8 +257,7 @@ begin
     NStart := TRange(InternalItems[idx]^).StartPos;
     if NStart < APos then
       Result := NStart;
-    for i := Count - 1 downto idx do
-      Delete(i);
+    Clear(idx); // uses modified FGL code
   end;
 end;
 
