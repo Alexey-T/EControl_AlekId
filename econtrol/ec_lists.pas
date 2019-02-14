@@ -374,16 +374,16 @@ end;
 
 destructor TSortedList.Destroy;
 begin
-  FreeAndNil(FList);//AT
+  FreeAndNil(FList);
   inherited;
 end;
 
 function TSortedList.GetCount: integer;
 begin
-  if FList<>nil then//AT
+  if Assigned(FList) then
     Result := FList.Count
   else
-    Result:= 0;//AT
+    Result:= 0;
 end;
 
 function TSortedList.GetItem(Index: integer): TSortedItem;
@@ -393,28 +393,29 @@ end;
 
 function TSortedList.PriorAt(Pos: integer): integer;
 
-  function CompProc(Item: pointer; Key: integer): integer; inline;
+  function CompProc(ItemIndex, Key: integer): integer; inline;
   begin
-    Result := TSortedItem(Item).GetKey - Key;
+    Result := TSortedItem(FList[ItemIndex]).GetKey - Key;
   end;
 
-  function QuickSearch(const List: TList; Key: integer; var Index: integer): Boolean;
+  function QuickSearch(Key: integer; var Index: integer): Boolean; inline;
   var
-    L, H, I, C: Integer;
+    L, H, I, C, NCount: Integer;
   begin
     Result := False;
-    if List.Count = 0 then
+    NCount := FList.Count;
+    if NCount = 0 then
     begin
       Index := -1;
       Exit;
     end;
 
     L := 0;
-    H := List.Count - 1;
+    H := NCount - 1;
     while L <= H do
     begin
       I := (L + H) shr 1;
-      C := CompProc(List[I], Key);
+      C := CompProc(I, Key);
       if C < 0 then L := I + 1 else
       begin
         if C = 0 then
@@ -427,14 +428,14 @@ function TSortedList.PriorAt(Pos: integer): integer;
       end;
     end;
     Index := L;
-    if Index >= List.Count then
-      Index := List.Count - 1;
+    if Index >= NCount then
+      Index := NCount - 1;
     if Index >= 0 then
-      if CompProc(List[Index], Key) > 0 then
+      if CompProc(Index, Key) > 0 then
         dec(Index);
   end;
 begin
-  QuickSearch(FList, Pos, Result);
+  QuickSearch(Pos, Result);
 end;
 
 end.
