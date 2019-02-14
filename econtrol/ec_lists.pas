@@ -74,13 +74,7 @@ type
     destructor Destroy; override;
     property Sorted: boolean read FSorted write FSorted;
     function Add(const Range: GRange): integer; virtual;
-    function ClearFromPos(APos: integer; CopyTo: GRangeList<GRange> = nil): integer; virtual;
-    // Deletes ranges that intersect the bounds, returns number of deleted items
-    function DeleteIntersected(AStart, AEnd: integer): integer;
-
-    // Content has been changed, updates ranges upper Pos
-    // Removes affected ranges
-    function ContentChanged(Pos, Count: integer): Boolean;
+    function ClearFromPos(APos: integer): integer;
     // At position or next
     function NextAt(APos: integer): integer;
     // At position or prior
@@ -246,73 +240,25 @@ begin
   end;
 end;
 
-function GRangeList<GRange>.ContentChanged(Pos, Count: integer): Boolean;
-var idx: integer;
-begin
-  idx := PriorAt(Pos);
-  if (idx <> -1) and (TRange(InternalItems[idx]^).EndPos >= Pos) then Delete(idx)
-   else
-    begin
-     Inc(idx);
-     if idx >= Count then // No change
-      begin
-       Result := False;
-       Exit;
-      end;
-    end;
-
-  if Count < 0 then
-    while (idx < Count) and (TRange(InternalItems[idx]^).StartPos <= Pos - Count) do
-      Delete(idx);
-
-  while idx < Count do
-  begin
-    Inc(TRange(InternalItems[idx]^).StartPos, Count);
-    Inc(TRange(InternalItems[idx]^).EndPos, Count);
-    Inc(idx);
-  end;
-  Result := True;
-end;
-
-function GRangeList<GRange>.ClearFromPos(APos: integer; CopyTo: GRangeList<GRange>): integer;
-var idx, i: integer;
+function GRangeList<GRange>.ClearFromPos(APos: integer): integer;
+var idx, i, NStart: integer;
 begin
   Result := APos;
-  if APos<=0 then
+  if APos <= 0 then
   begin
     Clear;
-    exit;
+    Exit;
   end;
 
   idx := NextAt(APos);
   if idx <> -1 then
   begin
-    if TRange(InternalItems[idx]^).StartPos < APos then
-      Result := TRange(InternalItems[idx]^).StartPos;
-    if CopyTo <> nil then
-    begin
-      CopyTo.Clear;
-      CopyTo.Capacity := Count - idx;
-      for i := idx to Count - 1 do
-        CopyTo.Add(Items[i]);
-    end;
+    NStart := TRange(InternalItems[idx]^).StartPos;
+    if NStart < APos then
+      Result := NStart;
     for i := Count - 1 downto idx do
       Delete(i);
   end;
-end;
-
-function GRangeList<GRange>.DeleteIntersected(AStart, AEnd: integer): integer;
-var idx: integer;
-begin
-  idx := NextAt(AStart);
-  if idx = -1 then idx := Count - 1 else
-   if TRange(InternalItems[idx]^).StartPos >= AEnd then Dec(idx);
-  Result := 0;
-  while (idx >= 0) and (idx < Count) and (TRange(InternalItems[idx]^).EndPos > Astart) do
-   begin
-    Inc(Result);
-    Delete(idx);
-   end;
 end;
 
 { TSortedList }
