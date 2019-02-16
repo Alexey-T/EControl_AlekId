@@ -257,7 +257,7 @@ begin
     NStart := TRange(InternalItems[idx]^).StartPos;
     if NStart < APos then
       Result := NStart;
-    Clear(idx); // uses modified FGL code
+    DeleteRange(idx, Count-1);
   end;
 end;
 

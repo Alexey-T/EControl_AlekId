@@ -41,8 +41,6 @@ type
   TFPSList = class;
   TFPSListCompareFunc = function(Key1, Key2: Pointer): Integer of object;
 
-  { TFPSList }
-
   TFPSList = class(TObject)
   protected
     FList: PByte;
@@ -71,7 +69,7 @@ type
     constructor Create(AItemSize: Integer = sizeof(Pointer));
     destructor Destroy; override;
     function Add(Item: Pointer): Integer;
-    procedure Clear(FromIndex: Integer = 0);
+    procedure Clear;
     procedure Delete(Index: Integer);
     procedure DeleteRange(IndexFrom, IndexTo : Integer);
     class procedure Error(const Msg: string; Data: PtrInt);
@@ -437,7 +435,7 @@ uses
                              TFPSList
  ****************************************************************************}
 
-constructor TFPSList.Create(AItemSize: Integer);
+constructor TFPSList.Create(AItemSize: integer);
 begin
   inherited Create;
   FItemSize := AItemSize;
@@ -550,14 +548,12 @@ begin
 end;
 
 
-procedure TFPSList.Clear(FromIndex: Integer);
+procedure TFPSList.Clear;
 begin
-  if FromIndex >= Count then
-    FromIndex := Count;
   if Assigned(FList) then
   begin
-    SetCount(FromIndex);
-    SetCapacity(FromIndex);
+    SetCount(0);
+    SetCapacity(0);
   end;
 end;
 
@@ -649,22 +645,15 @@ begin
 end;
 
 function TFPSList.Expand: TFPSList;
-// changed for EControl usage
-const
-  cSizeBig = 8*1000;
-  cSizeSmall = 256;
 var
-  NewSize: Longint;
+  IncSize : Longint;
 begin
   if FCount < FCapacity then exit;
-  if FCapacity > cSizeBig then
-    NewSize := FCapacity * 3 div 2
-  else
-  if FCapacity > cSizeSmall then
-    NewSize := FCapacity * 2
-  else
-    NewSize := cSizeSmall;
-  SetCapacity(NewSize);
+  IncSize := 4;
+  if FCapacity > 3 then IncSize := IncSize + 4;
+  if FCapacity > 8 then IncSize := IncSize + 8;
+  if FCapacity > 127 then Inc(IncSize, FCapacity shr 2);
+  SetCapacity(FCapacity + IncSize);
   Result := Self;
 end;
 
