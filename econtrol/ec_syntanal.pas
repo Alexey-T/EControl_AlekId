@@ -3705,7 +3705,7 @@ const
   cSpecTokenStart: char = '1';
     //special char - must be first of token's type name (e.g. "1keyword");
     //Also such tokens must contain spaces+tabs at the beginning (use parser regex like "^[\x20\x09]*\w+")
-var i, j, Ind: integer;
+var i, j, IndentSize, NTokenType: integer;
     Range: TecTextRange;
     s: string;
 begin
@@ -3718,13 +3718,17 @@ begin
        Range.EndIdx := TagCount - 1;
        if Range.Rule.GroupIndex = cSpecIndentID then
        begin
-         Ind := IndentOf(TagStr[Range.StartIdx]);
+         IndentSize := IndentOf(TagStr[Range.StartIdx]);
          for j := Range.StartIdx+1 to TagCount-1 do
          begin
            s := '';
            if Range.Rule.SyntOwner<>nil then
-             s := Range.Rule.SyntOwner.TokenTypeNames[Tags[j].TokenType];
-           if (s<>'') and (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= Ind) then
+           begin
+             NTokenType := Tags[j].TokenType;
+             if NTokenType < Range.Rule.SyntOwner.TokenTypeNames.Count then
+               s := Range.Rule.SyntOwner.TokenTypeNames[NTokenType];
+           end;
+           if (s<>'') and (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= IndentSize) then
            begin
              Range.EndIdx := j-1;
              Break
