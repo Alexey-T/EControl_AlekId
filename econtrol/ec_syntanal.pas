@@ -3705,9 +3705,10 @@ const
   cSpecTokenStart: char = '1';
     //special char - must be first of token's type name (e.g. "1keyword");
     //Also such tokens must contain spaces+tabs at the beginning (use parser regex like "^[\x20\x09]*\w+")
-var i, j, IndentSize, NTokenType: integer;
+var i, j, IndentSize: integer;
     Range: TecTextRange;
-    s: string;
+    Token: TecSyntToken;
+    S: string;
 begin
   for i := FOpenedBlocks.Count - 1 downto 0 do
    begin
@@ -3716,19 +3717,16 @@ begin
        ((StartTagIdx = 0) or (Range.StartIdx >= StartTagIdx)) then
      begin
        Range.EndIdx := TagCount - 1;
+       if Range.Rule.SyntOwner = Owner then
        if Range.Rule.GroupIndex = cSpecIndentID then
        begin
          IndentSize := IndentOf(TagStr[Range.StartIdx]);
          for j := Range.StartIdx+1 to TagCount-1 do
          begin
-           s := '';
-           if Range.Rule.SyntOwner<>nil then
-           begin
-             NTokenType := Tags[j].TokenType;
-             if NTokenType < Range.Rule.SyntOwner.TokenTypeNames.Count then
-               s := Range.Rule.SyntOwner.TokenTypeNames[NTokenType];
-           end;
-           if (s<>'') and (s[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= IndentSize) then
+           Token := Tags[j];
+           if Token.Rule.SyntOwner <> Owner then Continue; // Check that token is not from sublexer
+           S := Owner.TokenTypeNames[Token.TokenType];
+           if (S <> '') and (S[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= IndentSize) then
            begin
              Range.EndIdx := j-1;
              Break
