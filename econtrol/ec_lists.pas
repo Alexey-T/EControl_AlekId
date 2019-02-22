@@ -16,7 +16,8 @@ unit ec_Lists;
 interface
 
 uses
-  Classes, FGL;
+  Classes,
+  ATSynEdit_FGL;
 
 type
   TSortedItem = class
