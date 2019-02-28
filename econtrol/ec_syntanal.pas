@@ -645,7 +645,7 @@ type
     destructor Destroy; override;
     procedure Clear; virtual;
 
-    function AnalyzerAtPos(Pos: integer): TecSyntAnalyzer;
+    function AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
     function ParserStateAtPos(TokenIndex: integer): integer;
 
     property Owner: TecSyntAnalyzer read FOwner;
@@ -992,6 +992,14 @@ begin
   RE.ModifierM := True;
   RE.ModifierX := True;
   RE.ModifierR := False;
+end;
+
+function IsPosSorted(const A, B: TPoint; AllowEq: boolean): boolean; inline;
+begin
+  if A.Y<>B.Y then
+    Result:= A.Y<B.Y
+  else
+    Result:= (A.X<B.X) or (AllowEq and (A.X=B.X));
 end;
 
 { TecSubLexerRange }
@@ -2765,16 +2773,25 @@ begin
    FLastAnalPos := FPos;
 end;
 
-function TecParserResults.AnalyzerAtPos(Pos: integer): TecSyntAnalyzer;
-var i: integer;
+function TecParserResults.AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
+var
+  N: integer;
+  Rng: TecSubLexerRange;
 begin
- Result := FOwner;
- if Pos >= 0 then
+  Result := FOwner;
+  if APos < 0 then Exit;
+  N := FSubLexerBlocks.PriorAt(APos);
+  if N < 0 then Exit;
+  Rng := FSubLexerBlocks.Items[N];
+  if (Rng.Range.StartPos<=APos) and (APos<Rng.Range.EndPos) then
+    Result := Rng.Rule.SyntAnalyzer;
+ {
  for i := 0 to FSubLexerBlocks.Count - 1 do
   with FSubLexerBlocks[i] do
-   if Pos < Range.StartPos then Break else
-    if (Range.EndPos = -1) or (Pos < Range.EndPos) then
+   if APos < Range.StartPos then Break else
+    if (Range.EndPos = -1) or (APos < Range.EndPos) then
       Result := Rule.SyntAnalyzer;
+  }
 end;
 
 function TecParserResults.GetSubLexerRangeCount: integer;
