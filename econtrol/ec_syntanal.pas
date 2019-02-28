@@ -702,7 +702,7 @@ type
     function GetCollapsedText(Range: TecTextRange): ecString;
     procedure Stop;
 
-    procedure TextChanged(Pos, Count: integer);
+    procedure TextChanged(APos: integer);
     procedure AppendToPos(APos: integer; AUseTimer: boolean= true); // Requires analyzed to APos
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
     procedure IdleAppend;                 // Start idle analysis
@@ -3645,12 +3645,12 @@ begin
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
 end;
 
-procedure TecClientSyntAnalyzer.TextChanged(Pos, Count: integer); //AT: Line, LineChange were not used, deled
+procedure TecClientSyntAnalyzer.TextChanged(APos: integer);
 begin
-  if Pos = -1 then Clear else
-    begin
-      ChangedAtPos(Pos);
-    end;
+  if APos = -1 then
+    Clear
+  else
+    ChangedAtPos(APos);
 end;
 
 function TecClientSyntAnalyzer.GetOpened(Index: integer): TecTextRange;
