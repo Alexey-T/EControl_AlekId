@@ -680,7 +680,7 @@ type
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure SetDisableIdleAppend(const Value: Boolean);
-    procedure DoStopTimer(AndWait: boolean);
+    function DoStopTimer(AndWait: boolean): boolean;
   protected
     procedure AddRange(Range: TecTextRange);
     function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
@@ -700,7 +700,7 @@ type
     function GetRangeName(Range: TecTextRange): ecString;
     function GetRangeGroup(Range: TecTextRange): ecString;
     function GetCollapsedText(Range: TecTextRange): ecString;
-    procedure Stop;
+    function Stop: boolean;
 
     procedure TextChanged(APos: integer);
     procedure AppendToPos(APos: integer; AUseTimer: boolean= true); // Requires analyzed to APos
@@ -2878,10 +2878,10 @@ begin
   inherited;
 end;
 
-procedure TecClientSyntAnalyzer.Stop;
+function TecClientSyntAnalyzer.Stop: boolean;
 begin
   FFinished := true;
-  DoStopTimer(true);
+  Result := DoStopTimer(true);
 end;
 
 procedure TecClientSyntAnalyzer.Clear;
@@ -3690,16 +3690,19 @@ begin
     end;
 end;
 
-procedure TecClientSyntAnalyzer.DoStopTimer(AndWait: boolean);
+function TecClientSyntAnalyzer.DoStopTimer(AndWait: boolean): boolean;
 begin
   FTimerIdleMustStop := True;
   FTimerIdle.Enabled := False;
 
   if FTimerIdleIsBusy then
-    if AndWait then
-      Sleep(100)
-    else
-      Sleep(20);
+  begin
+    Application.ProcessMessages;
+    if AndWait then Sleep(100) else Sleep(20);
+    Result := not FTimerIdleIsBusy;
+  end
+  else
+    Result := True;
 end;
 
 function TecClientSyntAnalyzer.DetectTag(Rule: TecTagBlockCondition;
