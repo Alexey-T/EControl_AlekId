@@ -2864,6 +2864,7 @@ begin
   inherited Create( AOwner, SrcProc, AClient);
   FRanges := TSortedList.Create(True);
   FOpenedBlocks := TSortedList.Create(False);
+  FPrevProgress := -1;
 
   FTimerIdle := TTimer.Create(nil);
   FTimerIdle.OnTimer := TimerIdleTick;
@@ -3028,6 +3029,7 @@ var FPos, tmp, i: integer;
     Progress: integer;
 const
   ProgressStep = 3;
+  ProgressMinPos = 2000;
 begin
   if FTimerIdleIsBusy or FDisableIdleAppend then Exit;
   FTimerIdle.Enabled := False;
@@ -3041,7 +3043,10 @@ begin
       tmp := GetLastPos(FBuffer.FText);
       if tmp > FPos then FPos := tmp;
 
-      Progress := FPos * 100 div FBuffer.TextLength div ProgressStep * ProgressStep;
+      if FPos < ProgressMinPos then
+        Progress := 0
+      else
+        Progress := FPos * 100 div FBuffer.TextLength div ProgressStep * ProgressStep;
       if Progress <> FPrevProgress then
       begin
         FPrevProgress := Progress;
