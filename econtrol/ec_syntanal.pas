@@ -3027,7 +3027,7 @@ var FPos, tmp, i: integer;
     own: TecSyntAnalyzer;
     Progress: integer;
 const
-  ProgressStep = 10;
+  ProgressStep = 3;
 begin
   if FTimerIdleIsBusy or FDisableIdleAppend then Exit;
   FTimerIdle.Enabled := False;
