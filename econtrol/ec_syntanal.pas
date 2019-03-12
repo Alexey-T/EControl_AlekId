@@ -671,6 +671,7 @@ type
     FTimerIdleIsBusy: Boolean;
     FTimerIdle: TTimer;
 
+    FPrevProgress: integer;
     FStartSepRangeAnal: integer;
     FDisableIdleAppend: Boolean;
     FRepeateAnalysis: Boolean;
@@ -749,6 +750,8 @@ type
 
   TParseTokenEvent = procedure(Client: TecParserResults; const Text: ecString; Pos: integer;
       var TokenLength: integer; var Rule: TecTokenRule) of object;
+
+  TecParseProgressEvent = procedure(Sender: TObject; AProgress: integer) of object;
 
   { TecSyntAnalyzer }
 
@@ -962,6 +965,11 @@ type
   published
     property Styles: TecStylesCollection read FStyles write SetStyles;
   end;
+
+
+var
+  OnLexerParseProgress: TecParseProgressEvent;
+
 
 implementation
 
@@ -3017,6 +3025,9 @@ end;
 procedure TecClientSyntAnalyzer.TimerIdleTick(Sender: TObject);
 var FPos, tmp, i: integer;
     own: TecSyntAnalyzer;
+    Progress: integer;
+const
+  ProgressStep = 10;
 begin
   if FTimerIdleIsBusy or FDisableIdleAppend then Exit;
   FTimerIdle.Enabled := False;
@@ -3029,6 +3040,15 @@ begin
     begin
       tmp := GetLastPos(FBuffer.FText);
       if tmp > FPos then FPos := tmp;
+
+      Progress := FPos * 100 div FBuffer.TextLength div ProgressStep * ProgressStep;
+      if Progress <> FPrevProgress then
+      begin
+        FPrevProgress := Progress;
+        if Assigned(OnLexerParseProgress) then
+          OnLexerParseProgress(Owner, Progress);
+      end;
+
       if ExtractTag(FBuffer.FText, FPos, True) then
       begin
         if FOwner.SeparateBlockAnalysis then
