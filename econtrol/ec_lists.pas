@@ -64,7 +64,7 @@ type
   private
     FUnionSiblings: Boolean;
     FPrevIdx: integer;
-    FSorted: boolean;
+    //FSorted: boolean;
   protected
     // Union ranges with the [Index] and [Index + 1]
     // returns new range index (or union result)
@@ -73,7 +73,7 @@ type
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
-    property Sorted: boolean read FSorted write FSorted;
+    //property Sorted: boolean read FSorted write FSorted;
     function Add(const Range: GRange): integer; virtual;
     function ClearFromPos(APos: integer): integer;
     // At position or next
@@ -129,7 +129,7 @@ constructor GRangeList<GRange>.Create(UnionSiblings: Boolean);
 begin
   inherited Create;
   FUnionSiblings := UnionSiblings;
-  FSorted := false;
+  //FSorted := false;
   Capacity := 512; // Usually editor has many tokens
 end;
 
@@ -150,6 +150,9 @@ function GRangeList<GRange>.Add(const Range: GRange): integer;
 var
   _Range: TRange absolute Range;
 begin
+  Result := Count;
+  inherited Add(Range);
+  (*
   if not FSorted or (Count=0) then
   begin
     Result := Count;
@@ -164,6 +167,7 @@ begin
     else
       inherited Insert(Result, Range);
   end;
+  *)
 end;
 
 function GRangeList<GRange>.NextAt(APos: integer): integer;
