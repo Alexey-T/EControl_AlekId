@@ -2620,7 +2620,7 @@ begin
  if FStateChanges.Count = 0 then
    b := FCurState <> 0
  else
-   b := FCurState <> TRange(FStateChanges.Last).EndPos;
+   b := FCurState <> FStateChanges.Last.EndPos;
  if b then
    FStateChanges.Add(TRange.Create(FTagList.Count, FCurState));
 end;
@@ -2841,12 +2841,12 @@ procedure TecParserResults.RestoreState;
 var i: integer;
 begin
   for i := FStateChanges.Count - 1 downto 0 do
-    if TRange(FStateChanges.Last).StartPos >= TagCount then
+    if FStateChanges.Last.StartPos >= TagCount then
       FStateChanges.Delete(FStateChanges.Count - 1)
     else
       Break;
   if FStateChanges.Count > 0 then
-    FCurState := TRange(FStateChanges.Last).EndPos
+    FCurState := FStateChanges.Last.EndPos
   else
     FCurState := 0;
 end;
@@ -2855,9 +2855,9 @@ function TecParserResults.ParserStateAtPos(TokenIndex: integer): integer;
 var i: integer;
 begin
    for i := FStateChanges.Count - 1 downto 0 do
-     if TRange(FStateChanges[i]).StartPos <= TokenIndex then
+     if FStateChanges[i].StartPos <= TokenIndex then
        begin
-         Result := TRange(FStateChanges[i]).EndPos;
+         Result := FStateChanges[i].EndPos;
          Exit;
        end;
    Result := 0;
