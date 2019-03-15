@@ -621,7 +621,7 @@ type
     FSubLexerBlocks: TecSubLexerRanges;
     FTagList: TecTokenList;
     FCurState: integer;
-    FStateChanges: TRangeList;
+    FStateChanges: TecRangeList;
     function GetLastPos(const Source: ecString): integer;
     function ExtractTag(const Source: ecString; var FPos: integer; IsIdle: Boolean): Boolean;
     function GetTags(Index: integer): TecSyntToken;
@@ -2552,7 +2552,7 @@ begin
   FSubLexerBlocks := TecSubLexerRanges.Create;
   FOwner.FClientList.Add(Self);
   FCurState := 0;
-  FStateChanges := TRangeList.Create;
+  FStateChanges := TecRangeList.Create;
 end;
 
 destructor TecParserResults.Destroy;

@@ -82,7 +82,7 @@ type
     function PriorAt(APos: integer): integer;
   end;
 
-  TRangeList = GRangeList<TRange>;
+  TecRangeList = GRangeList<TRange>;
 
 implementation
 
@@ -123,7 +123,7 @@ begin
     (a.EndPos=b.EndPos);
 end;
 
-{ TRangeList }
+{ TecRangeList }
 
 constructor GRangeList<GRange>.Create(UnionSiblings: Boolean);
 begin
