@@ -2738,6 +2738,8 @@ var N: integer;
        if FOwner.SubAnalyzers[i].AlwaysEnabled and CanOpen(FOwner.SubAnalyzers[i]) then Exit;
    end;
 
+var
+  NNextPos: integer;
 begin
   GetOwner;
   TryOpenSubLexer;
@@ -2758,7 +2760,12 @@ begin
     p := own.GetToken(Self, Source, FPos, False);
   if p.Range.StartPos < 0 then  // no token
    begin
-     Inc(FPos);
+     NNextPos := FPos;
+     SkipSpaces(Source, NNextPos); // needed for huge space-only lines, where Inc(FPos) is very slow
+     if NNextPos > FPos then
+       FPos := NNextPos
+     else
+       Inc(FPos);
    end else
    begin
     CheckIntersect;
