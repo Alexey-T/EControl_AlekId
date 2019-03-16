@@ -5,7 +5,8 @@
 { Copyright (c) 2004 - 2015 EControl Ltd., Zaharov Michael                    }
 {     www.econtrol.ru                                                         }
 {     support@econtrol.ru                                                     }
-{ Ported to Lazarus: Alexey T., UVviewsoft.com                                }
+{ Ported to Lazarus:                                                          }
+{     Alexey Torgashin, UVviewsoft.com                                        }
 {                                                                             }
 { *************************************************************************** }
 

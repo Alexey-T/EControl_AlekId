@@ -5,6 +5,8 @@
 { Copyright (c) 2004 - 2015 EControl Ltd., Zaharov Michael                    }
 {     www.econtrol.ru                                                         }
 {     support@econtrol.ru                                                     }
+{ Ported to Lazarus and FreePascal generics:                                  }
+{     Alexey Torgashin, UVviewsoft.com                                        }
 {                                                                             }
 { *************************************************************************** }
 
