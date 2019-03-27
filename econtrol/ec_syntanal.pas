@@ -3731,7 +3731,7 @@ begin
 
   if FTimerIdleIsBusy then
   begin
-    Application.ProcessMessages;
+    //dont call App.ProgressMessages, it causes CudaText bug #1927
     if AndWait then Sleep(100) else Sleep(20);
     Result := not FTimerIdleIsBusy;
   end
