@@ -1989,45 +1989,42 @@ begin
 end;
 
 
-//AT fix for SetExpression
-function _MultilineTextToOneline(const AText: string): string;
+//Delete regex comments "#...." in multi-line text
+function _MultilineToString(const Value: ecString): ecString;
 var
-  L: TStringList;
-  S: string;
-  i, j: integer;
+  NBegin, NEnd, i: integer;
 begin
-  L:= TStringList.Create;
-  try
-    L.TextLineBreakStyle:= tlbsLF; //force LF
-    L.Text:= AText;
+  Result:= Value;
 
-    //delete comments "#nnnnnnnnnnn"
-    for i:= 0 to L.Count-1 do
-    begin
-      S:= L[i];
-      for j:= 1 to Length(S) do
-        if (S[j]='#') and ((j=1) or (S[j-1]<>'\')) then
-        begin
-          Delete(S, j, Maxint);
-          L[i]:= S;
-          Break
-        end;
-    end;
+  repeat
+    NBegin:= 0;
+    for i:= 1 to Length(Result) do
+      if (Result[i]='#') and ((i=1) or (Result[i-1]<>'\')) then
+      begin
+        NBegin:= i;
+        Break;
+      end;
+    if NBegin=0 then Break;
 
-    Result:= Trim(L.Text);
-    Result:= StringReplace(Result, #10, ' ', [rfReplaceAll]);
-  finally
-    FreeAndNil(L);
-  end;
+    NEnd:= Length(Result);
+    for i:= NBegin+1 to Length(Result) do
+      if Result[i]=#10 then
+      begin
+        NEnd:= i-1;
+        Break;
+      end;
+
+    Delete(Result, NBegin, NEnd-NBegin+1);
+  until false;
+
+  for i:= 1 to Length(Result) do
+     if Result[i]=#10 then
+       Result[i]:= ' ';
 end;
 
 procedure TecRegExpr.SetExpression(const Value: ecString);
 begin
-  FExpression:= _MultilineTextToOneline(Value); //AT
-
-  //if Pos('#', FExpression)>0 then
-  //  showmessage('regex'#13+FExpression);
-
+  FExpression:= _MultilineToString(Value); //AT fix
   ClearRoot;
 end;
 
