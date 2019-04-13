@@ -75,10 +75,8 @@ end;
 function IsHexDigitChar(C: UCChar): Boolean;
 begin
   case C of
-    '0'..'9':
-       Result := true;
-    'a'..'f':
-      Result := true;
+    '0'..'9',
+    'a'..'f',
     'A'..'F':
       Result := true;
     else
