@@ -51,7 +51,7 @@ type
     procedure SetExpression(const Value: ecString);
     procedure ClearRoot;
     function IsEmpty: Boolean;
-    procedure ParseModifiers(const S: AnsiString; var Modifiers: Word);
+    procedure ParseModifiers(const S: ecString; var Modifiers: Word);
   public
     constructor Create;
     destructor Destroy; override;
@@ -2048,7 +2048,7 @@ end;
 procedure TecRegExpr.SetModifierStr(const Value: ecString);
 begin
   if (Length(Value) >= 3) and (Copy(Value, 1, 2) = '(?') then
-    ParseModifiers(AnsiString(Copy(Value, 3, Length(Value) - 3)), FModifiers);
+    ParseModifiers(Copy(Value, 3, Length(Value) - 3), FModifiers);
 end;
 
 function TecRegExpr.GetMatchLen(Idx: integer): integer;
@@ -2151,10 +2151,10 @@ begin
     end;
 end;
 
-procedure TecRegExpr.ParseModifiers(const S: AnsiString; var Modifiers: Word);
+procedure TecRegExpr.ParseModifiers(const S: ecString; var Modifiers: Word);
 var IsOn : boolean;
     i: integer;
-  procedure SetModif(m: integer);
+  procedure SetModif(m: integer); inline;
   begin
     if (m and FModifiersStatic) = 0 then
       if IsOn then Modifiers := Modifiers or m
