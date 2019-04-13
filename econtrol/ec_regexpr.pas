@@ -2018,7 +2018,7 @@ begin
   until false;
 
   for i:= 1 to Length(Result) do
-     if Result[i]=#10 then
+     if (Result[i]=#10) or (Result[i]=#13) then
        Result[i]:= ' ';
 end;
 
