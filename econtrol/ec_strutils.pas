@@ -28,11 +28,11 @@ function IsHexDigitChar(C: UCChar): Boolean;
 function IsLineBreakChar(c: UCChar): Boolean;
 function IsWordChar(c: UCChar): Boolean;
 function IsSpaceChar(c: UCChar): Boolean; inline;
-function IsAlphaChar(c: UCChar): Boolean;
+function IsAlphaChar(c: UCChar): Boolean; inline;
 
-function IsIdentChar(C: UCChar): Boolean;
+function IsIdentChar(C: UCChar): Boolean; inline;
 function IsIdentDigitChar(C: UCChar): Boolean; inline;
-function IsIdentLetterChar(C: UCChar): Boolean;
+function IsIdentLetterChar(C: UCChar): Boolean; inline;
 function IsWordBreak(aPos: integer; const Text: UCString): Boolean; overload;
 
 function ecUpCase(C: UCChar): UCChar; inline;
@@ -103,24 +103,32 @@ begin
     Result := False;
 end;
 
-function IsAlphaChar(c: UCChar): Boolean;
+function IsAlphaChar(c: UCChar): Boolean; inline;
 begin
-  Result :=
-    ((C >= 'a') and (C <= 'z')) or
-    ((C >= 'A') and (C <= 'Z'));
+  case C of
+    'a'..'z',
+    'A'..'Z':
+      Result := true
+    else
+      Result := false;
+  end;
 end;
 
-function IsIdentChar(C: UCChar): Boolean;
+function IsIdentChar(C: UCChar): Boolean; inline;
 begin
   Result := IsIdentLetterChar(C) or IsIdentDigitChar(C);
 end;
 
-function IsIdentLetterChar(C: UCChar): Boolean;
+function IsIdentLetterChar(C: UCChar): Boolean; inline;
 begin
-  Result :=
-    ((C >= 'a') and (C <= 'z')) or
-    ((C >= 'A') and (C <= 'Z')) or
-    (C = '_');
+  case C of
+    'a'..'z',
+    'A'..'Z',
+    '_':
+      Result := true
+    else
+      Result := false;
+  end;
 end;
 
 function IsIdentDigitChar(C: UCChar): Boolean; inline;
