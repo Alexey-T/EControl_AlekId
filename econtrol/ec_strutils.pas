@@ -151,7 +151,7 @@ end;
 
 function ecUpCase(C: UCChar): UCChar; inline;
 begin
-  if Ord(C) <= $FF then
+  if Ord(C) < 128 then
     Result := UpCase(char(C))
   else
     Result := UpCase(C);
