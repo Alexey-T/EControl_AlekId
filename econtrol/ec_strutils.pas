@@ -15,7 +15,8 @@ unit ec_StrUtils;
 
 interface
 
-uses SysUtils, Classes, Graphics;
+uses
+  SysUtils, UnicodeData;
 
 type
   ecString = UnicodeString;
@@ -85,23 +86,29 @@ begin
   end;
 end;
 
-function IsWordChar(c: UCChar): Boolean;
+function IsWordChar(C: UCChar): Boolean;
 begin
-  if IsDigitChar(C) then Result := True
-  else
-  if (C >= 'a') and (C <= 'z') then Result := True
-  else
-  if (C >= 'A') and (C <= 'Z') then Result := True
-  else
-  if (C = '_')
-    or (C = #$0301) //AT
-    or (C = #$00B4) //AT
-    or (C = #$02B9) //AT
-    or (C = #$02CA) //AT
-    or (C = #$0384) then Result := True
-  else
-    Result := False;
+  case C of
+    '0'..'9',
+    'a'..'z',
+    'A'..'Z',
+    '_':
+      exit(true);
+  end;
+
+  if Ord(C)<128 then
+    exit(false);
+
+  if Ord(C)>=LOW_SURROGATE_BEGIN then
+    exit(false);
+
+  //ATStringProc.IsWordChar has checks for 5 unicode chars, leave only 2, others detected by UnicodeData
+  if (C=#$00B4) or (C=#$0384) then
+    exit(true);
+
+  Result := GetProps(Ord(C))^.Category <= UGC_OtherNumber;
 end;
+
 
 function IsAlphaChar(c: UCChar): Boolean; inline;
 begin
@@ -253,19 +260,5 @@ begin
     Result := 0;
   end;
 end;
-
-function ChangeComponentReference(This, NewRef: TComponent; var RefVar: TComponent): Boolean;
-begin
-  Result := (RefVar <> NewRef) and Assigned(This);
-  if Result then
-    begin
-      if Assigned(RefVar) then
-        RefVar.RemoveFreeNotification(This);
-      RefVar := NewRef;
-      if Assigned(RefVar) then
-        RefVar.FreeNotification(This);
-    end;
-end;
-
 
 end.
