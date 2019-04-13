@@ -2047,7 +2047,7 @@ end;
 
 procedure TecRegExpr.SetModifierStr(const Value: ecString);
 begin
-  if (Length(Value) >= 3) and (Copy(Value, 1, 2) = '(?') then
+  if (Length(Value) >= 3) and (Value[1] = '(') and (Value[2] = '?') then
     ParseModifiers(Copy(Value, 3, Length(Value) - 3), FModifiers);
 end;
 
