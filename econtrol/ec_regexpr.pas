@@ -59,12 +59,12 @@ type
 
     function Compile: Boolean; overload;
     function Compile(AsUnicode: Boolean): Boolean; overload;
-    procedure Compile(const AExpression: AnsiString); overload;
+    //procedure Compile(const AExpression: AnsiString); overload;
     procedure Compile(const AExpression: UCString); overload;
     function Match(const InputString: UCString; var aPos: integer; Back: Boolean = False): Boolean; overload;
-    function MatchLength(const InputString: AnsiString; aPos: integer; Back: Boolean = False): integer; overload;
+    //function MatchLength(const InputString: AnsiString; aPos: integer; Back: Boolean = False): integer; overload;
     function MatchLength(const InputString: UCString; aPos: integer; Back: Boolean = False): integer; overload;
-    function GetMatch(const InputString: AnsiString; SubIdx: integer): AnsiString; overload;
+    //function GetMatch(const InputString: AnsiString; SubIdx: integer): AnsiString; overload;
     function GetMatch(const InputString: UCString; SubIdx: integer): UCString; overload;
     function Substitute (const InputString, ATemplate : ecString) : ecString;
 
@@ -154,9 +154,11 @@ type
     FCharRanges: UCString;
     FCharSets: UCString;
     FCharArray: UCString;
+    {
     procedure AddChar(C: AnsiChar); overload;
     procedure AddRange(st, en: AnsiChar); overload;
     function HasChar(C: AnsiChar): Boolean; overload;
+    }
     procedure AddChar(C: UCChar); overload;
     procedure AddRange(st, en: UCChar); overload;
     procedure AddSet(C: UCChar); overload;
@@ -190,7 +192,7 @@ type
   private
     FRef: integer;
     FIgnoreCase: Boolean;
-    function GetExprStr(const InputString: AnsiString): AnsiString; overload;
+    //function GetExprStr(const InputString: AnsiString): AnsiString; overload;
     function GetExprStr(const InputString: UCString): UCString; overload;
   public
     function Match(const InputString: UCString; var aPos: integer): integer; override;
@@ -214,7 +216,9 @@ type
   public
     procedure Add(Node: TRENodeBase);
     procedure Invert;
+    {
     procedure Compile(const Expression: AnsiString; var aPos: integer; Modifiers: Word); overload;
+    }
     procedure Compile(const Expression: UCString; var aPos: integer; Modifiers: Word); overload;
     function Match(const InputString: UCString; var aPos: integer): integer; override;
     function BackMatch(const InputString: UCString; var aPos: integer): integer; override;
@@ -245,7 +249,7 @@ type
     FEnd: integer; // first char after sub expression
   public
     constructor Create(AOwner: TreSubExpr); override;
-    procedure Compile(const Expression: AnsiString; var aPos: integer; Modifiers: Word); overload;
+    //procedure Compile(const Expression: AnsiString; var aPos: integer; Modifiers: Word); overload;
     procedure Compile(const Expression: UCString; var aPos: integer; Modifiers: Word); overload;
     function Match(const InputString: UCString; var aPos: integer): integer; override;
     function BackMatch(const InputString: UCString; var aPos: integer): integer; override;
@@ -277,6 +281,7 @@ begin
     Result := GetAbsoluteNext(Node.Owner);
 end;
 
+(*
 function IsInRange(RngType: UCChar; C: AnsiChar): Boolean; overload;
 begin
   Result := False;
@@ -302,6 +307,7 @@ begin
     'K': Result := not IsIdentDigitChar(C);
   end;
 end;
+*)
 
 function IsInRange(RngType: UCChar; C: UCChar): Boolean; overload;
 begin
@@ -329,6 +335,7 @@ begin
   end;
 end;
 
+(*
 function GetEscape(const Expression: AnsiString; var aPos: integer): UCChar; overload;
 var strt: integer;
 begin
@@ -361,6 +368,7 @@ begin
          end;
   end;
 end;
+*)
 
 function GetEscape(const Expression: UCString; var aPos: integer): UCChar; overload;
 var strt: integer;
@@ -420,6 +428,7 @@ end;
 
 { TCharSetNode }
 
+(*
 function TCharSetNode.HasChar(C: AnsiChar): Boolean;
 var i, N, k: integer;
 begin
@@ -461,6 +470,7 @@ begin
     end;
   FCharRanges := FCharRanges + UCChar(st) + UCChar(en);
 end;
+*)
 
 function TCharSetNode.HasChar(C: UCChar): Boolean;
 var i, N, k: integer;
@@ -680,6 +690,7 @@ end;
 
 { TRefNode }
 
+(*
 function TRefNode.GetExprStr(const InputString: AnsiString): AnsiString;
 var se: TreSubExpr;
     l: integer;
@@ -694,6 +705,7 @@ begin
           Result := Copy(InputString, Min(se.FStart, se.FEnd), l);
       end;
 end;
+*)
 
 function TRefNode.GetExprStr(const InputString: UCString): UCString;
 var se: TreSubExpr;
@@ -863,6 +875,7 @@ end;
 // All characters are ANSI characters.
 // UCChar is used only for holding char codes less 255
 // This is made to have unified storage of regular expr. nodes
+(*
 procedure TreBranchNode.Compile(const Expression: AnsiString; var aPos: integer;
   Modifiers: Word);
 var Len: integer;
@@ -1135,6 +1148,7 @@ begin
      end;
    end;
 end;
+*)
 
 procedure TreBranchNode.Compile(const Expression: UCString; var aPos: integer;
   Modifiers: Word);
@@ -1659,6 +1673,7 @@ end;
 
 { TreSubExpr }
 
+(*
 procedure TreSubExpr.Compile(const Expression: AnsiString; var aPos: integer;
   Modifiers: Word);
 var Br: TreBranchNode;
@@ -1672,6 +1687,7 @@ begin
     if Br.FList.Count = 0 then FList.Remove(Br);
   until (aPos > Length(Expression)) or (Expression[aPos] = ')');
 end;
+*)
 
 procedure TreSubExpr.Compile(const Expression: UCString; var aPos: integer;
   Modifiers: Word);
@@ -1841,6 +1857,7 @@ begin
   Result := not Assigned(FProgRoot) or (TreRootNode(FProgRoot).FList.Count = 0);
 end;
 
+(*
 procedure TecRegExpr.Compile(const AExpression: AnsiString);
 var Pos: integer;
 begin
@@ -1861,6 +1878,7 @@ begin
     raise;
   end;
 end;
+*)
 
 procedure TecRegExpr.Compile(const AExpression: UCString);
 var Pos: integer;
@@ -1938,6 +1956,7 @@ begin
     end;
 end;
 
+(*
 function TecRegExpr.MatchLength(const InputString: AnsiString;
   aPos: integer; Back: Boolean): integer;
 begin
@@ -1952,6 +1971,7 @@ begin
   else
     Result := 0;
 end;
+*)
 
 function TecRegExpr.MatchLength(const InputString: UCString;
   aPos: integer; Back: Boolean): integer;
@@ -2064,6 +2084,7 @@ begin
             Inc(Result);
 end;
 
+(*
 function TecRegExpr.GetMatch(const InputString: AnsiString;
   SubIdx: integer): AnsiString;
 begin
@@ -2075,6 +2096,7 @@ begin
           if (FStart <> -1) and (FEnd <> -1) then
             Result := Copy(InputString, FStart, FEnd - FStart);
 end;
+*)
 
 function TecRegExpr.GetMatch(const InputString: UCString;
   SubIdx: integer): UCString;
