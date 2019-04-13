@@ -1991,6 +1991,12 @@ end;
 
 //Delete regex comments "#...." in multi-line text
 function _MultilineToString(const Value: ecString): ecString;
+  //
+  function IsEol(C: WideChar): boolean; inline;
+  begin
+    Result:= (C=#10) or (C=#13);
+  end;
+  //
 var
   NBegin, NEnd, i: integer;
 begin
@@ -2008,7 +2014,7 @@ begin
 
     NEnd:= Length(Result);
     for i:= NBegin+1 to Length(Result) do
-      if Result[i]=#10 then
+      if IsEol(Result[i]) then
       begin
         NEnd:= i-1;
         Break;
@@ -2018,7 +2024,7 @@ begin
   until false;
 
   for i:= 1 to Length(Result) do
-     if (Result[i]=#10) or (Result[i]=#13) then
+     if IsEol(Result[i]) then
        Result[i]:= ' ';
 end;
 
