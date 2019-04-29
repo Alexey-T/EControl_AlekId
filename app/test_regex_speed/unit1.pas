@@ -38,7 +38,7 @@ uses
 const
   Rules: array[0..5] of string = (
     '//.*',
-    '\{.*?\}',
+    '(?s)\{.*?\}',
     '\d+(\.\d+)?',
     '\w+',
     '[\-\+/\*\[\]\(\)\.,:=]+',
@@ -56,7 +56,7 @@ begin
   for i:= 0 to Length(Rules)-1 do
   begin
     Obj[i]:= TecRegExpr.Create;
-    Obj[i].Expression:= UTF8Decode(Rules[i]);
+    Obj[i].Expression:= Rules[i];
     Obj[i].ModifierI:= false;
     Obj[i].ModifierS:= false; //don't catch all text by .*
     Obj[i].ModifierM:= true; //allow to work with ^$
@@ -103,9 +103,62 @@ begin
     Obj[i].Free;
 end;
 
-procedure TForm1.Test_FPC(const Subj: Unicodestring);
-begin
 
+procedure TForm1.Test_FPC(const Subj: Unicodestring);
+var
+  Obj: array[0..Length(Rules)-1] of TRegExpr;
+  NPos, NLen: integer;
+  bRuleFound, bLastFound: boolean;
+  IndexRule, i: integer;
+  ch: Widechar;
+begin
+  exit;////not done!
+
+  for i:= 0 to Length(Rules)-1 do
+  begin
+    Obj[i]:= TRegExpr.Create;
+    Obj[i].Expression:= Rules[i];
+    Obj[i].ModifierI:= false;
+    Obj[i].ModifierS:= false; //don't catch all text by .*
+    Obj[i].ModifierM:= true; //allow to work with ^$
+    Obj[i].ModifierX:= false; //don't ingore spaces
+    Obj[i].InputString:= Subj;
+  end;
+
+  NPos:= 1;
+  NLen:= 1;
+  bLastFound:= false;
+
+  repeat
+    if NPos>Length(Subj) then Break;
+    bRuleFound:= false;
+
+    ch:= Subj[NPos];
+    if ((ch<>' ') and (ch<>#9)) then
+      for IndexRule:= 0 to Length(Rules)-1 do
+      begin
+        NLen:= 0;
+        if Obj[IndexRule].ExecPos(NPos) then
+        begin
+          NLen:= Obj[IndexRule].MatchLen[0];
+          Inc(NPos, NLen);
+          bRuleFound:= true;
+
+          Listbox1.Items.Add('> '+Obj[IndexRule].Match[0]);
+
+          Break;
+        end;
+      end;
+
+    if not bRuleFound then
+      Inc(NPos);
+
+    bLastFound:= bRuleFound;
+  until false;
+
+
+  for i:= 0 to Length(Rules)-1 do
+    Obj[i].Free;
 end;
 
 { TForm1 }
