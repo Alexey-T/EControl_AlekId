@@ -19,7 +19,11 @@
         </Optimizations>
       </CodeGeneration>
       <Other>
-        <CustomOptions Value="-Sa"/>
+        <CustomOptions Value="-Sa
+-dDEBUG"/>
+        <OtherDefines Count="1">
+          <Define0 Value="DEBUG"/>
+        </OtherDefines>
       </Other>
     </CompilerOptions>
     <Description Value="Core of EControl Syntax Editor SDK. Contains parser (syntax analyzer) of source codes."/>
