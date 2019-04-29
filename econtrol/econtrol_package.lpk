@@ -19,14 +19,12 @@
         </Optimizations>
       </CodeGeneration>
       <Other>
-        <CustomOptions Value="-Sa
--dDEBUG
--dDEBUGLOG"/>
+        <CustomOptions Value="-Sa"/>
       </Other>
     </CompilerOptions>
     <Description Value="Core of EControl Syntax Editor SDK. Contains parser (syntax analyzer) of source codes."/>
     <License Value="Licensed for open-source only. See readme.txt."/>
-    <Version Major="1" Minor="1"/>
+    <Version Major="1" Minor="2"/>
     <Files Count="9">
       <Item1>
         <Filename Value="ec_lists.pas"/>
