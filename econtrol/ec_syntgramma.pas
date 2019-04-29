@@ -32,11 +32,12 @@ type
                      itTokenRule,          // <aaa>
                      itParserRule);        //  aaa
 
-  TTokenHolder = class
-  protected
+  TTokenHolder = class(TInterfacedObject)
+  strict protected
     function GetTokenCount: integer; virtual; abstract;
-    function GetTokenType(Index: integer): integer; virtual; abstract;
+    protected
     function GetTokenStr(Index: integer): ecString; virtual; abstract;
+    function GetTokenType(Index: integer): integer; virtual; abstract;
   end;
 
   TParserNode = class
@@ -635,7 +636,7 @@ begin
       Lex := TecSyntAnalyzer.Create(nil);
       try
         //Res := Lex.AddClient(nil, GetGrammaLines);
-        Res := TecClientSyntAnalyzer.Create(Lex, GetGrammaLines, nil);
+        Res := TecClientSyntAnalyzer.Create(Lex, GetGrammaLines, nil, nil, false);
         if Res <> nil then
           try
             // Prepare Lexer
