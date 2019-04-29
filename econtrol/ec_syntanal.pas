@@ -765,10 +765,7 @@ type
     FRanges: TSortedList;
     FOpenedBlocks: TSortedList;    // Opened ranges (without end)
 
-
     FTaskAppendDisabled: Boolean;
-
-    FTimerIdle: TTimer;
     FPrevProgress: integer;
 
     FRepeateAnalysis: Boolean;
@@ -3207,22 +3204,11 @@ begin
   FRanges := TSortedList.Create(True);
   FOpenedBlocks := TSortedList.Create(False);
   FPrevProgress := -1;
-
-  FTimerIdle := TTimer.Create(nil);
-//  FTimerIdle.OnTimer := TimerIdleTick;
-  FTimerIdle.Enabled := False;
-  FTimerIdle.Interval := 100;
-
-//  IdleAppend;
 end;
 
 destructor TecClientSyntAnalyzer.Destroy;
 begin
   StopSyntax(true);
-  if Assigned(FTimerIdle) then
-  begin
-    FreeAndNil(FTimerIdle);
-  end;
 
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);
@@ -4154,7 +4140,6 @@ begin
 
   FParserStatus:=psAborted;
   FWorkerTaskMustStop := 100;
-  FTimerIdle.Enabled := False;
   isAsync:= assigned(FWorkerThread);
   if isAsync then
      FWorkerThread.StopCurrentTask()
