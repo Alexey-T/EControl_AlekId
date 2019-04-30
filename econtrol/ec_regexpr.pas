@@ -38,6 +38,7 @@ type
     FExpression: ecString;
     FUnicodeCompiled: Boolean;
     FModifiersStatic: Word;
+    FCriSection: TRTLCriticalSection;
     procedure SetModifiers(const Value: Word);
     function GetModifier(const Index: Integer): boolean;
     function GetModifierStr: ecString;
@@ -1838,10 +1839,12 @@ constructor TecRegExpr.Create;
 begin
   inherited;
   FModifiers := DefaultModifiers;
+  InitCriticalSection(FCriSection);
 end;
 
 destructor TecRegExpr.Destroy;
 begin
+  DoneCriticalSection(FCriSection);
   FreeAndNil(FProgRoot);
   inherited;
 end;
@@ -1946,14 +1949,19 @@ end;
 
 function TecRegExpr.Match(const InputString: UCString; var aPos: integer; Back: Boolean): Boolean;
 begin
-  Result := Compile(True); // ensure compiling and validity
-  if Result then
-    begin
-      if aPos < 1 then
-        aPos := 1;
-      Result := TreRootNode(FProgRoot).MatchStr(InputString, aPos, Back);
-      FMatchOK := Result;
-    end;
+  EnterCriticalSection(FCriSection);
+  try
+    Result := Compile(True); // ensure compiling and validity
+    if Result then
+      begin
+        if aPos < 1 then
+          aPos := 1;
+        Result := TreRootNode(FProgRoot).MatchStr(InputString, aPos, Back);
+        FMatchOK := Result;
+      end;
+  finally
+    LeaveCriticalSection(FCriSection);
+  end;
 end;
 
 (*
