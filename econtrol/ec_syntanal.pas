@@ -15,7 +15,9 @@
 unit ec_SyntAnal;
 
 interface
-
+{$IFDEF DEBUGLOG}
+{$DEFINE DEBUG}
+{$ENDIF}
 uses
   SysUtils,
   Classes,
@@ -753,6 +755,7 @@ type
     property SubLexerRangeCount: integer read GetSubLexerRangeCount;
     property SubLexerRanges[Index: integer]: TecSubLexerRange read GetSubLexerRange;
     property ParserState: integer read FCurState write FCurState;
+    property LastPos:integer read FLastAnalPos;
 
     //property TagIndexes[Index: integer]: TRangeListIndex read GetTagIndexes;
   end;
@@ -3262,7 +3265,6 @@ begin
 end;
 
 
-
 function IndentOf(const S: ecString): Integer;
 var
   i: Integer;
@@ -3422,7 +3424,7 @@ const
   procedure CheckSyncRequest;inline;
   begin
     if isAsync and (tokenCounter and minTokenStep =minTokenStep) then  begin
-        FWorkerThread.YieldData();
+        FWorkerThread.YieldData(true);
          CheckProgress();
     end;
   end;
@@ -3509,7 +3511,7 @@ var aPos, currentPos, tokenCount:integer;
   procedure CheckSyncRequest;inline;
   begin
     if isAsync and (tokenCount and minTokenStep =minTokenStep) then  begin
-        FWorkerThread.YieldData();
+        FWorkerThread.YieldData(false);
         //CheckProgress();
     end;
   end;
@@ -3528,7 +3530,7 @@ begin
  try
     currentPos := GetLastPos(FBuffer.FText);
     while (currentPos - 1 <= APos + 1) and (FParserStatus<psAborted) do   begin
-       if apos-currentPos>5000 then
+      // if apos-currentPos>3000 then
               CheckSyncRequest();
        inc(tokenCount);
        tokensDone := ExtractTag(FBuffer.FText, currentPos{, False});
@@ -3564,12 +3566,22 @@ end;
 
 procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 begin
+ Dec(APos);
+ if APos<0 then APos := 0;
+
+ if FBuffer.TextLength <= Owner.FullRefreshSize then
+   APos := 0
+ else
+ if Owner.RestartFromLineStart then
+   APos := Min(APos, FBuffer.OffsetToOffsetOfLineStart(APos + 1));
+
+
    StopSyntax(true);
+
    FParserStatus := psNone;
    FWorkerTaskMustStop:= 0;
    if (FWorkerRequested) then  begin
-     FBuffer.Lock;
-     AcquireWorker().ScheduleWork(DoChangeAtPos, aPos, SyntaxDoneHandler, false
+     AcquireWorker().ScheduleWork(DoChangeAtPos, aPos, nil, false
      {$IFDEF DEBUGLOG},'ChangedAtPos'{$ENDIF} );
    end
    else begin
@@ -3817,12 +3829,12 @@ var i, j, idx, N, to_idx: integer;
 
     Hans L. Werschner, Oct '07
 }
-var rngstyle: string;                      // HAW: add style identifier to range expression
-    rngtoken, rngResult: string;           //      a few more vars
+var rngstyle: ecString;                      // HAW: add style identifier to range expression
+    rngtoken, rngResult: ecString;           //      a few more vars
     swp_idx, rngdir, rngoffset, rngmax: integer;
     to_rng: TecTextRange;
 
-function RangeNumber( const FmtStrNumber: string; var gotnbr: integer ): boolean;
+function RangeNumber( const FmtStrNumber: ecString; var gotnbr: integer ): boolean;
 begin
     N := 0; Result := false;
     while (j + N) <= length( FmtStrNumber ) do
@@ -4245,7 +4257,7 @@ var aPos:integer;
   procedure CheckSyncRequest;inline;
   begin
     if isAsync and (tokenCount and minTokenStep =minTokenStep) then  begin
-        FWorkerThread.YieldData();
+        FWorkerThread.YieldData(false);
     end;
   end;
 
@@ -4274,14 +4286,7 @@ begin
    sublexerBlocks := FSubLexerBlocks.Get;
    try
      FParserStatus := psNone;
-     Dec(APos);
-     if APos<0 then APos := 0;
 
-     if FBuffer.TextLength <= Owner.FullRefreshSize then
-       APos := 0
-     else
-     if Owner.RestartFromLineStart then
-       APos := Min(APos, FBuffer.OffsetToOffsetOfLineStart(APos + 1));
 
      // Check sub lexer ranges
      for i := sublexerBlocks.Count - 1 downto 0 do begin

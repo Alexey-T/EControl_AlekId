@@ -88,7 +88,7 @@ type
     procedure ReleaseSync();
 //    function WaitTaskAndSync(const timeOut:Cardinal):boolean;
     function GetIsWorking():boolean; inline;
-    procedure YieldData();
+    procedure YieldData(andWait:boolean);
     procedure StopCurrentTask();
     procedure CancelExpendableTasks();
     function WaitTaskDone(time:Cardinal):boolean;
@@ -461,7 +461,7 @@ begin
  FSchedulerWall.Leave;
 end;
 
-procedure TecSyntaxerThread.YieldData();
+procedure TecSyntaxerThread.YieldData(andWait:boolean);
 begin
   if FSynRequestCount<=0 then exit;
   FClientSyntaxer.SwitchContext(false);
@@ -470,7 +470,9 @@ begin
   {$IFDEF DEBUGLOG}
   TSynLog.Add.Log( sllEnter, 'Yield Data!');
   {$ENDIF}
-  Sleep(100);
+  if andWait then
+     Sleep(300)
+  else Yield;
   FSyncWall.Acquire;
   FClientSyntaxer.SwitchContext(true);
 end;

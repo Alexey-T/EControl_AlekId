@@ -15,13 +15,13 @@
       </SearchPaths>
       <CodeGeneration>
         <Optimizations>
-          <OptimizationLevel Value="0"/>
+          <OptimizationLevel Value="2"/>
         </Optimizations>
       </CodeGeneration>
       <Other>
         <CustomOptions Value="-Sa
 -dDEBUG
--dDEBUGLOG"/>
+-dDEBUGLOG3"/>
       </Other>
     </CompilerOptions>
     <Description Value="Core of EControl Syntax Editor SDK. Contains parser (syntax analyzer) of source codes."/>
