@@ -322,14 +322,20 @@ begin
     'D': Result := not IsDigitChar(C);
     's': Result := IsSpaceChar(C);
     'S': Result := not IsSpaceChar(C);
+    {
+    //AT commented
     'h': Result := IsHexDigitChar(C);
     'H': Result := not IsHexDigitChar(C);
     'l': Result := IsAlphaChar(C);
     'L': Result := not IsAlphaChar(C);
+    }
     'c': Result := IsIdentChar(C);
     'C': Result := not IsIdentChar(C);
+    {
+    //AT commented
     'g': Result := IsIdentLetterChar(C);
     'G': Result := not IsIdentLetterChar(C);
+    }
     'k': Result := IsIdentDigitChar(C);
     'K': Result := not IsIdentDigitChar(C);
   end;
@@ -839,14 +845,26 @@ begin
     'W': Result := 'C';
     'd': Result := 'k';
     'D': Result := 'K';
+    {
+    //AT commented
     'l': Result := 'g';
     'L': Result := 'G';
-    's', 'S', 'h', 'H', 'c', 'C', 'g', 'G', 'k', 'K': Result := C;
+    }
+    's', 'S',
+    //'h', 'H', //AT commented
+    'c', 'C',
+    //'g', 'G', //AT commented
+    'k', 'K': Result := C;
     else Result := #0;
   end else
   case C of
-    'w', 'W', 'd', 'D', 'l', 'L',
-    's', 'S', 'h', 'H', 'c', 'C', 'g', 'G', 'k', 'K': Result := C;
+    'w', 'W', 'd', 'D',
+    //'l', 'L', //AT commented
+    's', 'S',
+    //'h', 'H', //AT commented
+    'c', 'C',
+    //'g', 'G', //AT commented
+    'k', 'K': Result := C;
     else Result := #0;
   end;
 end;
