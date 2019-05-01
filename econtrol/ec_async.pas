@@ -190,12 +190,18 @@ begin
  done:=FSyncWall.TryEnter;
  if done then exit;
   time:=GetTickCount();
-  if roSync then
-       FSynRequestCount:=1;
-  FSyncWall.Acquire();
+  if roSync then begin
+     repeat
+        FSynRequestCount:=1;
+     until FSyncWall.TryEnter;
+
+  end
+  else
+     FSyncWall.Enter();
+
   time:=GetTickCount-time;
   {$IFDEF DEBUGLOG}
-  if time > 100 then
+  if time > 50 then
      TSynLog.Add.Log(sllWarning, 'AcquireSync waited: %d ms', [time]);
   {$ENDIF}
 end;

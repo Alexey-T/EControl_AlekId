@@ -14,14 +14,12 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <CodeGeneration>
-        <Optimizations>
-          <OptimizationLevel Value="2"/>
-        </Optimizations>
+        <SmartLinkUnit Value="True"/>
       </CodeGeneration>
       <Other>
         <CustomOptions Value="-Sa
 -dDEBUG
--dDEBUGLOG3"/>
+-dDEBUGLOG"/>
       </Other>
     </CompilerOptions>
     <Description Value="Core of EControl Syntax Editor SDK. Contains parser (syntax analyzer) of source codes."/>

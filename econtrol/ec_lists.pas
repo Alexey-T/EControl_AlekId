@@ -54,9 +54,9 @@ type
     StartPos, EndPos: integer;
     PointStart, PointEnd: TPoint;
     constructor Create(AStartPos, AEndPos: integer);
-    constructor Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
+    constructor Create(AStartPos, AEndPos: integer; constref APointStart, APointEnd: TPoint);
     property Size: integer read GetLength;
-    class operator=(const a, b: TRange): boolean;
+    class operator Equal(constref a, b: TRange): boolean;
   end;
 
   { GRangeList }
@@ -71,12 +71,12 @@ type
     // Union ranges with the [Index] and [Index + 1]
     // returns new range index (or union result)
     function IsGreater(I1, I2: integer): Boolean;
-    function CompProc(const AValue: TRange; AKey: integer): integer;
+    function CompProc(constref AValue: TRange; AKey: integer): integer;
   public
     constructor Create(UnionSiblings: Boolean = True);
     destructor Destroy; override;
     //property Sorted: boolean read FSorted write FSorted;
-    function Add(const Range: GRange): integer; virtual;
+    function Add(constref Range: GRange): integer; virtual;
     function ClearFromPos(APos: integer): integer;
     // At position or next
     function NextAt(APos: integer): integer;
@@ -94,7 +94,7 @@ uses
 
 { TRange }
 
-constructor TRange.Create(AStartPos, AEndPos: integer; const APointStart, APointEnd: TPoint);
+constructor TRange.Create(AStartPos, AEndPos: integer; constref APointStart, APointEnd: TPoint);
 begin
   StartPos := AStartPos;
   EndPos := AEndPos;
@@ -117,7 +117,7 @@ begin
   Result := EndPos-StartPos;
 end;
 
-class operator TRange.=(const a,b: TRange):boolean;
+class operator TRange.Equal(constref a,b: TRange):boolean;
 // Not used in real work
 begin
   Result:=
@@ -148,7 +148,7 @@ begin
     Result := I1 > I2;
 end;
 
-function GRangeList<GRange>.Add(const Range: GRange): integer;
+function GRangeList<GRange>.Add(constref Range: GRange): integer;
 var
   _Range: TRange absolute Range;
 begin
@@ -185,7 +185,7 @@ begin
 end;
 
 
-function GRangeList<GRange>.CompProc(const AValue: TRange; AKey: integer): integer;
+function GRangeList<GRange>.CompProc(constref AValue: TRange; AKey: integer): integer;
 begin
   if AValue.StartPos > AKey then
     Result := 1
