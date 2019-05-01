@@ -58,8 +58,7 @@ type
     destructor Destroy; override;
     procedure Assign(Source: TecRegExpr);
 
-    function Compile: Boolean; overload;
-    function Compile(AsUnicode: Boolean): Boolean; overload;
+    function Compile(AsUnicode: Boolean=True): Boolean; overload;
     //procedure Compile(const AExpression: AnsiString); overload;
     procedure Compile(const AExpression: UCString); overload;
     function Match(const InputString: UCString; var aPos: integer; Back: Boolean = False): Boolean; overload;
@@ -1904,12 +1903,7 @@ begin
   FUnicodeCompiled := True;
 end;
 
-function TecRegExpr.Compile: Boolean;
-begin
-  Result := Compile(True);
-end;
-
-function TecRegExpr.Compile(AsUnicode: Boolean): Boolean;
+function TecRegExpr.Compile(AsUnicode: Boolean=True): Boolean;
 begin
   try
     if IsEmpty or (AsUnicode xor FUnicodeCompiled) then
@@ -1931,11 +1925,11 @@ end;
 
 function TecRegExpr.GetModifierStr: ecString;
 const ModLet: ecString = 'irsgmx';
-var s1, s2: string;
+var s1, s2: ecString;
     i: integer;
 begin
   s1 := ''; s2 := '';
-  for i := 0 to 5 do
+  for i := 0 to Length(ModLet)-1 do
    if (FModifiers and (1 shl i)) <> 0 then
     s1 := s1 + ModLet[i + 1]
    else
