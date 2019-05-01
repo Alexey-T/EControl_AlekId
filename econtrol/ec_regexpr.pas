@@ -378,9 +378,9 @@ begin
     't': Result := #$9;
     'n': Result := #$A;
     'r': Result := #$D;
-    'f': Result := #$C;
-    'a': Result := #$7;
-    'e': Result := #$1B;
+    //'f': Result := #$C; //AT commented
+    //'a': Result := #$7; //AT commented
+    //'e': Result := #$1B; //AT commented
     'x': begin
           inc(aPos);
           if aPos > Length(Expression) then
@@ -1116,7 +1116,7 @@ begin
                 Add(sub);
                 sub.Compile(Expression, aPos, Modifiers);
                 if (aPos > Len) or (Expression[aPos] <> ')') then
-                 raise Exception.Create('Do not closed sub expression');
+                 raise Exception.Create('Not closed sub expression');
                 ReadRepeaters(sub);
               end;
             end;
@@ -1390,7 +1390,7 @@ begin
                 Add(sub);
                 sub.Compile(Expression, aPos, Modifiers);
                 if (aPos > Len) or (Expression[aPos] <> ')') then
-                 raise Exception.Create('Do not closed sub expression');
+                 raise Exception.Create('Not closed sub expression');
                 ReadRepeaters(sub);
               end;
             end;
