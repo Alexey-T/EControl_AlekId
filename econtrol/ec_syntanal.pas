@@ -768,10 +768,12 @@ type
     FRanges: TSortedList;
     FOpenedBlocks: TSortedList;    // Opened ranges (without end)
 
-
     FTaskAppendDisabled: Boolean;
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 3c40471968f33585000e08d5b7f33497a793e02d
     FPrevProgress: integer;
 
     FRepeateAnalysis: Boolean;
@@ -3216,13 +3218,19 @@ begin
   FRanges := TSortedList.Create(True);
   FOpenedBlocks := TSortedList.Create(False);
   FPrevProgress := -1;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3c40471968f33585000e08d5b7f33497a793e02d
 end;
 
 destructor TecClientSyntAnalyzer.Destroy;
 begin
   StopSyntax(true);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3c40471968f33585000e08d5b7f33497a793e02d
 
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);

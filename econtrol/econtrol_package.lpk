@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <Package Version="4">
@@ -82,3 +83,93 @@
     </PublishOptions>
   </Package>
 </CONFIG>
+=======
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="econtrol_package"/>
+    <Type Value="RunTimeOnly"/>
+    <Author Value="Alexey Torgashin"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <IncludeFiles Value="&quot;d:\devsoft\cmp\mORMot&quot;&quot;d:\devsoft\cmp\mORMot&quot;;..\..\..\cmp\mORMot"/>
+        <OtherUnitFiles Value="&quot;d:\devsoft\cmp\mORMot&quot;;&quot;d:\devsoft\cmp\mORMot\SQLite3&quot;;..\..\..\cmp\mORMot;..\..\..\cmp\mORMot\SQLite3"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <CodeGeneration>
+        <Optimizations>
+          <OptimizationLevel Value="0"/>
+        </Optimizations>
+      </CodeGeneration>
+      <Other>
+        <CustomOptions Value="-Sa
+-dDEBUG"/>
+        <OtherDefines Count="1">
+          <Define0 Value="DEBUG"/>
+        </OtherDefines>
+      </Other>
+    </CompilerOptions>
+    <Description Value="Core of EControl Syntax Editor SDK. Contains parser (syntax analyzer) of source codes."/>
+    <License Value="Licensed for open-source only. See readme.txt."/>
+    <Version Major="1" Minor="2"/>
+    <Files Count="9">
+      <Item1>
+        <Filename Value="ec_lists.pas"/>
+        <UnitName Value="ec_Lists"/>
+      </Item1>
+      <Item2>
+        <Filename Value="ec_strutils.pas"/>
+        <UnitName Value="ec_StrUtils"/>
+      </Item2>
+      <Item3>
+        <Filename Value="ec_syntanal.pas"/>
+        <UnitName Value="ec_SyntAnal"/>
+      </Item3>
+      <Item4>
+        <Filename Value="ec_syntgramma.pas"/>
+        <UnitName Value="ec_SyntGramma"/>
+      </Item4>
+      <Item5>
+        <Filename Value="ec_regexpr.pas"/>
+        <UnitName Value="ec_RegExpr"/>
+      </Item5>
+      <Item6>
+        <Filename Value="ec_proc_lexer.pas"/>
+        <UnitName Value="ec_proc_lexer"/>
+      </Item6>
+      <Item7>
+        <Filename Value="ec_proc_streamcomponent.pas"/>
+        <UnitName Value="ec_proc_StreamComponent"/>
+      </Item7>
+      <Item8>
+        <Filename Value="ec_lexerlist.pas"/>
+        <UnitName Value="ec_LexerList"/>
+      </Item8>
+      <Item9>
+        <Filename Value="ec_async.pas"/>
+        <UnitName Value="ec_Async"/>
+      </Item9>
+    </Files>
+    <RequiredPkgs Count="3">
+      <Item1>
+        <PackageName Value="atsynedit_package"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="LCL"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="FCL"/>
+      </Item3>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
+>>>>>>> 3c40471968f33585000e08d5b7f33497a793e02d
