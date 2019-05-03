@@ -4028,14 +4028,14 @@ end;
 
 function TecClientSyntAnalyzer.GetRangeName(Range: TecTextRange): ecString;
 begin
- Result := '';
- WaitTillCoherent();
- try
-  if Assigned(Range.Rule) and (Range.Rule.NameFmt <> '') then
-     Result := RangeFormat(Range.Rule.NameFmt, Range);
-  if Result = '' then
-   Result := TagStr[Range.IdentIdx];
- finally ReleaseBackgroundLock(); end;
+  Result := '';
+  WaitTillCoherent();
+  try
+    if Assigned(Range.Rule) and (Range.Rule.NameFmt <> '') then
+      Result := RangeFormat(Range.Rule.NameFmt, Range);
+    if Result = '' then
+      Result := TagStr[Range.IdentIdx];
+  finally ReleaseBackgroundLock(); end;
 end;
 
 function TecClientSyntAnalyzer.GetRangeGroup(Range: TecTextRange): ecString;
