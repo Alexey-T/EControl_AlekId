@@ -763,6 +763,7 @@ type
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     procedure HandleStopRequest;
+    procedure ReportProgress(APos: integer);
     procedure SetDisableIdleAppend(const Value: Boolean);
 
   private
@@ -854,7 +855,7 @@ type
   TParseTokenEvent = procedure(Client: TecParserResults; const Text: ecString; Pos: integer;
       var TokenLength: integer; var Rule: TecTokenRule) of object;
 
-  TecParseProgressEvent = procedure(Sender: TObject; AProgress: integer) of object;
+  TecParseProgressEvent = procedure(Sender: TObject; ALineIndex, ALineCount: integer) of object;
 
   { TecSyntAnalyzer }
 
@@ -3359,11 +3360,27 @@ begin
 end;
 
 
+procedure TecClientSyntAnalyzer.ReportProgress(APos: integer);
+const
+  OffsetStep = 2000;
+var
+  NCount, NLine: integer;
+begin
+  if Abs(APos-FPrevProgress)>OffsetStep then
+  begin
+    FPrevProgress := APos;
+    NCount := FTagList.Get.Count;
+    if NCount=0 then exit;
+    NLine := FTagList.Get[NCount-1].Range.PointStart.Y;
+    if Assigned(OnLexerParseProgress) then
+      OnLexerParseProgress(Owner, NLine, Buffer.Count);
+  end;
+end;
+
 
 function TecClientSyntAnalyzer.DoSyntaxWork: boolean;
 var FPos, tmp, i: integer;
     own: TecSyntAnalyzer;
-    Progress: integer;
     isAsync: boolean;
     tokenCounter: integer;
     {$ifdef DEBUGLOG}
@@ -3371,31 +3388,12 @@ var FPos, tmp, i: integer;
     {$endif}
 label _Exit;
 
-  procedure CheckProgress();
-  const
-    ProgressStep = 3;
-    ProgressMinPos = 2000;
-  begin
-     if FPos < ProgressMinPos then
-       Progress := 0
-     else
-       Progress := FPos * 100 div FBuffer.TextLength
-                   div ProgressStep * ProgressStep;
-
-     if Progress <> FPrevProgress then
-     begin
-       FPrevProgress := Progress;
-       if Assigned(OnLexerParseProgress) then
-         OnLexerParseProgress(Owner, Progress);
-     end;
-  end;
-
   procedure CheckSyncRequest; inline;
   begin
     if isAsync then //and ((tokenCounter and minTokenStep)=minTokenStep) then
     begin
       FWorkerThread.YieldData();
-      CheckProgress();
+      ReportProgress(FPos);
     end;
   end;
 
