@@ -24,8 +24,12 @@ uses
   Controls,
   ExtCtrls,
   //Contnrs,
-  LazUTF8Classes, //TFileStreamUTF8
- {$IFDEF DEBUGLOG} SynCommons,SynLog,mORMotHttpClient,  {$ENDIF}
+  LazUTF8Classes,
+  {$IFDEF DEBUGLOG}
+  SynCommons,
+  SynLog,
+  mORMotHttpClient,
+  {$ENDIF}
   ec_RegExpr,
   ec_StrUtils,
   ec_Lists,
@@ -249,10 +253,6 @@ type
     property Items[Index: integer]: TecSyntaxFormat read GetItem; default;
   end;
 
-// *******************************************************************
-// description classes of text contents
-// *******************************************************************
-
   { TecSyntToken }
 
   TecSyntToken = record
@@ -260,25 +260,22 @@ type
     FRange: TRange;
     FTokenType: integer;
     FRule: TRuleCollectionItem;
-    private
+  private
     function GetStyle: TecSyntaxFormat;
-
+    procedure CorrectEndRange(aEndPos: integer; constref aPointEnd: TPoint);
+    procedure SetRule(rule: TRuleCollectionItem);
+    procedure SetTokenType(&type: integer);
+  public
     constructor Create(ARule: TRuleCollectionItem;
       AStartPos, AEndPos: integer;
       const APointStart, APointEnd: TPoint);
-    procedure CorrectEndRange(aEndPos:integer;constref aPointEnd:TPoint);
-    procedure SetRule(rule:TRuleCollectionItem);
-    procedure SetTokenType(&type:integer);
-  public
     function GetStr(const Source: ecString): ecString;
-    class operator Equal(const A,B: TecSyntToken): boolean;
+    class operator Equal(const A, B: TecSyntToken): boolean;
     property Style: TecSyntaxFormat read GetStyle;
-    property Range:TRange read FRange;
-    property TokenType:integer read FTokenType;
-    property Rule :TRuleCollectionItem read FRule;
-
+    property Range: TRange read FRange;
+    property TokenType: integer read FTokenType;
+    property Rule: TRuleCollectionItem read FRule;
   end;
-
 
 
   TecTextRange = class(TSortedItem)
@@ -622,7 +619,6 @@ type
 //
 // *******************************************************************
 
-
 // *******************************************************************
 //  Syntax analizer for single client
 //            container of description objects
@@ -630,40 +626,37 @@ type
 
   TecTokenList = GRangeList<TecSyntToken>;
 
-  TecSubLexerRanges =class (GRangeList<TecSubLexerRange>)
+  TecSubLexerRanges = class (GRangeList<TecSubLexerRange>)
   end;
-
-
 
 
   { TecAsyncSelector }
 
-  TecAsyncSelector<TEntity:class>=record
-   strict private
-   FParent:TecParserResults;
-   FEntity, FWorkerEntity:TEntity;
-   private
-   procedure Release();
-   procedure Swap();
-   public
-   procedure Init(const parent:TecParserResults;
-     const aEntity, workEntitiy: TEntity);
-   property Parent :TecParserResults read FParent;
-   property WorkerEntity:TEntity read FWorkerEntity;
-   property Entity:TEntity read FEntity;
-   function Get:TEntity;
+  TecAsyncSelector<TEntity: class>=record
+  strict private
+    FParent: TecParserResults;
+    FEntity, FWorkerEntity: TEntity;
+  private
+    procedure Release();
+    procedure Swap();
+  public
+    procedure Init(const parent: TecParserResults; const aEntity, workEntitiy: TEntity);
+    property Parent: TecParserResults read FParent;
+    property WorkerEntity: TEntity read FWorkerEntity;
+    property Entity: TEntity read FEntity;
+    function Get: TEntity;
   end;
 
 
-  TecTagListSelector=TecAsyncSelector<TecTokenList>;
+  TecTagListSelector = TecAsyncSelector<TecTokenList>;
 
   { TecTagListSelectorHelp }
 
-  TecTagListSelectorHelp=record helper for TecTagListSelector
-   procedure SyncWorkerList(toWorker:boolean);
+  TecTagListSelectorHelp = record helper for TecTagListSelector
+    procedure SyncWorkerList(toWorker: boolean);
   end;
 
-  TecSubLexerBlocksSelector=TecAsyncSelector<TecSubLexerRanges>;
+  TecSubLexerBlocksSelector = TecAsyncSelector<TecSubLexerRanges>;
 
 
   { TecParserResults }
@@ -684,19 +677,17 @@ type
     function GetSubLexerRangeCount: integer;
     function GetSubLexerRange(Index: integer): TecSubLexerRange;
     procedure SetTags(Index: integer; const AValue: TecSyntToken);
-    strict protected
+  strict protected
     FOwner: TecSyntAnalyzer;
-
 
     FParserStatus: TParseStatus;
     FWorkerTaskMustStop: smallint;
+    FWorkerRequested: boolean;
     FLastAnalPos: integer;
 
-    FSubLexerBlocks : TecSubLexerBlocksSelector;
+    FSubLexerBlocks: TecSubLexerBlocksSelector;
     FTagList: TecTagListSelector;
     FBuffer: TATStringBuffer;
-
-    FWorkerRequested:boolean;
 
     procedure Finished; virtual;
     procedure SaveState;
@@ -708,35 +699,37 @@ type
 
     procedure CloseAtEnd(StartTagIdx: integer); virtual; abstract;
     // whether current thread is Syntaxer
-    function GetIsCoherentThread:boolean;
-
+    function GetIsCoherentThread: boolean;
 
     procedure AssertNonWorker();
-    procedure AssertCoherent();inline;
+    procedure AssertCoherent(); inline;
 
-    procedure SwitchContext(toWorker:boolean);
+    procedure SwitchContext(toWorker: boolean);
     procedure WorkerDetached();
-    procedure BeforeDestruction();override;
+    procedure BeforeDestruction(); override;
     procedure EnterTagsSync();
     procedure LeaveTagsSync();
   protected
     FClient: IecSyntClient;
-    FWorkerThread:TecSyntaxerThread;
-    function AcquireWorker():TecSyntaxerThread;
-    function GetIsSyntaxThread():boolean;inline;
+    FWorkerThread: TecSyntaxerThread;
+    function AcquireWorker(): TecSyntaxerThread;
+    function GetIsSyntaxThread(): boolean; inline;
     function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; virtual;
     procedure ApplyStates(Rule: TRuleCollectionItem);
     function GetTokenStr(Index: integer): ecString; override;
     function GetTokenType(Index: integer): integer; override;
   public
-    constructor Create(AOwner: TecSyntAnalyzer; ABuffer: TATStringBuffer;
-                   const AClient: IecSyntClient;const SynEditAdapter:ISynEditAdapter; useWorkerThread:boolean); virtual;
+    constructor Create(AOwner: TecSyntAnalyzer;
+                       ABuffer: TATStringBuffer;
+                       const AClient: IecSyntClient;
+                       const SynEditAdapter: ISynEditAdapter;
+                       useWorkerThread: boolean); virtual;
     destructor Destroy; override;
     procedure Clear; virtual;
 
     function AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
     function ParserStateAtPos(TokenIndex: integer): integer;
-    function WaitTillCoherent(roSync:boolean=false; timeOut:Cardinal=High(Cardinal) ):boolean;
+    function WaitTillCoherent(roSync: boolean=false; timeOut: Cardinal=High(Cardinal) ): boolean;
     procedure ReleaseBackgroundLock();
 
     property Owner: TecSyntAnalyzer read FOwner;
@@ -764,7 +757,7 @@ type
     FPrevProgress: integer;
 
     FRepeateAnalysis: Boolean;
-    FAppendAtPosArg:integer;
+    FAppendAtPosArg: integer;
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
     function GetOpened(Index: integer): TecTextRange;
@@ -775,22 +768,25 @@ type
   private
     FStartSepRangeAnal: integer;
   strict protected
-    FEditAdapter:ISynEditAdapter;
+    FEditAdapter: ISynEditAdapter;
     procedure HandleAppendToPosDone;
     function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
     function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
     procedure Finished; override;
     procedure FireUpdateEditor();
-    function  DoSyntaxWork:boolean;
+    function  DoSyntaxWork: boolean;
     procedure CloseAtEnd(StartTagIdx: integer); override;
-    function DoChangeAtPos():boolean;
+    function DoChangeAtPos(): boolean;
   protected
     procedure AddRange(Range: TecTextRange);
 
   public
     function StopSyntax(AndWait: boolean): boolean;
-    constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
-                const AClient: IecSyntClient; const synEditAdapter:ISynEditAdapter; useWorkerThread:boolean); override;
+    constructor Create(AOwner: TecSyntAnalyzer;
+                       SrcProc: TATStringBuffer;
+                       const AClient: IecSyntClient;
+                       const synEditAdapter: ISynEditAdapter;
+                       useWorkerThread: boolean); override;
 
     destructor Destroy; override;
     procedure Clear; override;
@@ -809,8 +805,8 @@ type
     procedure AppendToPos(APos: integer; AUseTimer: boolean= true);
     // Requires analyzed to APos
     procedure AppendToPosAsync(APos: integer);
-    function DoAppendToPos():boolean;
-    procedure SyntaxDoneHandler(thread:TObject);
+    function DoAppendToPos(): boolean;
+    procedure SyntaxDoneHandler(thread: TObject);
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
 
 
@@ -825,7 +821,7 @@ type
     property RangeCount: integer read GetRangeCount;
     property Ranges[Index: integer]: TecTextRange read GetRanges;
     property DisableIdleAppend: Boolean read FTaskAppendDisabled write SetDisableIdleAppend;
-    property SynEditAdapter:ISynEditAdapter read FEditAdapter;
+    property SynEditAdapter: ISynEditAdapter read FEditAdapter;
   end;
 
 // *******************************************************************
@@ -1080,8 +1076,10 @@ var
 
 implementation
 
-uses  Forms, Dialogs,
-  Math;
+uses
+  Forms, Dialogs, Math;
+
+//const minTokenStep = 0;
 
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
@@ -1091,10 +1089,6 @@ const
                              'String'  + #13#10 +
                              'Number'  + #13#10 +
                              'Preprocessor';
-
-
-
-const minTokenStep=0;
 
 // Local copy of ecUpCase. it is faster, uses AnsiChar UpCase
 function ecUpCase(ch: WideChar): char; inline;
@@ -2667,8 +2661,12 @@ end;
 
 { TecParserResults }
 
-constructor TecParserResults.Create(AOwner: TecSyntAnalyzer;
-  ABuffer: TATStringBuffer; const AClient: IecSyntClient;const SynEditAdapter:ISynEditAdapter; useWorkerThread:boolean);
+constructor TecParserResults.Create(
+  AOwner: TecSyntAnalyzer;
+  ABuffer: TATStringBuffer;
+  const AClient: IecSyntClient;
+  const SynEditAdapter: ISynEditAdapter;
+  useWorkerThread: boolean);
 begin
   self._AddRef();
   FLastAnalPos:=0;
@@ -2686,10 +2684,10 @@ begin
   FStateChanges := TecRangeList.Create;
   FWorkerRequested:=useWorkerThread;
   if useWorkerThread then begin
-     FTagList.Init(self, TecTokenList.Create(False),nil );
+    FTagList.Init(self, TecTokenList.Create(False), nil);
   end
   else begin
-    FTagList.Init(self,TecTokenList.Create(False), nil);
+    FTagList.Init(self, TecTokenList.Create(False), nil);
   end;
 
   FOwner.FClientList.Add(Self);
@@ -2778,7 +2776,7 @@ begin
 end;
 
 function TecParserResults.GetLastPos(const Source: ecString): integer;
-var tagCount:integer;
+var tagCount: integer;
 begin
   AssertCoherent();
   tagCount := FTagList.Get.Count;
@@ -2800,12 +2798,11 @@ begin
 end;
 
 // True if end of the text
-function TecParserResults.ExtractTag(const Source: ecString; var FPos: integer
-  ): Boolean;
+function TecParserResults.ExtractTag(const Source: ecString; var FPos: integer): Boolean;
 var N: integer;
     token: TecSyntToken;
     own: TecSyntAnalyzer;
-    subLexerBlocks:TecSubLexerRanges;
+    subLexerBlocks: TecSubLexerRanges;
 
    // Select current lexer
    procedure GetOwner;
@@ -2904,7 +2901,7 @@ var N: integer;
 
 
    procedure TryOpenSubLexer;
-   var i,sCnt: integer;
+   var i, sCnt: integer;
    begin
      sCnt :=own.SubAnalyzers.Count;
      for i := 0 to sCnt - 1 do
@@ -3027,15 +3024,15 @@ begin
 end;
 
 
-procedure TecParserResults.SwitchContext(toWorker:boolean);
+procedure TecParserResults.SwitchContext(toWorker: boolean);
 begin
- //if not toWorker then
- //  Dec(FWorkerTaskMustStop);
+  //if not toWorker then
+  //  Dec(FWorkerTaskMustStop);
   //FWorkerTaskMustStop := false;
- EnterTagsSync();
- FSubLexerBlocks.Swap();
- FTagList.Swap();
- LeaveTagsSync();
+  EnterTagsSync();
+  FSubLexerBlocks.Swap();
+  FTagList.Swap();
+  LeaveTagsSync();
 end;
 
 procedure TecParserResults.WorkerDetached();
@@ -3050,7 +3047,7 @@ begin
 end;
 
 
-function TecParserResults.WaitTillCoherent(roSync:boolean; timeOut:Cardinal): boolean;
+function TecParserResults.WaitTillCoherent(roSync: boolean; timeOut: Cardinal): boolean;
 var isMain: boolean;
 begin
   if Assigned(FWorkerThread) then begin
@@ -3068,7 +3065,7 @@ begin
 end;
 
 procedure TecParserResults.AssertNonWorker();
-var isWorker:boolean;
+var isWorker: boolean;
 begin
   isWorker := GetIsSyntaxThread();
   if isWorker then
@@ -3078,7 +3075,7 @@ end;
 
 procedure TecParserResults.AssertCoherent();
 {$IFDEF DEBUG}
-var coherent, isWorker, noTask, notWorking, synAccessible:boolean;
+var coherent, isWorker, noTask, notWorking, synAccessible: boolean;
 begin
   coherent :=(FWorkerThread= nil);
   if coherent then exit;
@@ -3175,15 +3172,19 @@ end;
 
 { TecClientSyntAnalyzer }
 
-constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
-  const AClient: IecSyntClient;const synEditAdapter:ISynEditAdapter; useWorkerThread:boolean);
+constructor TecClientSyntAnalyzer.Create(
+  AOwner: TecSyntAnalyzer;
+  SrcProc: TATStringBuffer;
+  const AClient: IecSyntClient;
+  const synEditAdapter: ISynEditAdapter;
+  useWorkerThread: boolean);
 begin
   FWorkerTaskMustStop:=0;
   //FWorkerIsBusy:=false;
   FTaskAppendDisabled:=false;
   FRepeateAnalysis:=false;
   FEditAdapter:=SynEditAdapter;
-  inherited Create( AOwner, SrcProc, AClient,synEditAdapter, useWorkerThread);
+  inherited Create(AOwner, SrcProc, AClient, synEditAdapter, useWorkerThread);
   FRanges := TSortedList.Create(True);
   FOpenedBlocks := TSortedList.Create(False);
   FPrevProgress := -1;
@@ -3276,7 +3277,7 @@ function TecClientSyntAnalyzer.HasOpened(Rule: TRuleCollectionItem; Parent: TecT
 var i: integer;
     prn: TecTagBlockCondition;
 begin
- AssertCoherent();
+  AssertCoherent();
   if Strict then  begin
       if FOpenedBlocks.Count > 0 then
         begin
@@ -3319,7 +3320,7 @@ end;
 procedure TecClientSyntAnalyzer.Finished;
 var i: integer;
   Sub: TecSubLexerRange;
-  subLexerBlocks:TecSubLexerRanges;
+  subLexerBlocks: TecSubLexerRanges;
 begin
   if not IsParserBusy then Exit;
 
@@ -3359,13 +3360,13 @@ end;
 
 
 
-function TecClientSyntAnalyzer.DoSyntaxWork:boolean;
+function TecClientSyntAnalyzer.DoSyntaxWork: boolean;
 var FPos, tmp, i: integer;
     own: TecSyntAnalyzer;
     Progress: integer;
     isAsync: boolean;
     tokenCounter: integer;
-    {$ifdef DEBUG}
+    {$ifdef DEBUGLOG}
     time: Cardinal;
     {$endif}
 label _Exit;
@@ -3389,11 +3390,12 @@ label _Exit;
      end;
   end;
 
-  procedure CheckSyncRequest;inline;
+  procedure CheckSyncRequest; inline;
   begin
-    if isAsync and (tokenCounter and minTokenStep =minTokenStep) then  begin
-        FWorkerThread.YieldData();
-         CheckProgress();
+    if isAsync then //and ((tokenCounter and minTokenStep)=minTokenStep) then
+    begin
+      FWorkerThread.YieldData();
+      CheckProgress();
     end;
   end;
 
@@ -3417,7 +3419,7 @@ begin
      begin
        if FOwner.SeparateBlockAnalysis then
        begin
-         {$ifdef DEBUG}
+         {$ifdef DEBUGLOG}
          time := GetTickCount;
          {$endif}
          for i := FStartSepRangeAnal + 1 to TagCount do
@@ -3430,7 +3432,7 @@ begin
              if own <> FOwner then
                own.SelectTokenFormat(Self, FBuffer.FText, False, i);
          end;//for
-         {$ifdef DEBUG}
+         {$ifdef DEBUGLOG}
          time := GetTickCount-time;
          {$endif}
        end;
@@ -3471,19 +3473,19 @@ begin
   if not IsParserBusy then Exit;
   FAppendAtPosArg := APos;
   FBuffer.Lock; //SyntaxDoneHandler would release the lock
-  AcquireWorker().ScheduleWork(DoAppendToPos,APos, SyntaxDoneHandler, true
-  {$IFDEF DEBUGLOG},'DoAppendToPosAsync'{$ENDIF} );
+  AcquireWorker().ScheduleWork(DoAppendToPos, APos, SyntaxDoneHandler, true
+                              {$IFDEF DEBUGLOG},'DoAppendToPosAsync'{$ENDIF} );
 end;
 
-function TecClientSyntAnalyzer.DoAppendToPos():boolean;
-var aPos, currentPos, tokenCount:integer;
-    callRemainingSyntax,tokensDone, isAsync:boolean;
+function TecClientSyntAnalyzer.DoAppendToPos(): boolean;
+var aPos, currentPos, tokenCount: integer;
+    callRemainingSyntax, tokensDone, isAsync: boolean;
 
-  procedure CheckSyncRequest;inline;
+  procedure CheckSyncRequest; inline;
   begin
-    if isAsync and (tokenCount and minTokenStep =minTokenStep) then  begin
-        FWorkerThread.YieldData();
-        //CheckProgress();
+    if isAsync then begin //and (tokenCount and minTokenStep =minTokenStep) then  begin
+      FWorkerThread.YieldData();
+      //CheckProgress();
     end;
   end;
 
@@ -4116,7 +4118,7 @@ begin
 end;
 
 function TecClientSyntAnalyzer.StopSyntax(AndWait: boolean): boolean;
-var isAsync:boolean;
+var isAsync: boolean;
 begin
   FParserStatus := psAborted;
   FWorkerTaskMustStop := 100;
@@ -4198,23 +4200,24 @@ begin
  finally ReleaseBackgroundLock(); end;
 end;
 
-function TecClientSyntAnalyzer.DoChangeAtPos():boolean;
-var aPos:integer;
-   i, N,tokenCount: integer;
-   time:Cardinal;
+function TecClientSyntAnalyzer.DoChangeAtPos(): boolean;
+var
+  aPos, i, N, tokenCount: integer;
   Sub: TecSubLexerRange;
-  sublexerBlocks:TecSubLexerRanges;
-  txtRange:  TecTextRange;
-  tagList:TecTokenList;
-  isAsync:boolean;
+  sublexerBlocks: TecSubLexerRanges;
+  txtRange: TecTextRange;
+  tagList: TecTokenList;
+  isAsync: boolean;
+  {$ifdef DEBUGLOG}
+  time: Cardinal;
+  {$endif}
 
-  procedure CheckSyncRequest;inline;
+  procedure CheckSyncRequest; inline;
   begin
-    if isAsync and (tokenCount and minTokenStep =minTokenStep) then  begin
-        FWorkerThread.YieldData();
+    if isAsync then begin //and (tokenCount and minTokenStep =minTokenStep) then  begin
+      FWorkerThread.YieldData();
     end;
   end;
-
 
  procedure CleanRangeList(List: TSortedList; IsClosed: Boolean);
  var i: integer;
@@ -4236,7 +4239,9 @@ begin
    if IsParserBusy then
      FParserStatus := psNone;
    WaitTillCoherent();
+   {$ifdef DEBUGLOG}
    time := GetTickCount;
+   {$endif}
    sublexerBlocks := FSubLexerBlocks.Get;
    try
      FParserStatus := psNone;
@@ -4291,8 +4296,10 @@ begin
 
      // Restore parser state
      RestoreState;
-     time:= GetTickCount-time;
-  finally ReleaseBackgroundLock();end;
+     {$ifdef DEBUGLOG}
+     time := GetTickCount-time;
+     {$endif}
+  finally ReleaseBackgroundLock(); end;
 end;
 
 
@@ -4547,7 +4554,7 @@ end;
 
 function TecSyntAnalyzer.GetToken(Client: TecParserResults; const Source: ecString;
                               APos: integer; OnlyGlobal: Boolean): TecSyntToken;
-var i, N, lp,trCount: integer;
+var i, N, lp, trCount: integer;
     Rule: TecTokenRule;
     PntStart, PntEnd: TPoint;
 
@@ -4664,7 +4671,7 @@ begin
 end;
 
 procedure TecSyntAnalyzer.ClearClientContents;
-var i:integer;
+var i: integer;
 begin
   if FCoping then Exit;
   FCoping := True;
@@ -4684,7 +4691,7 @@ begin
 end;
 
 procedure TecSyntAnalyzer.UpdateClients;
-var i:integer;
+var i: integer;
 begin
   if FCoping then Exit;
   FCoping := True;
@@ -4945,8 +4952,8 @@ begin
 end;
 
 procedure TecSyntAnalyzer.CompileGramma;
-var i, brCount : integer;
-    bRule:TecTagBlockCondition;
+var i, brCount: integer;
+    bRule: TecTagBlockCondition;
 begin
   FGrammaParser.CompileGramma(FTokenTypeNames);
   brCount:=FBlockRules.Count;
@@ -5378,7 +5385,7 @@ end;
 
 procedure TLoadableComponent.SetName(const NewName: TComponentName);
 var Base: string;
-    n:integer;
+    n: integer;
 begin
   if not FSkipNewName then
    if CheckExistingName and (Owner.FindComponent(NewName) <> nil) then
@@ -5572,7 +5579,7 @@ end;
 
 
 procedure TecAsyncSelector<TEntity>.Swap();
-var glass:TEntity;
+var glass: TEntity;
 begin
  with FParent.FWorkerThread do begin
     DoTagSync(true);
@@ -5586,34 +5593,34 @@ end;
 
 function TecAsyncSelector<TEntity>.Get: TEntity;
 begin
-   if FParent.GetIsSyntaxThread() then
-     Result:=FWorkerEntity
-   else
-     Result:= FEntity;
-   if not Assigned(Result) then
-    Result:=nil;
+  if FParent.GetIsSyntaxThread() then
+    Result := FWorkerEntity
+  else
+    Result := FEntity;
+  if not Assigned(Result) then
+    Result := nil; //AT: ??
 end;
 
 { TecTagListSelectorHelp }
 
-procedure TecTagListSelectorHelp.SyncWorkerList(toWorker:boolean);
+procedure TecTagListSelectorHelp.SyncWorkerList(toWorker: boolean);
 begin
- with  self.Parent.FWorkerThread do begin
-   DoTagSync(true);
-   try
-   if toWorker then
-    WorkerEntity.Assign(Entity)
-   else
-     Entity.Assign(WorkerEntity);
-   finally DoTagSync(false);  end;
- end;
+  with Self.Parent.FWorkerThread do begin
+    DoTagSync(true);
+    try
+      if toWorker then
+        WorkerEntity.Assign(Entity)
+      else
+        Entity.Assign(WorkerEntity);
+    finally
+      DoTagSync(false);
+    end;
+  end;
 end;
 
 
-
-
 initialization
-
   Classes.RegisterClass(TLibSyntAnalyzer);
+
 end.
 
