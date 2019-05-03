@@ -638,6 +638,8 @@ begin
         //Res := Lex.AddClient(nil, GetGrammaLines);
         Res := TecClientSyntAnalyzer.Create(Lex, GetGrammaLines, nil, nil, false);
         if Res <> nil then
+        begin
+          Res.WaitTillCoherent();
           try
             // Prepare Lexer
             AddTokenRule(0, '//.*');                 // comment
@@ -670,8 +672,10 @@ begin
             for i := 0 to FGrammaRules.Count - 1 do
              LinkRuleItems(TParserRule(FGrammaRules[i]));
           finally
+            Res.ReleaseBackgroundLock();
             Res.Free;
           end;
+        end;
       finally
         Lex.Free;
       end;
