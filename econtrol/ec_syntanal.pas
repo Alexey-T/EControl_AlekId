@@ -4185,7 +4185,8 @@ var i, j, IndentSize: integer;
     Token: TecSyntToken;
     S: string;
 begin
-  AssertCoherent();
+ WaitTillCoherent();
+ try
   for i := FOpenedBlocks.Count - 1 downto 0 do
    begin
     Range := TecTextRange(FOpenedBlocks[i]);
@@ -4212,6 +4213,7 @@ begin
        FOpenedBlocks.Delete(i);
      end;
    end;
+ finally ReleaseBackgroundLock(); end;
 end;
 
 function TecClientSyntAnalyzer.DoChangeAtPos():boolean;
