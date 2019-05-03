@@ -3487,46 +3487,50 @@ var aPos, currentPos, tokenCount: integer;
     end;
   end;
 
+const
+  cOffsetStepCheckSync = 5000;
 begin
- result:=true;
- isAsync:=GetIsSyntaxThread();
- if isAsync then
-   aPos:= (TThread.CurrentThread as TecSyntaxerThread).Argument
- else
-    aPos:=FAppendAtPosArg;
+  Result := true;
+  isAsync := GetIsSyntaxThread();
+  if isAsync then
+    aPos := (TThread.CurrentThread as TecSyntaxerThread).Argument
+  else
+    aPos := FAppendAtPosArg;
 
- callRemainingSyntax:= true;
- tokenCount:=0;
+  callRemainingSyntax := true;
+  tokenCount := 0;
 
- try
+  try
     currentPos := GetLastPos(FBuffer.FText);
-    while (currentPos - 1 <= APos + 1) and IsParserBusy do   begin
-       if apos-currentPos>5000 then
-              CheckSyncRequest();
-       inc(tokenCount);
+    while (currentPos - 1 <= APos + 1) and IsParserBusy do
+    begin
+       if aPos-currentPos>cOffsetStepCheckSync then
+         CheckSyncRequest();
+       Inc(tokenCount);
        tokensDone := ExtractTag(FBuffer.FText, currentPos{, False});
        if tokensDone then begin
          if not FOwner.SeparateBlockAnalysis then begin
            Finished;
-           callRemainingSyntax:=false;
+           callRemainingSyntax := false;
          end
          else begin
-          callRemainingSyntax:=true;
+           callRemainingSyntax := true;
            //if AUseTimer and not assigned(FSyntaxerThread) then  // TODO:  Get rid of AUseTimer
            //  IdleAppend
            //else
            //  TimerIdleTick(nil);
          end;
          Break;
-       end;//if
-    end;// while
+       end; //if
+    end; //while
     HandleAppendToPosDone();
     if callRemainingSyntax then
-       DoSyntaxWork();
+      DoSyntaxWork();
   finally
     FBuffer.Unlock;
   end;
 end;
+
 
 procedure TecClientSyntAnalyzer.SyntaxDoneHandler(thread: TObject);
 begin
@@ -3538,15 +3542,15 @@ procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 begin
    StopSyntax(true);
    FParserStatus := psNone;
-   FWorkerTaskMustStop:= 0;
-   if (FWorkerRequested) then  begin
+   FWorkerTaskMustStop := 0;
+   if FWorkerRequested then begin
      FBuffer.Lock;
      AcquireWorker().ScheduleWork(DoChangeAtPos, aPos, SyntaxDoneHandler, false
-     {$IFDEF DEBUGLOG},'ChangedAtPos'{$ENDIF} );
+                                  {$IFDEF DEBUGLOG},'ChangedAtPos'{$ENDIF} );
    end
    else begin
-      FAppendAtPosArg:=APos;
-      DoChangeAtPos();
+     FAppendAtPosArg := APos;
+     DoChangeAtPos();
    end;
 end;
 
