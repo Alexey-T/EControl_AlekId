@@ -2765,14 +2765,16 @@ end;
 
 function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
-  WaitTillCoherent();
-  try
+  //AT: all TagStr[] calls are inside WaitTillCoherent blocks, so blocking not needed
+  AssertCoherent();
+  //WaitTillCoherent();
+  //try
     if Index >= 0 then
       with Tags[Index] do
         Result := FBuffer.SubString(Range.StartPos + 1, Range.EndPos - Range.StartPos)
     else
       Result := '';
-  finally ReleaseBackgroundLock();  end;
+  //finally ReleaseBackgroundLock();  end;
 end;
 
 function TecParserResults.GetLastPos(const Source: ecString): integer;
