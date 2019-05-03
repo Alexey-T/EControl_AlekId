@@ -12,13 +12,17 @@ type
   { TForm1 }
 
   TForm1 = class(TForm)
-    Button1: TButton;
+    ButtonRun: TButton;
+    ButtonFile: TButton;
     ListBox1: TListBox;
-    procedure Button1Click(Sender: TObject);
+    OpenDialog1: TOpenDialog;
+    procedure ButtonFileClick(Sender: TObject);
+    procedure ButtonRunClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
     SText: string;
     procedure Test_EC(const Subj: Unicodestring);
+    procedure UseFile(const fn: string);
   public
 
   end;
@@ -105,7 +109,7 @@ end;
 
 { TForm1 }
 
-procedure TForm1.Button1Click(Sender: TObject);
+procedure TForm1.ButtonRunClick(Sender: TObject);
 var
   t: qword;
 begin
@@ -116,9 +120,15 @@ begin
   Listbox1.Items.Add(Format('Parsing by ec_RegExpr: %d ms', [t]));
 end;
 
+procedure TForm1.ButtonFileClick(Sender: TObject);
+begin
+  with OpenDialog1 do
+    if Execute then
+      UseFile(FileName);
+end;
+
 procedure TForm1.FormCreate(Sender: TObject);
 var
-  L: TStringList;
   fn: string;
 begin
   fn:= ExtractFileDir(ExtractFileDir(ExtractFileDir(Application.ExeName)))+
@@ -128,13 +138,20 @@ begin
     Listbox1.Items.Add('Cannot find sample file: '+fn);
     exit;
   end;
+  UseFile(fn);
+end;
 
+procedure TForm1.UseFile(const fn: string);
+var
+  L: TStringList;
+begin
   L:= TStringList.Create;
   L.LoadFromFile(fn);
   SText:= L.Text;
   L.Free;
 
-  Listbox1.Items.Add('Test string length (ec_syntanal.pas): '+IntToStr(Length(SText)));
+  ListBox1.Items.Add('Test file: '+fn);
+  ListBox1.Items.Add('Length: '+IntToStr(Length(SText)));
 end;
 
 end.
