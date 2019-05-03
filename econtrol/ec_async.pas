@@ -16,14 +16,8 @@ type
     end;
     TExceptionHandler = procedure (const e:Exception) of object;
 
-
-
-    { TecSyntaxerThread }
-    TecSyntaxerThread=class(TThread)
-    protected
-    FArgument:integer;
-    type
-      TSyntaxWorkDelegate = function:boolean of object;
+     PSyntaxWork=^TSyntaxWork;
+     TSyntaxWorkDelegate = function(pTask:PSyntaxWork):boolean of object;
 
      // TScheduleKind = (skTry, skRemove, skWait);
      { TSyntaxWork }
@@ -31,11 +25,12 @@ type
       Task:TSyntaxWorkDelegate;
       //happens when task is done(sender is thred) or cancelled(sender is nil)
       DoneHandler:TNotifyEvent;
+      FBufferVersion:Integer;
       Arg: Integer;
       Expendable:boolean;
       {$IFDEF DEBUGLOG}Name:ansistring;{$ENDIF}
       procedure Setup(const task:TSyntaxWorkDelegate;aArg:integer;
-      const doneEvent:TNotifyEvent; aExpendable:boolean
+      aBufferVersion:Integer; const doneEvent:TNotifyEvent; aExpendable:boolean
       {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF});overload;
       procedure Setup(constref other:TSyntaxWork);overload;
       procedure Clear();
@@ -43,7 +38,11 @@ type
       function IsSame(const other:TSyntaxWork):boolean;
      end;
 
+    { TecSyntaxerThread }
+    TecSyntaxerThread=class(TThread)
+    protected
 
+    type
     TWorkQueue= TQueue<TSyntaxWork>;
     TIdleDestroyTime= 1..300;
 
@@ -57,7 +56,7 @@ type
     FSyntaxQueue:TWorkQueue;
     FWakeUpEvent, FTaskDoneEvent : TEvent;
     FIdleTimeStart:Cardinal;
-    FSyncWall, FSchedulerWall, FTagSync: TCriticalSection;
+    FSyncWall, _FSchedulerWall, FTagSync: TCriticalSection;
     FSynRequestCount:integer;
     FOnError : TExceptionHandler;
     FStartTime: Cardinal;
@@ -72,10 +71,11 @@ type
     function GetScheduled(out task:TSyntaxWork): boolean;
     function WaitForNewTask(out task:TSyntaxWork): boolean;
     procedure Execute;override;
-    function ExecuteTask(const task:TSyntaxWork):boolean;
+    function ExecuteTask(var wrk:TSyntaxWork):boolean;
     procedure EnsureTerminated;
     procedure SetSchedulingEnabled(doEnable:boolean);
-
+    procedure BeginSchedule;
+    procedure EndSchedule;
     public
     constructor Create(const syntaxer:IAsyncSyntaxClient;
                    const errorHandler:TExceptionHandler);
@@ -85,6 +85,7 @@ type
     function RequestRelease(var me:TecSyntaxerThread):boolean;
     function GetSyncNowAccessible:boolean;
     procedure AcquireSync(roSync:boolean);
+    function TryAcquireSync():boolean;
     procedure ReleaseSync();
 //    function WaitTaskAndSync(const timeOut:Cardinal):boolean;
     function GetIsWorking():boolean; inline;
@@ -92,13 +93,14 @@ type
     procedure StopCurrentTask();
     procedure CancelExpendableTasks();
     function WaitTaskDone(time:Cardinal):boolean;
-    function ScheduleWork(syntaxProc : TSyntaxWorkDelegate;aArg:integer;
-                   aDoneHandler:TNotifyEvent; expendable:boolean
+    function ScheduleWork(syntaxProc : TSyntaxWorkDelegate;
+                   aArg, aBufferVersion:integer; aDoneHandler:TNotifyEvent;
+                   expendable:boolean
                    {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}):boolean;
+    procedure IssueSyncRequest();
     procedure DoTagSync(enter:boolean);
     procedure Terminate2;
     property BusyWorking:boolean read GetIsWorking;
-    property Argument:integer read FArgument;
     property IdleDestroyTime:TIdleDestroyTime read FIdleDestroyTime write FIdleDestroyTime;
   end;
 
@@ -113,40 +115,42 @@ implementation
 
 { TecSyntaxerThread.TSyntaxWork }
 
-procedure TecSyntaxerThread.TSyntaxWork.Setup(const task: TSyntaxWorkDelegate;
-  aArg:integer; const doneEvent: TNotifyEvent; aExpendable:boolean
+procedure TSyntaxWork.Setup(const task: TSyntaxWorkDelegate;
+  aArg:integer; aBufferVersion:Integer; const doneEvent: TNotifyEvent; aExpendable:boolean
   {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF});
 begin
     self.Task:=task; DoneHandler:=doneEvent;
     self.Arg:=aArg; self.Expendable:=aExpendable;
+    self.FBufferVersion:=aBufferVersion;
     {$IFDEF DEBUGLOG}
     self.Name:= name;
     {$ENDIF}
 end;
 
-procedure TecSyntaxerThread.TSyntaxWork.Setup(constref other: TSyntaxWork);
+procedure TSyntaxWork.Setup(constref other: TSyntaxWork);
 begin
   Task := other.Task; DoneHandler:=other.DoneHandler;
   Arg:=other.Arg; Expendable:=other.Expendable;
+  FBufferVersion:= other.FBufferVersion;
   {$IFDEF DEBUGLOG}
   Name:= other.Name;
   {$ENDIF}
 end;
 
-procedure TecSyntaxerThread.TSyntaxWork.Clear();
+procedure TSyntaxWork.Clear();
 begin
   Task:=nil;DoneHandler:=nil;
 end;
 
-function TecSyntaxerThread.TSyntaxWork.TaskAssigned(): boolean;
+function TSyntaxWork.TaskAssigned(): boolean;
 begin
  result :=assigned(Task);
 end;
 
-function TecSyntaxerThread.TSyntaxWork.IsSame(const other: TSyntaxWork
+function TSyntaxWork.IsSame(const other: TSyntaxWork
   ): boolean;
 begin
-  result := Task = other.Task;
+  result := @Task = @other.Task;
 end;
 
 
@@ -178,7 +182,7 @@ begin
   //  Format('TecSyntaxerThreadWake%d',[FThreadCount]));
   FTagSync :=TCriticalSection.Create();
   FSyncWall := TCriticalSection.Create();
-  FSchedulerWall := TCriticalSection.Create();
+  _FSchedulerWall := TCriticalSection.Create();
   inherited Create(false);
   FreeOnTerminate:=true;
 end;
@@ -206,6 +210,11 @@ begin
   {$ENDIF}
 end;
 
+function TecSyntaxerThread.TryAcquireSync(): boolean;
+begin
+ result:=FSyncWall.TryEnter;
+end;
+
 procedure TecSyntaxerThread.ReleaseSync();
 begin
 //if not GetIsWorkerThread() then
@@ -219,16 +228,20 @@ end;
 
 procedure TecSyntaxerThread.StopCurrentTask();
 begin
- FSchedulerWall.Enter;
+BeginSchedule;
  FStopCurrentTask:=true;
- FSchedulerWall.Leave;
+EndSchedule;
 end;
 
 procedure TecSyntaxerThread.CancelExpendableTasks();
 var task:TSyntaxWork;
     q:TWorkQueue;
 begin
-FSchedulerWall.Enter;
+
+BeginSchedule;
+{$IFDEF DEBUGLOG}
+TSynLog.Add.Log(sllCache, 'CancelExpendableTasks');
+{$ENDIF}
 try
 if FSyntaxQueue.Count>0  then begin
   q:=TWorkQueue.Create;
@@ -244,7 +257,7 @@ if FSyntaxQueue.Count>0  then begin
    q.Free();
 end;
 
-finally FSchedulerWall.Leave;end;
+finally EndSchedule; end;
 end;
 
 function TecSyntaxerThread.WaitTaskDone(time: Cardinal): boolean;
@@ -266,8 +279,9 @@ begin
  {$ENDIF}
 end;
 
-function TecSyntaxerThread.ScheduleWork(syntaxProc: TSyntaxWorkDelegate; aArg:integer;
-  aDoneHandler: TNotifyEvent; expendable:boolean {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}): boolean;
+function TecSyntaxerThread.ScheduleWork(syntaxProc: TSyntaxWorkDelegate;
+  aArg, aBufferVersion:integer; aDoneHandler: TNotifyEvent;
+  expendable:boolean {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}): boolean;
 var isBusy:boolean;
     newTask:TSyntaxWork;
     label Tail;
@@ -278,9 +292,9 @@ begin
   if FSchedulingDisabled then
     Assert(false, 'Schedule, when it''s disabled');
 
-  FSchedulerWall.Enter();
+  BeginSchedule;
    try
-      newTask.Setup(syntaxProc,aArg, aDoneHandler, expendable
+      newTask.Setup(syntaxProc,aArg,aBufferVersion, aDoneHandler, expendable
       {$IFDEF DEBUGLOG},name{$ENDIF} );
 
       {$IFDEF DEBUGLOG}
@@ -288,9 +302,14 @@ begin
       {$ENDIF}
       FSyntaxQueue.Enqueue(newTask);
   finally
-    FSchedulerWall.Leave();
+    EndSchedule;
   end;
   FWakeUpEvent.SetEvent;
+end;
+
+procedure TecSyntaxerThread.IssueSyncRequest();
+begin
+FSynRequestCount:=1;
 end;
 
 procedure TecSyntaxerThread.DoTagSync(enter: boolean);
@@ -314,7 +333,8 @@ end;
 
 function TecSyntaxerThread.RequestRelease(var me:TecSyntaxerThread): boolean;
 begin
-FSchedulerWall.Enter;
+BeginSchedule;
+try
 result:= not GetIsWorking() ;
 if result then begin
   result:= FSyntaxQueue.Count<=0;
@@ -322,10 +342,14 @@ if result then begin
      me:=nil;
 end;
 end;
+finally EndSchedule; end;
 if result then  Terminate;
-FSchedulerWall.Leave;
+
 
 end;
+
+
+
 
 
 
@@ -342,12 +366,12 @@ begin
  {$ENDIF}
  task.Clear();
  FTaskDoneEvent.SetEvent();
- FSchedulerWall.Acquire();
+ BeginSchedule;
  try
   FSyntaxWork.Clear;
   if (FStopCurrentTask) then
                    FStopCurrentTask:=false;
- finally  FSchedulerWall.Release(); end;
+ finally  EndSchedule; end;
 
 end;
 
@@ -366,13 +390,13 @@ function TecSyntaxerThread.GetScheduled(out task:TSyntaxWork): boolean;
 begin
  result:= false;
  if FSchedulingDisabled then exit;
-  FSchedulerWall.Enter;
+  BeginSchedule;
   try
   result:= FSyntaxQueue.Count >0;
   if result then begin
    task.Setup(FSyntaxQueue.Dequeue());
   end;
-  finally FSchedulerWall.Leave; end;
+  finally EndSchedule; end;
 end;
 
 function TecSyntaxerThread.WaitForNewTask(out task:TSyntaxWork): boolean;
@@ -385,7 +409,8 @@ begin
    waitRslt:= FWakeUpEvent.WaitFor(1000);
 
    Assert(waitRslt <> wrError, 'FWakeUpEvent released? Must never!');
-   FSchedulerWall.Enter;
+   BeginSchedule;
+   try
    result := GetScheduled(task);
    if not result then begin
      timeWait:=GetTickCount -FIdleTimeStart;
@@ -397,7 +422,9 @@ begin
 
      end;
    end;
-   FSchedulerWall.Leave;
+   finally
+     EndSchedule;
+   end;
 end;
 
 procedure TecSyntaxerThread.Execute;
@@ -438,14 +465,13 @@ begin
   FClientSyntaxer:=nil;
 end;
 
-function TecSyntaxerThread.ExecuteTask(const task: TSyntaxWork):boolean;
+function TecSyntaxerThread.ExecuteTask(var wrk: TSyntaxWork):boolean;
 begin
   result := true; // in case of error
   assert(GetIsWorkerThread(),
              'ExecuteTask must only be invoked asynchronously');
-  FArgument:=task.Arg;
   try
-   result := task.Task();
+   result := wrk.Task(@wrk);
   except
    on e:Exception do  HandleError(e);
   end;
@@ -462,10 +488,28 @@ end;
 
 procedure TecSyntaxerThread.SetSchedulingEnabled(doEnable: boolean);
 begin
- FSchedulerWall.Enter;
+ BeginSchedule;
  FSchedulingDisabled:= not doEnable;
- FSchedulerWall.Leave;
+ EndSchedule;
 end;
+
+procedure TecSyntaxerThread.BeginSchedule;
+begin
+ {$IFDEF DEBUGLOG}
+// TSynLog.Add.Log(sllEnter, 'schedule BEGIN' );
+ {$ENDIF}
+ _FSchedulerWall.Enter;
+end;
+
+procedure TecSyntaxerThread.EndSchedule;
+begin
+ {$IFDEF DEBUGLOG}
+// TSynLog.Add.Log(sllLeave, 'schedule End' );
+ {$ENDIF}
+ _FSchedulerWall.Leave;
+end;
+
+
 
 procedure TecSyntaxerThread.YieldData(andWait:boolean);
 begin
@@ -477,7 +521,7 @@ begin
   TSynLog.Add.Log( sllEnter, 'Yield Data!');
   {$ENDIF}
   if andWait then
-     Sleep(300)
+     Sleep(1000)
   else Yield;
   FSyncWall.Acquire;
   FClientSyntaxer.SwitchContext(true);
@@ -500,7 +544,7 @@ begin
   {$ENDIF}
   FreeAndNil(FWakeUpEvent);
   FreeAndNil(FSyncWall);
-  FreeAndNil(FSchedulerWall);
+  FreeAndNil(_FSchedulerWall);
   FreeAndNil(FTagSync);
   FreeAndNil(FSyntaxQueue);
   inherited Destroy();
@@ -556,7 +600,7 @@ end;
 var hlog:TSQLHttpClient;
 procedure MakeLogger();
 begin
- TSynLog.Family.LevelStackTrace:=[sllWarning,sllCustom1] ;
+ TSynLog.Family.LevelStackTrace:=[sllWarning,sllCustom1, sllCustom2] ;
  TSynLog.Family.Level:=LOG_VERBOSE;
  TSynLog.Family.PerThreadLog:=ptIdentifiedInOnFile;
  try
