@@ -728,8 +728,6 @@ type
     procedure ApplyStates(Rule: TRuleCollectionItem);
     function GetTokenStr(Index: integer): ecString; override;
     function GetTokenType(Index: integer): integer; override;
-
-
   public
     constructor Create(AOwner: TecSyntAnalyzer; ABuffer: TATStringBuffer;
                    const AClient: IecSyntClient;const SynEditAdapter:ISynEditAdapter; useWorkerThread:boolean); virtual;
@@ -739,9 +737,7 @@ type
     function AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
     function ParserStateAtPos(TokenIndex: integer): integer;
     function WaitTillCoherent(roSync:boolean=false; timeOut:Cardinal=High(Cardinal) ):boolean;
-
     procedure ReleaseBackgroundLock();
-
 
     property Owner: TecSyntAnalyzer read FOwner;
     property Buffer: TATStringBuffer read FBuffer;
@@ -753,7 +749,6 @@ type
     property SubLexerRangeCount: integer read GetSubLexerRangeCount;
     property SubLexerRanges[Index: integer]: TecSubLexerRange read GetSubLexerRange;
     property ParserState: integer read FCurState write FCurState;
-
     //property TagIndexes[Index: integer]: TRangeListIndex read GetTagIndexes;
   end;
 
@@ -2676,7 +2671,7 @@ constructor TecParserResults.Create(AOwner: TecSyntAnalyzer;
   ABuffer: TATStringBuffer; const AClient: IecSyntClient;const SynEditAdapter:ISynEditAdapter; useWorkerThread:boolean);
 begin
   self._AddRef();
- FLastAnalPos:=0;
+  FLastAnalPos:=0;
   inherited Create;
   if ABuffer = nil then
     raise Exception.Create('TextBuffer not passed to parser');
@@ -2702,17 +2697,14 @@ end;
 
 destructor TecParserResults.Destroy;
 begin
- inherited;
-  if assigned(FWorkerThread) then begin
-   FWorkerThread.Terminate2;
-   FWorkerThread:=nil;
+  inherited;
+  if Assigned(FWorkerThread) then begin
+    FWorkerThread.Terminate2;
+    FWorkerThread := nil;
   end;
 
   FOwner.FClientList.Remove(Self);
   FTagList.Release();
-
-//  FreeAndNil(FTagList);
-//  FreeAndNil(FSubLexerBlocks);
   FSubLexerBlocks.Release();
   FreeAndNil(FStateChanges);
 end;
@@ -2755,26 +2747,21 @@ end;
 
 function TecParserResults.GetIsCoherentThread: boolean;
 begin
-  result := not assigned(FWorkerThread) or GetIsSyntaxThread();
+  Result := not Assigned(FWorkerThread) or GetIsSyntaxThread();
 end;
 
 function TecParserResults.GetIsSyntaxThread(): boolean;
 begin
- result:= assigned(FWorkerThread) and
-  FWorkerThread.GetIsWorkerThread();
-
+  Result := Assigned(FWorkerThread) and FWorkerThread.GetIsWorkerThread();
 end;
 
 function TecParserResults.GetTags(Index: integer): TecSyntToken;
 begin
   WaitTillCoherent(true);
   try
-  Result := FTagList.Get[Index];
+    Result := FTagList.Get[Index];
   finally ReleaseBackgroundLock();  end;
 end;
-
-
-
 
 function TecParserResults.GetTokenStr(Index: integer): ecString;
 begin
@@ -2791,8 +2778,8 @@ end;
 function TecParserResults.GetLastPos(const Source: ecString): integer;
 var tagCount:integer;
 begin
-   AssertCoherent();
-   tagCount:=FTagList.Get.Count;
+  AssertCoherent();
+  tagCount := FTagList.Get.Count;
   if tagCount = 0 then Result := 1 else
     Result := FTagList.Get[tagCount - 1].Range.EndPos + 1;
   if FLastAnalPos > Result then Result := FLastAnalPos;
@@ -2983,12 +2970,12 @@ function TecParserResults.AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
 var
   N: integer;
   Rng: TecSubLexerRange;
-  subLexerBlocks:TecSubLexerRanges;
+  subLexerBlocks: TecSubLexerRanges;
 begin
   Result := FOwner;
   if APos < 0 then Exit;
   WaitTillCoherent(true);
-  subLexerBlocks :=FSubLexerBlocks.Get;
+  subLexerBlocks := FSubLexerBlocks.Get;
   try
     N := subLexerBlocks.PriorAt(APos);
     if N < 0 then Exit;
@@ -3003,7 +2990,7 @@ begin
       Result := Rule.SyntAnalyzer;
   }
   finally ReleaseBackgroundLock();end;
-  end;
+end;
 
 function TecParserResults.GetSubLexerRangeCount: integer;
 begin
@@ -3026,17 +3013,16 @@ begin
   WaitTillCoherent();
   try
     FTagList.Get[Index] := AValue
-  finally ReleaseBackgroundLock();end;
+  finally ReleaseBackgroundLock(); end;
 end;
 
 function TecParserResults.GetTokenType(Index: integer): integer;
 begin
   WaitTillCoherent();
-try
-  Result := Tags[Index].TokenType;
-finally ReleaseBackgroundLock();end;
+  try
+    Result := Tags[Index].TokenType;
+  finally ReleaseBackgroundLock(); end;
 end;
-
 
 
 procedure TecParserResults.SwitchContext(toWorker:boolean);
@@ -3064,10 +3050,10 @@ end;
 
 
 function TecParserResults.WaitTillCoherent(roSync:boolean; timeOut:Cardinal): boolean;
-var timeWait:cardinal;
-    isMain:boolean;
+var timeWait: cardinal;
+    isMain: boolean;
 begin
-  if assigned(FWorkerThread) then begin
+  if Assigned(FWorkerThread) then begin
      isMain := not GetIsSyntaxThread();
      if isMain then begin
        if not roSync then
@@ -3078,15 +3064,14 @@ begin
      // Dec(FWorkerTaskMustStop);
 //      FWorkerTaskMustStop:=false;
   end;
-  result:=true;
-  exit;
+  Result := true;
 end;
 
 procedure TecParserResults.AssertNonWorker();
 var isWorker:boolean;
 begin
- isWorker :=  GetIsSyntaxThread();
- if isWorker then
+  isWorker := GetIsSyntaxThread();
+  if isWorker then
     Assert(false);
 end;
 
@@ -3095,7 +3080,6 @@ procedure TecParserResults.AssertCoherent();
 {$IFDEF DEBUG}
 var coherent, isWorker, noTask, notWorking, synAccessible:boolean;
 begin
-
   coherent :=(FWorkerThread= nil);
   if coherent then exit;
   isWorker := GetIsSyntaxThread();
@@ -3115,8 +3099,8 @@ end;
 
 procedure TecParserResults.ReleaseBackgroundLock();
 begin
- if assigned(FWorkerThread) then
-  FWorkerThread.ReleaseSync();
+  if Assigned(FWorkerThread) then
+    FWorkerThread.ReleaseSync();
 end;
 
 function TecParserResults.IsParserBusy: boolean; inline;
@@ -3128,12 +3112,12 @@ end;
 procedure TecParserResults.ApplyStates(Rule: TRuleCollectionItem);
 begin
   WaitTillCoherent();
-try
-  if Rule.StatesRemove <> 0 then
-    FCurState := FCurState and not Rule.StatesRemove;
-  if Rule.StatesAdd <> 0 then
-    FCurState := FCurState or Rule.StatesAdd;
-finally ReleaseBackgroundLock();end;
+  try
+    if Rule.StatesRemove <> 0 then
+      FCurState := FCurState and not Rule.StatesRemove;
+    if Rule.StatesAdd <> 0 then
+      FCurState := FCurState or Rule.StatesAdd;
+  finally ReleaseBackgroundLock(); end;
 end;
 
 procedure TecParserResults.RestoreState;
@@ -3151,14 +3135,14 @@ begin
       FCurState := FStateChanges.Last.EndPos
     else
       FCurState := 0;
-  finally ReleaseBackgroundLock();end;
+  finally ReleaseBackgroundLock(); end;
 end;
 
 function TecParserResults.ParserStateAtPos(TokenIndex: integer): integer;
 var i: integer;
 begin
- WaitTillCoherent();
-try
+  WaitTillCoherent();
+  try
    for i := FStateChanges.Count - 1 downto 0 do
      if FStateChanges[i].StartPos <= TokenIndex then
        begin
@@ -3166,7 +3150,7 @@ try
          Exit;
        end;
    Result := 0;
-finally ReleaseBackgroundLock();end;
+  finally ReleaseBackgroundLock(); end;
 end;
 
 procedure TecParserResults.EnterTagsSync();
@@ -3208,7 +3192,6 @@ end;
 destructor TecClientSyntAnalyzer.Destroy;
 begin
   StopSyntax(true);
-
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);
   inherited;
@@ -3229,7 +3212,7 @@ begin
     FLastAnalPos := 0;
     FStartSepRangeAnal := 0;
     FWorkerTaskMustStop:=0;
-  finally ReleaseBackgroundLock();end;
+  finally ReleaseBackgroundLock(); end;
   HandleAddWork();
 end;
 
@@ -3243,9 +3226,8 @@ begin
       Range.Parent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
     if Range.EndIdx = -1 then
       FOpenedBlocks.Add(Range);
-  finally ReleaseBackgroundLock();end;
+  finally ReleaseBackgroundLock(); end;
 end;
-
 
 
 function IndentOf(const S: ecString): Integer;
@@ -3546,7 +3528,6 @@ begin
 end;
 
 
-
 procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 begin
    StopSyntax(true);
@@ -3564,51 +3545,49 @@ begin
 end;
 
 
-
-
-
-
 function TecClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
 begin
   WaitTillCoherent(true);
   try
-  Result := FTagList.Get.PriorAt(Pos);
-  finally ReleaseBackgroundLock();end;
+    Result := FTagList.Get.PriorAt(Pos);
+  finally ReleaseBackgroundLock(); end;
 end;
 
 function TecClientSyntAnalyzer.GetRangeCount: integer;
 begin
-WaitTillCoherent();
-try
-  Result := FRanges.Count;
-finally ReleaseBackgroundLock(); end;
+  WaitTillCoherent();
+  try
+    Result := FRanges.Count;
+  finally ReleaseBackgroundLock(); end;
 end;
 
 function TecClientSyntAnalyzer.GetRanges(Index: integer): TecTextRange;
 begin
-WaitTillCoherent();
-try
-  Result := TecTextRange(FRanges[Index]);
-finally ReleaseBackgroundLock(); end;
+  WaitTillCoherent();
+  try
+    Result := TecTextRange(FRanges[Index]);
+  finally ReleaseBackgroundLock(); end;
 end;
 
 procedure TecClientSyntAnalyzer.Analyze(ResetContent: Boolean);
 var OldSep: integer;
 begin
   if IsParserBusy then Exit;
-  if ResetContent then  begin
-      WaitTillCoherent();
-      try
-        OldSep := FOwner.FSeparateBlocks;
-        FOwner.FSeparateBlocks := 2; // disable separation analysis
-        Clear;
-        AppendToPos(FBuffer.TextLength);
-        FOwner.FSeparateBlocks := OldSep;
-      finally ReleaseBackgroundLock();  end;
-    end else
-    begin
+  if ResetContent then
+  begin
+    WaitTillCoherent();
+    try
+      OldSep := FOwner.FSeparateBlocks;
+      FOwner.FSeparateBlocks := 2; // disable separation analysis
+      Clear;
       AppendToPos(FBuffer.TextLength);
-    end;
+      FOwner.FSeparateBlocks := OldSep;
+    finally ReleaseBackgroundLock();  end;
+  end
+  else
+  begin
+    AppendToPos(FBuffer.TextLength);
+  end;
 end;
 
 procedure TecClientSyntAnalyzer.CompleteAnalysis;
@@ -3821,7 +3800,6 @@ begin
     end;
 end;
 
-//var S_: string;
 begin
   idx := 0;
   Result := FmtStr;
@@ -4064,7 +4042,7 @@ function TecClientSyntAnalyzer.GetRangeGroup(Range: TecTextRange): ecString;
 begin
   WaitTillCoherent();
   try
-  Result := RangeFormat(Range.Rule.GroupFmt, Range);
+    Result := RangeFormat(Range.Rule.GroupFmt, Range);
   finally ReleaseBackgroundLock(); end;
 end;
 
@@ -4072,7 +4050,7 @@ function TecClientSyntAnalyzer.GetCollapsedText(Range: TecTextRange): ecString;
 begin
   WaitTillCoherent();
   try
-  Result := RangeFormat(Range.Rule.CollapseFmt, Range);
+    Result := RangeFormat(Range.Rule.CollapseFmt, Range);
   finally ReleaseBackgroundLock(); end;
 end;
 
@@ -4080,9 +4058,8 @@ function TecClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: 
 begin
   WaitTillCoherent();
   try
-  Result := inherited IsEnabled(Rule, OnlyGlobal) and
+    Result := inherited IsEnabled(Rule, OnlyGlobal) and
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
-
   finally ReleaseBackgroundLock();  end;
 end;
 
@@ -4098,7 +4075,7 @@ function TecClientSyntAnalyzer.GetOpened(Index: integer): TecTextRange;
 begin
   WaitTillCoherent();
   try
-  Result := TecTextRange(FOpenedBlocks[Index]);
+    Result := TecTextRange(FOpenedBlocks[Index]);
   finally ReleaseBackgroundLock(); end;
 end;
 
@@ -4106,7 +4083,7 @@ function TecClientSyntAnalyzer.GetOpenedCount: integer;
 begin
   WaitTillCoherent();
   try
-  Result := FOpenedBlocks.Count;
+    Result := FOpenedBlocks.Count;
   finally ReleaseBackgroundLock(); end;
 end;
 
@@ -4135,25 +4112,24 @@ end;
 function TecClientSyntAnalyzer.StopSyntax(AndWait: boolean): boolean;
 var isAsync:boolean;
 begin
-  FParserStatus:=psAborted;
+  FParserStatus := psAborted;
   FWorkerTaskMustStop := 100;
-  isAsync:= assigned(FWorkerThread);
+  isAsync := Assigned(FWorkerThread);
   if isAsync then
-     FWorkerThread.StopCurrentTask()
+    FWorkerThread.StopCurrentTask()
   else
    exit(true);
 
   FWorkerThread.CancelExpendableTasks();
   if AndWait then  begin
-   result:=FWorkerThread.WaitTaskDone(10*1000);
-   assert(result);
-   FWorkerTaskMustStop:=0;
+    Result := FWorkerThread.WaitTaskDone(10*1000);
+    Assert(Result);
+    FWorkerTaskMustStop := 0;
   end
   else
-     result := not FWorkerThread.GetIsTaskAssigned();
+    Result := not FWorkerThread.GetIsTaskAssigned();
   //dont call App.ProgressMessages, it causes CudaText bug #1927
 end;
-
 
 
 function TecClientSyntAnalyzer.DetectTag(Rule: TecTagBlockCondition;
@@ -4245,16 +4221,16 @@ var aPos:integer;
  end;
 
 begin
-   isAsync:= GetIsSyntaxThread();
+   Result := true;
+   isAsync := GetIsSyntaxThread();
    if isAsync then
-      aPos:= (TThread.CurrentThread as TecSyntaxerThread).Argument
+     aPos := (TThread.CurrentThread as TecSyntaxerThread).Argument
    else
-      aPos:= FAppendAtPosArg;
+     aPos := FAppendAtPosArg;
    if IsParserBusy then
-    FParserStatus:=psNone;
-   result:= true;
+     FParserStatus := psNone;
    WaitTillCoherent();
-   time :=GetTickCount;
+   time := GetTickCount;
    sublexerBlocks := FSubLexerBlocks.Get;
    try
      FParserStatus := psNone;
@@ -4312,7 +4288,6 @@ begin
      time:= GetTickCount-time;
   finally ReleaseBackgroundLock();end;
 end;
-
 
 
 procedure TecClientSyntAnalyzer.HandleAddWork();
