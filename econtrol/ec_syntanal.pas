@@ -719,7 +719,6 @@ type
     procedure BeforeDestruction();override;
     procedure EnterTagsSync();
     procedure LeaveTagsSync();
-    function GetParserStatus():TParseStatus;
   protected
     FClient: IecSyntClient;
     FWorkerThread:TecSyntaxerThread;
@@ -746,7 +745,8 @@ type
 
     property Owner: TecSyntAnalyzer read FOwner;
     property Buffer: TATStringBuffer read FBuffer;
-    property ParserStatus: TParseStatus read GetParserStatus;
+    property ParserStatus: TParseStatus read FParserStatus;
+    function IsParserBusy: boolean; inline;
     property TagStr[Index: integer]: ecString read GetTokenStr;
     property TagCount: integer read GetTokenCount;
     property Tags[Index: integer]: TecSyntToken read GetTags write SetTags; default;
@@ -3113,12 +3113,16 @@ begin
 end;
 
 
- procedure TecParserResults.ReleaseBackgroundLock();
+procedure TecParserResults.ReleaseBackgroundLock();
 begin
  if assigned(FWorkerThread) then
   FWorkerThread.ReleaseSync();
 end;
 
+function TecParserResults.IsParserBusy: boolean; inline;
+begin
+  Result := FParserStatus<psAborted;
+end;
 
 
 procedure TecParserResults.ApplyStates(Rule: TRuleCollectionItem);
@@ -3175,11 +3179,6 @@ procedure TecParserResults.LeaveTagsSync();
 begin
   if not assigned(FWorkerThread) then exit;
   FWorkerThread.DoTagSync(false);
-end;
-
-function TecParserResults.GetParserStatus(): TParseStatus;
-begin
-  result :=FParserStatus;
 end;
 
 function TecParserResults.AcquireWorker(): TecSyntaxerThread;
@@ -3340,7 +3339,7 @@ var i: integer;
   Sub: TecSubLexerRange;
   subLexerBlocks:TecSubLexerRanges;
 begin
-  if FParserStatus>=psAborted then Exit;
+  if not IsParserBusy then Exit;
 
   AssertCoherent();
   subLexerBlocks:=FSubLexerBlocks.Get;
@@ -3418,10 +3417,10 @@ begin
  result := true; // assume work is done
  tokenCounter:=0;
  isAsync := GetIsSyntaxThread();
- if FParserStatus<psAborted then
+ if IsParserBusy then
    FParserStatus:= psNone;
 
-   while (FWorkerTaskMustStop<=0) and (FParserStatus<psAborted)  do  begin
+   while (FWorkerTaskMustStop<=0) and IsParserBusy do  begin
 
      tmp := GetLastPos(FBuffer.FText);
      if tmp > FPos then FPos := tmp;
@@ -3433,7 +3432,7 @@ begin
        if FOwner.SeparateBlockAnalysis then begin
         time:=GetTickCount;
          for i := FStartSepRangeAnal + 1 to TagCount do begin
-             if  (FWorkerTaskMustStop<>0) or  (FParserStatus>=psAborted)  then
+             if  (FWorkerTaskMustStop<>0) or not IsParserBusy then
                                                          goto _Exit;
              CheckSyncRequest;
              inc(tokenCounter);
@@ -3459,14 +3458,14 @@ end;
 
 
 procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; AUseTimer: boolean=true);
-var FPos, len: integer;
+var len: integer;
 
 begin
  FWorkerTaskMustStop:=0;
  FParserStatus:= psNone;
  len :=FBuffer.TextLength;
   if len <= 0 then Exit;
-  if FParserStatus>=psAborted then Exit;
+  if not IsParserBusy then Exit;
   FAppendAtPosArg:=APos;
   if FWorkerRequested then begin
       AppendToPosAsync(APos);
@@ -3481,7 +3480,7 @@ end;
 procedure TecClientSyntAnalyzer.AppendToPosAsync(APos: integer);
 begin
   if FBuffer.TextLength = 0 then Exit;
-  if FParserStatus>=psAborted then Exit;
+  if not IsParserBusy then Exit;
   FAppendAtPosArg:=APos;
   FBuffer.Lock;//SyntaxDoneHandler would release the lock
   AcquireWorker().ScheduleWork(DoAppendToPos,APos, SyntaxDoneHandler, true
@@ -3513,7 +3512,7 @@ begin
 
  try
     currentPos := GetLastPos(FBuffer.FText);
-    while (currentPos - 1 <= APos + 1) and (FParserStatus<psAborted) do   begin
+    while (currentPos - 1 <= APos + 1) and IsParserBusy do   begin
        if apos-currentPos>5000 then
               CheckSyncRequest();
        inc(tokenCount);
@@ -3596,7 +3595,7 @@ end;
 procedure TecClientSyntAnalyzer.Analyze(ResetContent: Boolean);
 var OldSep: integer;
 begin
-  if ParserStatus<psAborted then Exit;
+  if IsParserBusy then Exit;
   if ResetContent then  begin
       WaitTillCoherent();
       try
@@ -4117,7 +4116,7 @@ begin
   TSynLog.Add.Log(sllLeave, 'Stop Request!');
  {$ENDIF}
   FWorkerTaskMustStop:=0;
-  if FParserStatus<psAborted then begin
+  if IsParserBusy then begin
      FParserStatus:=psInterrupt;
      TThread.Queue(nil, HandleAddWork  );
   end;
@@ -4125,11 +4124,10 @@ end;
 
 procedure TecClientSyntAnalyzer.SetDisableIdleAppend(const Value: Boolean);
 begin
-
   if FTaskAppendDisabled <> Value then
     begin
       FTaskAppendDisabled := Value;
-      if  not (ParserStatus<psAborted ) then
+      if not IsParserBusy then
         DoSyntaxWork();// TimerIdleTick(nil);
     end;
 end;
@@ -4137,7 +4135,6 @@ end;
 function TecClientSyntAnalyzer.StopSyntax(AndWait: boolean): boolean;
 var isAsync:boolean;
 begin
-
   FParserStatus:=psAborted;
   FWorkerTaskMustStop := 100;
   isAsync:= assigned(FWorkerThread);
@@ -4251,7 +4248,7 @@ begin
       aPos:= (TThread.CurrentThread as TecSyntaxerThread).Argument
    else
       aPos:= FAppendAtPosArg;
-   if FParserStatus<psAborted then
+   if IsParserBusy then
     FParserStatus:=psNone;
    result:= true;
    WaitTillCoherent();
