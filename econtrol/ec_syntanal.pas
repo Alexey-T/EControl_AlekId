@@ -3034,7 +3034,6 @@ begin
  FSubLexerBlocks.Swap();
  FTagList.Swap();
  LeaveTagsSync();
-
 end;
 
 procedure TecParserResults.WorkerDetached();
@@ -3050,19 +3049,18 @@ end;
 
 
 function TecParserResults.WaitTillCoherent(roSync:boolean; timeOut:Cardinal): boolean;
-var timeWait: cardinal;
-    isMain: boolean;
+var isMain: boolean;
 begin
   if Assigned(FWorkerThread) then begin
      isMain := not GetIsSyntaxThread();
      if isMain then begin
        if not roSync then
-           Inc(FWorkerTaskMustStop);//:=true;
+         Inc(FWorkerTaskMustStop); //:= true;
      end;
      FWorkerThread.AcquireSync(roSync);
      //if isMain then
-     // Dec(FWorkerTaskMustStop);
-//      FWorkerTaskMustStop:=false;
+     //  Dec(FWorkerTaskMustStop);
+     //FWorkerTaskMustStop:=false;
   end;
   Result := true;
 end;
