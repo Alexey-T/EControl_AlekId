@@ -3364,13 +3364,16 @@ var FPos, tmp, i: integer;
     own: TecSyntAnalyzer;
     Progress: integer;
     isAsync: boolean;
-    tokenCounter:integer;
-   time:Cardinal;
-   label _Exit;
-const
-  ProgressStep = 3;
-  ProgressMinPos = 2000;
+    tokenCounter: integer;
+    {$ifdef DEBUG}
+    time: Cardinal;
+    {$endif}
+label _Exit;
+
   procedure CheckProgress();
+  const
+    ProgressStep = 3;
+    ProgressMinPos = 2000;
   begin
      if FPos < ProgressMinPos then
        Progress := 0
@@ -3395,76 +3398,79 @@ const
   end;
 
 begin
- FPos := 0;
- result := true; // assume work is done
- tokenCounter:=0;
- isAsync := GetIsSyntaxThread();
- if IsParserBusy then
-   FParserStatus:= psNone;
+  FPos := 0;
+  Result := true; // assume work is done
+  tokenCounter := 0;
+  isAsync := GetIsSyntaxThread();
+  if IsParserBusy then
+    FParserStatus:= psNone;
 
-   while (FWorkerTaskMustStop<=0) and IsParserBusy do  begin
-
+  while (FWorkerTaskMustStop<=0) and IsParserBusy do
+  begin
      tmp := GetLastPos(FBuffer.FText);
      if tmp > FPos then FPos := tmp;
      CheckSyncRequest;
-     inc(tokenCounter);
-     result:=ExtractTag(FBuffer.FText, FPos{, True}) ;
+     Inc(tokenCounter);
+     Result := ExtractTag(FBuffer.FText, FPos{, True}) ;
 
-     if result then  begin
-       if FOwner.SeparateBlockAnalysis then begin
-        time:=GetTickCount;
-         for i := FStartSepRangeAnal + 1 to TagCount do begin
-             if  (FWorkerTaskMustStop<>0) or not IsParserBusy then
-                                                         goto _Exit;
+     if Result then
+     begin
+       if FOwner.SeparateBlockAnalysis then
+       begin
+         {$ifdef DEBUG}
+         time := GetTickCount;
+         {$endif}
+         for i := FStartSepRangeAnal + 1 to TagCount do
+         begin
+             if (FWorkerTaskMustStop<>0) or not IsParserBusy then goto _Exit;
              CheckSyncRequest;
-             inc(tokenCounter);
+             Inc(tokenCounter);
              own := Tags[i - 1].Rule.SyntOwner;
              FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
              if own <> FOwner then
                own.SelectTokenFormat(Self, FBuffer.FText, False, i);
          end;//for
-         time:=GetTickCount-time;
+         {$ifdef DEBUG}
+         time := GetTickCount-time;
+         {$endif}
        end;
 
        Finished;
-     end//if done
-   end;
+     end;
+  end;
 
-   _Exit:
-   if (FWorkerTaskMustStop<>0) then begin
+  _Exit:
+  if (FWorkerTaskMustStop<>0) then begin
     HandleStopRequest;
-   end;
- result:= true;
-end;
+  end;
 
+  Result := true;
+end;
 
 
 procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; AUseTimer: boolean=true);
-var len: integer;
-
 begin
- FWorkerTaskMustStop:=0;
- FParserStatus:= psNone;
- len :=FBuffer.TextLength;
-  if len <= 0 then Exit;
+  FWorkerTaskMustStop := 0;
+  FParserStatus := psNone;
+  if FBuffer.TextLength = 0 then Exit;
   if not IsParserBusy then Exit;
-  FAppendAtPosArg:=APos;
+  FAppendAtPosArg := APos;
   if FWorkerRequested then begin
-      AppendToPosAsync(APos);
+    AppendToPosAsync(APos);
   end
-  else  begin
-   DoAppendToPos();
+  else begin
+    DoAppendToPos();
   end;
   HandleAddWork();
-  exit;
 end;
+
 
 procedure TecClientSyntAnalyzer.AppendToPosAsync(APos: integer);
 begin
   if FBuffer.TextLength = 0 then Exit;
   if not IsParserBusy then Exit;
-  FAppendAtPosArg:=APos;
-  FBuffer.Lock;//SyntaxDoneHandler would release the lock
+  FAppendAtPosArg := APos;
+  FBuffer.Lock; //SyntaxDoneHandler would release the lock
   AcquireWorker().ScheduleWork(DoAppendToPos,APos, SyntaxDoneHandler, true
   {$IFDEF DEBUGLOG},'DoAppendToPosAsync'{$ENDIF} );
 end;
