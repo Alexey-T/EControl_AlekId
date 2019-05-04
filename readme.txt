@@ -1,17 +1,15 @@
-
 This is base code of EControl Syntax Editor SDK http://econtrol.ru
-For Lazarus (1.4+), with ATSynEdit
+Ported from Delphi to Lazarus, requires ATSynEdit package.
 
-Code contains: 
-- lexer parser 
+Code contains:
+- syntax parser
+- grammar parser
+- regex engine (parser requires it, it cannot use FPC RegExpr unit)
 - lexer manager (linked list of lexers)
-- helper grammar parser
-- helper lists
-- regex engine (lexer needs it, cannot use Lazarus regex)
-Code does not contain: 
-- SyntaxMemo control 
+Code does not contain:
+- SyntaxMemo control
 - ecMemoStrings class
-- popup listboxes classes 
+- popup listbox classes
 - other visual controls
 
 Code is modified, to work with ATSynEdit

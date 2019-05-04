@@ -16,7 +16,7 @@
       <Other>
         <CustomOptions Value="-Sa
 -dDEBUG
--dDEBUGLOG"/>
+-dDEBUGLOG__no"/>
         <OtherDefines Count="1">
           <Define0 Value="DEBUG"/>
         </OtherDefines>
