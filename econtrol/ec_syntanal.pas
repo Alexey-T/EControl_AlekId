@@ -354,8 +354,8 @@ TecBlockRuleCollection = class(TSyntCollection)
     procedure AddMasterLexer(SyntAnal: TecSyntAnalyzer);
     procedure RemoveMasterLexer(SyntAnal: TecSyntAnalyzer);
 
-    function GetToken(Client: TTokenHolder; const Source: ecString;
-                       APos: integer; OnlyGlobal: Boolean): TecSyntToken; virtual;
+    procedure GetToken(out tok:TecSyntToken; Client: TTokenHolder; const Source: ecString;
+                       APos: integer; OnlyGlobal: Boolean); virtual;
 
     procedure SelectTokenFormat(Client: TTokenHolder; const Source: ecString;
                        OnlyGlobal: Boolean; N: integer = -1); virtual;
@@ -833,8 +833,8 @@ begin
   FSampleText.Assign(Value);
 end;
 
-function TecSyntAnalyzer.GetToken(Client: TTokenHolder; const Source: ecString;
-  APos: integer; OnlyGlobal: Boolean): TecSyntToken;
+procedure TecSyntAnalyzer.GetToken(out tok:TecSyntToken; Client: TTokenHolder; const Source: ecString;
+  APos: integer; OnlyGlobal: Boolean);
 var i, N, lp,trCount: integer;
     Rule: TecTokenRule;
     PntStart, PntEnd: TPoint;
@@ -843,20 +843,22 @@ var i, N, lp,trCount: integer;
 begin
   PntStart.X := -1;
   PntStart.Y := -1;
-  Result := TecSyntToken.Create(nil, -1, -1, PntStart, PntStart);
   cli:=TecClientSyntAnalyzer(client);
   buf := cli.Buffer;
   if Assigned(FOnParseToken) then begin
       N := 0;
       Rule := nil;
       FOnParseToken(Client, Source, APos, N, Rule);
-      if Assigned(Rule) then
-        Result := TecSyntToken.Create(Rule,
+      if Assigned(Rule) then begin
+        tok.Make(Rule,
                APos - 1,
                APos + N - 1,
                buf.StrToCaret(APos-1),
                buf.StrToCaret(APos+N-1)
                );
+      end
+      else
+        tok.Make(nil, -1, -1, PntStart, PntStart);
       Exit;
     end;
 
@@ -893,7 +895,7 @@ begin
                   PntEnd.X := PntStart.X + N;
                 end;
 
-                Result := TecSyntToken.Create(Rule,
+                tok.Make(Rule,
                        APos - 1,
                        APos + N - 1,
                        PntStart,
@@ -903,6 +905,7 @@ begin
               end;
           end;
     end;
+  tok.Make(nil, -1, -1, PntStart, PntStart);
 end;
 
 procedure TecSyntAnalyzer.FormatsChanged(Sender: TCollection; Item: TSyntCollectionItem);

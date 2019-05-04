@@ -273,7 +273,7 @@ strict private
   function GetStyle: TecSyntaxFormat;
 public
 
-  constructor Create(ARule: TRuleCollectionItem;
+   procedure  Make(ARule: TRuleCollectionItem;
     AStartPos, AEndPos: integer;
     constref APointStart, APointEnd: TPoint);
   procedure CorrectEndRange(aEndPos:integer;constref aPointEnd:TPoint);
@@ -1157,7 +1157,7 @@ end;
 
 { TecSyntToken }
 
-constructor TecSyntToken.Create(ARule: TRuleCollectionItem;
+procedure TecSyntToken.Make(ARule: TRuleCollectionItem;
   AStartPos, AEndPos: integer;
   constref APointStart, APointEnd: TPoint);
 begin

@@ -19,19 +19,22 @@ type
      PSyntaxWork=^TSyntaxWork;
      TSyntaxWorkDelegate = function(pTask:PSyntaxWork):boolean of object;
 
-     // TScheduleKind = (skTry, skRemove, skWait);
+     TecSyntaxerThread=class;
+     TTaskDoneHandler= procedure (thread:TecSyntaxerThread; wrk:PSyntaxWork) of object;
+
      { TSyntaxWork }
      TSyntaxWork=record
       Task:TSyntaxWorkDelegate;
       //happens when task is done(sender is thred) or cancelled(sender is nil)
-      DoneHandler:TNotifyEvent;
+      DoneHandler:TTaskDoneHandler;
       FBufferVersion:Integer;
       Arg: Integer;
-      Expendable:boolean;
+      Expendable,Stop:boolean;
       {$IFDEF DEBUGLOG}Name:ansistring;{$ENDIF}
       procedure Setup(const task:TSyntaxWorkDelegate;aArg:integer;
-      aBufferVersion:Integer; const doneEvent:TNotifyEvent; aExpendable:boolean
-      {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF});overload;
+      aBufferVersion:Integer; const doneEvent:TTaskDoneHandler; aExpendable:boolean
+      {$IFDEF DEBUGLOG}; aName:string{$ENDIF}
+      );overload;
       procedure Setup(constref other:TSyntaxWork);overload;
       procedure Clear();
       function TaskAssigned():boolean;
@@ -51,7 +54,8 @@ type
 
     strict protected
     FClientSyntaxer:IAsyncSyntaxClient;
-    FStopCurrentTask,FSchedulingDisabled : boolean;
+    //FStopCurrentTask,
+    FSchedulingDisabled : boolean;
     FSyntaxWork  : TSyntaxWork;
     FSyntaxQueue:TWorkQueue;
     FWakeUpEvent, FTaskDoneEvent : TEvent;
@@ -94,7 +98,7 @@ type
     procedure CancelExpendableTasks();
     function WaitTaskDone(time:Cardinal):boolean;
     function ScheduleWork(syntaxProc : TSyntaxWorkDelegate;
-                   aArg, aBufferVersion:integer; aDoneHandler:TNotifyEvent;
+                   aArg, aBufferVersion:integer; aDoneHandler:TTaskDoneHandler;
                    expendable:boolean
                    {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}):boolean;
     procedure IssueSyncRequest();
@@ -116,14 +120,15 @@ implementation
 { TecSyntaxerThread.TSyntaxWork }
 
 procedure TSyntaxWork.Setup(const task: TSyntaxWorkDelegate;
-  aArg:integer; aBufferVersion:Integer; const doneEvent: TNotifyEvent; aExpendable:boolean
-  {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF});
+  aArg:integer; aBufferVersion:Integer; const doneEvent: TTaskDoneHandler;
+  aExpendable:boolean {$IFDEF DEBUGLOG}; aName:string{$ENDIF});
 begin
     self.Task:=task; DoneHandler:=doneEvent;
     self.Arg:=aArg; self.Expendable:=aExpendable;
     self.FBufferVersion:=aBufferVersion;
+    self.Stop:=false;
     {$IFDEF DEBUGLOG}
-    self.Name:= name;
+    self.name:= aName;
     {$ENDIF}
 end;
 
@@ -132,6 +137,7 @@ begin
   Task := other.Task; DoneHandler:=other.DoneHandler;
   Arg:=other.Arg; Expendable:=other.Expendable;
   FBufferVersion:= other.FBufferVersion;
+  Stop:= other.Stop;
   {$IFDEF DEBUGLOG}
   Name:= other.Name;
   {$ENDIF}
@@ -229,7 +235,7 @@ end;
 procedure TecSyntaxerThread.StopCurrentTask();
 begin
 BeginSchedule;
- FStopCurrentTask:=true;
+ FSyntaxWork.Stop:= true;
 EndSchedule;
 end;
 
@@ -249,7 +255,7 @@ if FSyntaxQueue.Count>0  then begin
         if not task.Expendable then
              q.Enqueue(task)
         else if Assigned(task.DoneHandler) then
-           task.DoneHandler(nil);
+           task.DoneHandler(nil, @task);
   end;
   FSyntaxQueue.Clear;
    for task in q do
@@ -273,14 +279,14 @@ begin
 
  timeWaited:= GetTickCount()- timeWaited;
  {$IFDEF DEBUGLOG}
-   if timeWaited>50+ord(FStopCurrentTask)*200 then begin
+   if timeWaited>50 then begin
       TSynLog.Add.Log(sllWarning, 'Waited for task done % s', [timeWaited] );
    end;
  {$ENDIF}
 end;
 
 function TecSyntaxerThread.ScheduleWork(syntaxProc: TSyntaxWorkDelegate;
-  aArg, aBufferVersion:integer; aDoneHandler: TNotifyEvent;
+  aArg, aBufferVersion:integer; aDoneHandler: TTaskDoneHandler;
   expendable:boolean {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}): boolean;
 var isBusy:boolean;
     newTask:TSyntaxWork;
@@ -359,7 +365,7 @@ end;
 procedure TecSyntaxerThread.HandleTaskDone(var task:TSyntaxWork);
 begin
   if assigned(task.DoneHandler) then
-           task.DoneHandler(self);
+           task.DoneHandler(self, @task);
  {$IFDEF DEBUGLOG}
   FStartTime:=GetTickCount()-FStartTime;
   TSynLog.Add.Log(sllTrace, 'Task %s done in %d ms',[task.Name, FStartTime]);
@@ -369,8 +375,7 @@ begin
  BeginSchedule;
  try
   FSyntaxWork.Clear;
-  if (FStopCurrentTask) then
-                   FStopCurrentTask:=false;
+
  finally  EndSchedule; end;
 
 end;

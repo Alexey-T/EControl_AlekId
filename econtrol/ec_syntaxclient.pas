@@ -75,7 +75,7 @@ type
 
 
     FParserStatus: TParseStatus;
-    FWorkerTaskMustStop: smallint;
+
     FLastAnalPos: integer;
 
     FSubLexerBlocks : TecSubLexerBlocksSelector;
@@ -114,7 +114,7 @@ type
     function GetTokenStr(Index: integer): ecString; override;
     function GetTokenType(Index: integer): integer; override;
 
-
+    procedure CancelCurrentSyntax;
   public
     constructor Create(AOwner: TecSyntAnalyzer; ABuffer: TATStringBuffer;
                    const AClient: IecSyntClient;const SynEditAdapter:ISynEditAdapter; useWorkerThread:boolean); virtual;
@@ -158,7 +158,8 @@ type
 
     FRepeateAnalysis: Boolean;
     FAppendAtPosArg:integer;
-    FLastAppendPosition:TPoint;
+    FAppendToPosTargetP:TPoint;
+    FAppendToPosTarget:integer;
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
     function GetOpened(Index: integer): TecTextRange;
@@ -171,15 +172,14 @@ type
     FStartSepRangeAnal: integer;
   strict protected
     FEditAdapter:ISynEditAdapter;
-    procedure HandleAppendToPosDone(thread:TObject);
+    procedure HandleAppendToPosDone(thread:TecSyntaxerThread; wrk:PSyntaxWork);
     function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
     procedure Finished; override;
     procedure FireUpdateEditor();
     function  DoSyntaxWork(wrk:PSyntaxWork):boolean;
     procedure CloseAtEnd(wrk:PSyntaxWork; StartTagIdx: integer); override;
     function DoChangeAtPos(wrk:PSyntaxWork):boolean;
-
-
+    procedure SetAppendToPosTarget(ofs:integer);
   public
 
     constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
@@ -189,6 +189,7 @@ type
 
     function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
     function StopSyntax(AndWait: boolean): boolean;
+
     procedure _SetStartSeparateWork(tokenIx:integer);
     procedure AddRange(Range: TecTextRange);
 
@@ -205,11 +206,11 @@ type
 
     procedure TextChanged(APos: integer);
     // Requires analyzed to APos
-    procedure AppendToPos(APos: integer; AUseTimer: boolean= true);
+    procedure AppendToPos(APos: integer; force: boolean= false);
     // Requires analyzed to APos
-    procedure AppendToPosAsync(APos: integer);
+    procedure AppendToPosAsync(APos: integer; force:boolean);
     function DoAppendToPos(wrk:PSyntaxWork):boolean;
-    procedure SyntaxDoneHandler(thread:TObject);
+    procedure SyntaxDoneHandler(thread:TecSyntaxerThread;wrk:PSyntaxWork);
     procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
 
 
@@ -218,7 +219,7 @@ type
     function CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
     function DetectTag(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
 
-    property LastAppendedPoint:TPoint read FLastAppendPosition;
+    property LastAppendedPoint:TPoint read FAppendToPosTargetP;
     property OpenCount: integer read GetOpenedCount;
     property Opened[Index: integer]: TecTextRange read GetOpened;
 
@@ -339,6 +340,8 @@ begin
 
   finally ReleaseBackgroundLock();  end;
 end;
+
+
 
 
 
@@ -512,9 +515,10 @@ begin
   Result := N = -1;
   if Result then Exit;
 
-  token := FOwner.GetToken(Self, Source, FPos, own <> FOwner);
-  if (own <> FOwner) and (token.Range.StartPos < 0) then
-    token := own.GetToken(Self, Source, FPos, False);
+  FOwner.GetToken(token, Self, Source, FPos, own <> FOwner);
+  if (own <> FOwner) and (token.Range.StartPos < 0) then begin
+     own.GetToken(token, Self, Source, FPos, False)
+  end;
   if token.Range.StartPos < 0 then  // no token
    begin
      NNextPos := FPos;
@@ -602,6 +606,13 @@ try
 finally ReleaseBackgroundLock();end;
 end;
 
+procedure TecParserResults.CancelCurrentSyntax;
+begin
+  if not assigned(FWorkerThread) then exit;
+  FWorkerThread.CancelExpendableTasks();
+  FWorkerThread.StopCurrentTask();
+end;
+
 
 
 procedure TecParserResults.SwitchContext(toWorker:boolean);
@@ -637,14 +648,13 @@ begin
      isMain := not GetIsSyntaxThread();
      if isMain and not (roSync) then begin
       tm:=GetTickCount;
-       repeat
-           FWorkerTaskMustStop:=1;//:=true;
-           TThread.Yield;
-       until FWorkerThread.TryAcquireSync();
+      FParserStatus:=psPostpone;
+      CancelCurrentSyntax;
+      FWorkerThread.AcquireSync(false);
        tm:=GetTickCount- tm;
        {$IFDEF DEBUGLOG}
        if tm > 50 then
-          TSynLog.Add.Log(sllWarning, 'WaitTillCoherent(false) waited: %d ms', [time]);
+          TSynLog.Add.Log(sllWarning, 'WaitTillCoherent(false) waited: % ms', [tm]);
        {$ENDIF}
    end
    else
@@ -692,9 +702,9 @@ begin
 
  if assigned(FWorkerThread) then
   FWorkerThread.ReleaseSync();
- if (FParserStatus<psAborted) and FWorkerRequested and
-    (FWorkerTaskMustStop<>0) and not GetIsSyntaxThread() then begin
- FWorkerTaskMustStop:=0;
+ if (FParserStatus=psPostpone) and FWorkerRequested
+      and not GetIsSyntaxThread() then begin
+ FParserStatus:=psNone;
  TThread.ForceQueue(nil,
     (self as TecClientSyntAnalyzer).HandleAddWork);
  end;
@@ -772,6 +782,7 @@ end;
 function TecParserResults.AcquireWorker(): TecSyntaxerThread;
 begin
    result := FWorkerThread;
+
    if assigned(result) then exit;
    result := TecSyntaxerThread.Create(self, nil);
    FWorkerThread:=result;
@@ -785,7 +796,7 @@ end;
 constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
   const AClient: IecSyntClient;const synEditAdapter:ISynEditAdapter; useWorkerThread:boolean);
 begin
-  FWorkerTaskMustStop:=0;
+
   //FWorkerIsBusy:=false;
   FTaskAppendDisabled:=false;
   FRepeateAnalysis:=false;
@@ -826,7 +837,6 @@ begin
     FParserStatus := psNone;
     FLastAnalPos := 0;
     FStartSepRangeAnal := 0;
-    FWorkerTaskMustStop:=0;
   finally ReleaseBackgroundLock();end;
   HandleAddWork();
 end;
@@ -922,12 +932,21 @@ begin
     end;
 end;
 
-procedure TecClientSyntAnalyzer.HandleAppendToPosDone(thread:TObject);
+procedure TecClientSyntAnalyzer.HandleAppendToPosDone(thread:TecSyntaxerThread;wrk:PSyntaxWork);
 begin
-  SyntaxDoneHandler(thread);
+
+  SyntaxDoneHandler(thread, wrk);
+
   if assigned(thread) and assigned(FEditAdapter) then begin
+     {$IFDEF DEBUGLOG}
+     TSynLog.Add.Log(sllServiceCall, 'AppendToPos Done, request repaint' );
+     {$ENDIF}
+
      TThread.ForceQueue(nil,
      FEditAdapter.AppendToPosDone );
+     TThread.Queue(nil,
+     HandleAddWork
+     );
   end;
 end;
 
@@ -999,7 +1018,10 @@ const
      end;
   end;
 
-
+  function StopRequest():boolean;inline;
+  begin
+  result:= assigned(wrk) and (wrk.Stop);
+  end;
 
 begin
  FPos := 0;
@@ -1008,6 +1030,9 @@ begin
  isAsync := GetIsSyntaxThread();
  if isAsync then
    bufVersion:=FBuffer.Version;
+
+ if FParserStatus>=psAborted then  goto
+ _Exit;
 
  if FParserStatus<psAborted then
    FParserStatus:= psNone;
@@ -1020,7 +1045,7 @@ begin
 
 
 
-   while (FWorkerTaskMustStop=0) and (FParserStatus<psAborted)  do  begin
+   while (FParserStatus<psPostpone) and not StopRequest()  do  begin
     Inc(tokenCounter);
      if  CheckSyncRequest(wrk, tokenCounter) then goto _Exit;
      tmp := GetLastPos(FBuffer.FText);
@@ -1031,8 +1056,7 @@ begin
        if FOwner.SeparateBlockAnalysis then begin
         time:=GetTickCount;
          for tagIx := FStartSepRangeAnal + 1 to TagCount do begin
-             if  (FWorkerTaskMustStop<>0) or
-                 (FParserStatus>=psAborted) or
+             if  (FParserStatus>=psPostpone) or  StopRequest() or
                  CheckSyncRequest(wrk, tokenCounter) then goto _Exit;
 
              inc(tokenCounter);
@@ -1049,37 +1073,44 @@ begin
    end;
 
    _Exit:
-   FLastAppendPosition:=FBuffer.StrToCaret(FPos);
-   if (FWorkerTaskMustStop<>0) then begin
+   //FAppendToPosTarget:=FBuffer.StrToCaret(FPos);
+   if (FParserStatus=psPostpone) then begin
     HandleStopRequest;
    end;
  result:= true;
 end;
 
-procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; AUseTimer: boolean=true);
+procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; force: boolean);
 var FPos, len: integer;
 
 begin
- FWorkerTaskMustStop:=0;
- FParserStatus:= psNone;
+ FParserStatus:=psNone;
  len :=FBuffer.TextLength;
   if len <= 0 then Exit;
   if FParserStatus>=psAborted then Exit;
   FAppendAtPosArg:=APos;
   if FWorkerRequested then begin
-      AppendToPosAsync(APos);
+      AppendToPosAsync(APos, force);
   end
   else  begin
    DoAppendToPos(nil);
   end;
-  HandleAddWork();
 end;
 
-procedure TecClientSyntAnalyzer.AppendToPosAsync(APos: integer);
+procedure TecClientSyntAnalyzer.AppendToPosAsync(APos: integer; force:boolean);
+var newPos:TPoint;
 begin
   if FBuffer.TextLength = 0 then Exit;
   if FParserStatus>=psAborted then Exit;
-  FLastAppendPosition:=FBuffer.StrToCaret(apos);
+  if (apos<=FAppendToPosTarget) and (not force) and (FAppendToPosTarget-apos<5000)  then
+    exit;
+
+  {$IFDEF DEBUGLOG}
+  TSynLog.Add.Log(sllMemory, 'AppendToPosAsync to line %', [FAppendToPosTargetP.Y]);
+  {$ENDIF}
+  CancelCurrentSyntax;
+  SetAppendToPosTarget(apos);
+  FParserStatus:=psNone;
   FBuffer.Lock;//SyntaxDoneHandler would release the lock
   AcquireWorker().ScheduleWork(DoAppendToPos,APos,FBuffer.Version,
                HandleAppendToPosDone, true
@@ -1089,6 +1120,12 @@ end;
 function TecClientSyntAnalyzer.DoAppendToPos(wrk:PSyntaxWork):boolean;
 var aPos, currentPos, tokenCount, bufVersion:integer;
     callRemainingSyntax,tokensDone, isAsync, bufferChanged:boolean;
+
+
+function StopRequest():boolean;inline;
+begin
+result:= assigned(wrk) and (wrk.Stop);
+end;
 
 begin
  result:=true;
@@ -1106,7 +1143,8 @@ begin
 
 
     currentPos := GetLastPos(FBuffer.FText);
-    while (currentPos - 1 <= APos + 1) and (FParserStatus<psAborted) do   begin
+    while (currentPos - 1 <= APos + 1) and (FParserStatus<psPostpone)
+        and not StopRequest  do   begin
        //if apos-currentPos>3000 then
        //bufferChanged:= CheckSyncRequest(wrk, tokenCount);
        //if bufferChanged then break;
@@ -1127,10 +1165,9 @@ begin
          Break;
        end;//if
     end;// while
-    FLastAppendPosition:=FBuffer.StrToCaret(apos);
 end;
 
-procedure TecClientSyntAnalyzer.SyntaxDoneHandler(thread: TObject);
+procedure TecClientSyntAnalyzer.SyntaxDoneHandler(thread: TecSyntaxerThread;wrk:PSyntaxWork);
 begin
   FBuffer.Unlock;
 end;
@@ -1150,7 +1187,6 @@ begin
    StopSyntax(false);
 
    FParserStatus := psNone;
-   FWorkerTaskMustStop:= 0;
    if (FWorkerRequested) then  begin
      AcquireWorker().ScheduleWork(DoChangeAtPos, aPos,FBuffer.Version, nil, false
      {$IFDEF DEBUGLOG},'ChangedAtPos'{$ENDIF} );
@@ -1722,9 +1758,9 @@ end;
 procedure TecClientSyntAnalyzer.HandleStopRequest;
 begin
  {$IFDEF DEBUGLOG }
-  TSynLog.Add.Log(sllLeave, 'Stop Request!');
+  TSynLog.Add.Log(sllLeave, 'HandleStopRequest');
  {$ENDIF}
- FParserStatus:=psPostpone;
+ FParserStatus:=psNone;
 //  FWorkerTaskMustStop:=0;
   //if FParserStatus<psAborted then begin
   //   FParserStatus:=psInterrupt;
@@ -1744,22 +1780,18 @@ end;
 //end;
 
 function TecClientSyntAnalyzer.StopSyntax(AndWait: boolean): boolean;
-var isAsync:boolean;
+var isAsync: boolean;
 begin
-
-  FParserStatus:=psAborted;
-  FWorkerTaskMustStop := 100;
   isAsync:= assigned(FWorkerThread);
-  if isAsync then
-     FWorkerThread.StopCurrentTask()
-  else
-   exit(true);
+  FParserStatus:=psAborted;
+  if not isAsync then exit(true);
 
-  FWorkerThread.CancelExpendableTasks();
-  if AndWait then  begin
+  CancelCurrentSyntax;
+
+  if AndWait and assigned(FWorkerThread) then  begin
    result:=FWorkerThread.WaitTaskDone(10*1000);
    assert(result);
-   FWorkerTaskMustStop:=0;
+
   end
   else
      result := not FWorkerThread.GetIsTaskAssigned();
@@ -1909,17 +1941,35 @@ begin
      // Restore parser state
      RestoreState;
      time:= GetTickCount-time;
+     SetAppendToPosTarget(aPos);
   finally ReleaseBackgroundLock();end;
 end;
 
+procedure TecClientSyntAnalyzer.SetAppendToPosTarget(ofs: integer);
+begin
+  FAppendToPosTargetP:=FBuffer.StrToCaret(ofs);
+  FAppendToPosTarget:=ofs;
+end;
+
+
 
 procedure TecClientSyntAnalyzer.HandleAddWork();
+var worker:TecSyntaxerThread;
 begin
+  FParserStatus:=psNone;
   if not FWorkerRequested then
     DoSyntaxWork(nil)
-  else
-   AcquireWorker().ScheduleWork(DoSyntaxWork, -100,FBuffer.Version, SyntaxDoneHandler, true
+  else begin
+    worker:=AcquireWorker();
+   if FLastAnalPos<FAppendToPosTarget then begin
+
+      AppendToPos(FAppendToPosTarget, true);
+   end
+   else
+    worker.ScheduleWork(DoSyntaxWork, -100,FBuffer.Version, SyntaxDoneHandler, true
     {$IFDEF DEBUGLOG},'DoSyntaxWork'{$ENDIF});
+
+  end;
 end;
 
 
