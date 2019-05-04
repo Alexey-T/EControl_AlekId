@@ -15,7 +15,9 @@
 unit ec_SyntAnal;
 
 interface
-
+{$IFDEF DEBUGLOG}
+{$DEFINE DEBUG}
+{$ENDIF}
 uses
   SysUtils,
   Classes,
@@ -24,18 +26,17 @@ uses
   Controls,
   ExtCtrls,
   //Contnrs,
-  LazUTF8Classes,
-  {$IFDEF DEBUGLOG}
-  SynCommons,
-  SynLog,
-  mORMotHttpClient,
-  {$ENDIF}
+  LazUTF8Classes, //TFileStreamUTF8
   ec_RegExpr,
   ec_StrUtils,
   ec_Lists,
+  ec_token_holder,
+  ec_syntax_item,
+  ec_synt_collection,
+  ec_rules,
+  ec_syntax_format,
   ec_SyntGramma,
   ec_Async,
-  ATStringProc_TextBuffer,
   ec_proc_StreamComponent;
 
 type
@@ -47,236 +48,33 @@ type
 
 
 
-  TecLineBreakPos = (lbTop, lbBottom);
-  TecLineBreakBound = set of TecLineBreakPos; // for user blocks
-  TecVertAlignment = (vaTop, vaCenter, vaBottom);
-  TecFormatType = (ftCustomFont, // Any customizing
-                   ftFontAttr,   // Except custom font
-                   ftColor,      // Any color
-                   ftBackGround);// Only background color
+
+
 
   TecSyntAnalyzer       = class;
-  TecParserResults      = class;
-  TecClientSyntAnalyzer = class;
-  TecTagBlockCondition  = class;
+  //TecParserResults      = class;
+  //TecClientSyntAnalyzer = class;
+
   TecSyntaxManager      = class;
-  TecSyntaxFormat       = class;
   TecSubAnalyzerRule    = class;
   TecTextRange        = class;
 
-  TOnMatchToken = procedure(Sender: TObject; Client: TecParserResults;
-      const Text: ecString; APos: integer; var MatchLen: integer) of object;
-  TOnBlockCheck = procedure(Sender: TObject; Client: TecClientSyntAnalyzer;
-      const Text: ecString; var RefIdx: integer; var Accept: Boolean) of object;
 
-  TBoundDefEvent = procedure(Sender: TecClientSyntAnalyzer; Range: TecTextRange; var sIdx, eIdx: integer) of object;
 
-  TSyntCollectionItem = class(TCollectionItem)
-  private
-    FName: string;
-    FEnabled: Boolean;
-    procedure SetEnabled(const Value: Boolean);
-  protected
-    procedure AssignTo(Dest: TPersistent); override;
-    function GetItemBaseName: string; virtual;
-    function GetDisplayName: string; override;
-    procedure SetDisplayName(const Value: string); override;
-    procedure Loaded; virtual;
-    function GetIsInvalid: Boolean; virtual;
-  public
-    constructor Create(Collection: TCollection); override;
-    property IsInvalid: Boolean read GetIsInvalid;
-  published
-    property DisplayName;
-    property Enabled: Boolean read FEnabled write SetEnabled default True;
-  end;
 
-  TSyntItemChanged = procedure(Sender: TCollection; Item: TSyntCollectionItem) of object;
+  TBoundDefEvent = procedure(Sender: TObject; Range: TecTextRange; var sIdx, eIdx: integer) of object;
 
-  TSyntCollection = class(TCollection)
-  private
-    FSyntOwner: TecSyntAnalyzer;
-    FOnChange: TSyntItemChanged;
-    function GetItems(Index: integer): TSyntCollectionItem;
-  protected
-    procedure Update(Item: TCollectionItem); override;
-    function  GetOwner: TPersistent; override;
-    procedure Loaded;
-  public
-    constructor Create(ItemClass: TCollectionItemClass);
-    function ItemByName(const AName: string): TSyntCollectionItem;
-    function ValidItem(Item: TSyntCollectionItem): Boolean;
-    function GetUniqueName(const Base: string): string;
 
-    property SyntOwner: TecSyntAnalyzer read FSyntOwner write FSyntOwner;
-    property Items[Index: integer]: TSyntCollectionItem read GetItems; default;
-    property OnChange: TSyntItemChanged read FOnChange write FOnChange;
-  end;
-
-  TRuleCollectionItem = class(TSyntCollectionItem)
-  private
-    FStyleName: string;
-    FBlockName: string;
-    FFormat: TecSyntaxFormat;
-    FBlock: TecTagBlockCondition;
-    FStrictParent: Boolean;
-    FNotParent: Boolean;
-    FAlwaysEnabled: Boolean;
-    FStatesAbsent: integer;
-    FStatesAdd: integer;
-    FStatesRemove: integer;
-    FStatesPresent: integer;
-    function GetStyleName: string;
-    procedure SetStyleName(const Value: string);
-    function GetBlockName: string;
-    procedure SetBlockName(const Value: string);
-    procedure SetNotParent(const Value: Boolean);
-    procedure SetStrictParent(const Value: Boolean);
-    procedure SetAlwaysEnabled(const Value: Boolean);
-    function GetSyntOwner: TecSyntAnalyzer;
-    procedure SetStatesAdd(const Value: integer);
-    procedure SetStatesAbsent(const Value: integer);
-    procedure SetStatesRemove(const Value: integer);
-    procedure SetStatesPresent(const Value: integer);
-  protected
-    function ValidStyleName(const AStyleName: string; AStyle: TecSyntaxFormat): string;
-    function ValidSetStyle(const AStyleName: string; var AStyleField: string; var AStyle: TecSyntaxFormat): string;
-    procedure AssignTo(Dest: TPersistent); override;
-    procedure Loaded; override;
-  public
-    property Style: TecSyntaxFormat read FFormat write FFormat;
-    property Block: TecTagBlockCondition read FBlock write FBlock;
-    property SyntOwner: TecSyntAnalyzer read GetSyntOwner;
-  published
-    property StyleName: string read GetStyleName write SetStyleName;
-    property BlockName: string read GetBlockName write SetBlockName;
-    property StrictParent: Boolean read FStrictParent write SetStrictParent default False;
-    property NotParent: Boolean read FNotParent write SetNotParent default False;
-    property AlwaysEnabled: Boolean read FAlwaysEnabled write SetAlwaysEnabled default False;
-    property StatesAdd: integer read FStatesAdd write SetStatesAdd default 0;
-    property StatesRemove: integer read FStatesRemove write SetStatesRemove default 0;
-    property StatesPresent: integer read FStatesPresent write SetStatesPresent default 0;
-    property StatesAbsent: integer read FStatesAbsent write SetStatesAbsent default 0;
-  end;
 
 // *******************************************************************
-//  Format for syntax output
+// description classes of text contents
 // *******************************************************************
-  TecBorderLineType = (blNone, blSolid, blDash, blDot, blDashDot, blDashDotDot,
-                     blSolid2, blSolid3, blWavyLine, blDouble);
-  TecFormatFlag = (ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
-                 ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign);
-  TecFormatFlags = set of TecFormatFlag;
 
-  TecChangeCase = (ccNone, ccUpper, ccLower, ccToggle, ccTitle);
 
-  TecSyntaxFormat = class(TSyntCollectionItem)
-  private
-    FIsBlock: Boolean;
-    FFont: TFont;
-    FBgColor: TColor;
-    FVertAlign: TecVertAlignment;
-    FFormatType: TecFormatType;
-    FOnChange: TNotifyEvent;
-    FHidden: Boolean;
-    FBorderTypes: array[0..3] of TecBorderLineType;
-    FBorderColors: array[0..3] of TColor;
-    FMultiLineBorder: Boolean;
-    FReadOnly: Boolean;
-    FChangeCase: TecChangeCase;
-    FFormatFlags: TecFormatFlags;
-    procedure SetFont(const Value: TFont);
-    procedure SetBgColor(const Value: TColor);
-    procedure FontChanged(Sender: TObject);
-    procedure SetVertAlign(const Value: TecVertAlignment);
-    procedure SetFormatType(const Value: TecFormatType);
-    procedure SetHidden(const Value: Boolean);
-    function GetBorderColor(Index: Integer): TColor;
-    function GetBorderType(Index: Integer): TecBorderLineType;
-    procedure SetBorderColor(Index: Integer; const Value: TColor);
-    procedure SetBorderType(Index: Integer;
-      const Value: TecBorderLineType);
-    procedure SetMultiLineBorder(const Value: Boolean);
-    procedure SetReadOnly(const Value: Boolean);
-    procedure SetChangeCase(const Value: TecChangeCase);
-    procedure SetFormatFlags(const Value: TecFormatFlags);
-    function GetHidden: Boolean;
-  protected
-    procedure AssignTo(Dest: TPersistent); override;
-    function GetItemBaseName: string; override;
-    procedure Change; dynamic;
-  public
-    constructor Create(Collection: TCollection); override;
-    destructor Destroy; override;
-    function HasBorder: Boolean;
 
-    procedure ApplyTo(Canvas: TCanvas; AllowChangeFont: Boolean = True);
 
-    function IsEqual(Other: TecSyntaxFormat): Boolean;
-    // Merges style above this style
-    procedure Merge(Over: TecSyntaxFormat);
-    // Save only common properties
-    procedure Intersect(Over: TecSyntaxFormat);
 
-    property OnChange: TNotifyEvent read FOnChange write FOnChange;
-    property BorderTypes[Index: integer]: TecBorderLineType read GetBorderType write SetBorderType;
-    property BorderColors[Index: integer]: TColor read GetBorderColor write SetBorderColor;
-  published
-    property Font: TFont read FFont write SetFont;
-    property BgColor: TColor read FBgColor write SetBgColor default clNone;
-    property VertAlignment: TecVertAlignment read FVertAlign write SetVertAlign default vaCenter;
-    property FormatType: TecFormatType read FFormatType write SetFormatType default ftFontAttr;
-    property Hidden: Boolean read GetHidden write SetHidden default False;
-    property BorderTypeLeft: TecBorderLineType index 0 read GetBorderType write SetBorderType default blNone;
-    property BorderColorLeft: TColor index 0 read GetBorderColor write SetBorderColor default clBlack;
-    property BorderTypeTop: TecBorderLineType index 1 read GetBorderType write SetBorderType default blNone;
-    property BorderColorTop: TColor index 1 read GetBorderColor write SetBorderColor default clBlack;
-    property BorderTypeRight: TecBorderLineType index 2 read GetBorderType write SetBorderType default blNone;
-    property BorderColorRight: TColor index 2 read GetBorderColor write SetBorderColor default clBlack;
-    property BorderTypeBottom: TecBorderLineType index 3 read GetBorderType write SetBorderType default blNone;
-    property BorderColorBottom: TColor index 3 read GetBorderColor write SetBorderColor default clBlack;
-    property MultiLineBorder: Boolean read FMultiLineBorder write SetMultiLineBorder default False;
-    property ReadOnly: Boolean read FReadOnly write SetReadOnly default False;
-    property ChangeCase: TecChangeCase read FChangeCase write SetChangeCase default ccNone;
-    property FormatFlags: TecFormatFlags read FFormatFlags write SetFormatFlags
-                 default [ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
-                          ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign];
-  end;
-
-  TecStylesCollection = class(TSyntCollection)
-  private
-    function GetItem(Index: integer): TecSyntaxFormat;
-  public
-    function Synchronize(Source: TecStylesCollection): integer;
-    constructor Create;
-    function Add: TecSyntaxFormat;
-    property Items[Index: integer]: TecSyntaxFormat read GetItem; default;
-  end;
-
-  { TecSyntToken }
-
-  TecSyntToken = record
-  strict private
-    FRange: TRange;
-    FTokenType: integer;
-    FRule: TRuleCollectionItem;
-  private
-    function GetStyle: TecSyntaxFormat;
-    procedure CorrectEndRange(aEndPos: integer; constref aPointEnd: TPoint);
-    procedure SetRule(rule: TRuleCollectionItem);
-    procedure SetTokenType(&type: integer);
-  public
-    constructor Create(ARule: TRuleCollectionItem;
-      AStartPos, AEndPos: integer;
-      const APointStart, APointEnd: TPoint);
-    function GetStr(const Source: ecString): ecString;
-    class operator Equal(const A, B: TecSyntToken): boolean;
-    property Style: TecSyntaxFormat read GetStyle;
-    property Range: TRange read FRange;
-    property TokenType: integer read FTokenType;
-    property Rule: TRuleCollectionItem read FRule;
-  end;
-
+  { TecTextRange }
 
   TecTextRange = class(TSortedItem)
   private
@@ -293,10 +91,12 @@ type
     Rule: TecTagBlockCondition;
     Parent: TecTextRange;
     Index: integer;
-
+    procedure _SetEndConditionIndex(iValue:integer);
     constructor Create(AStartIdx, AStartPos: integer);
     property Level: integer read GetLevel;
     property IsClosed: Boolean read GetIsClosed;
+    property CondIndex:integer read FCondIndex;
+    property EndCondIndex:integer read FEndCondIndex;
   end;
 
   { TecSubLexerRange }
@@ -307,196 +107,16 @@ type
     Rule: TecSubAnalyzerRule;   // Rule reference
     CondEndPos: integer;      // Start pos of the start condition
     CondStartPos: integer;    // End pos of the end condition
-    class operator Equal(const a, b: TecSubLexerRange): boolean;
+    class operator Equal(constref a, b: TecSubLexerRange): boolean;
   end;
 
 // *******************************************************************
 //                Rules for syntax interpretation
 // *******************************************************************
 
-  TecTagConditionType = (tcEqual, tcNotEqual, tcMask, tcSkip, tcStrictMask);
+TecSubLexerRanges =class (GRangeList<TecSubLexerRange>);
 
-  TecSingleTagCondition = class(TCollectionItem)
-  private
-    FTagList: TStrings;
-    FCondType: TecTagConditionType;
-    FTokenTypes: DWORD;
-    procedure SetTagList(const Value: TStrings);
-    procedure SetIgnoreCase(const Value: Boolean);
-    procedure SetTokenTypes(const Value: DWORD);
-    procedure SetCondType(const Value: TecTagConditionType);
-    procedure TagListChanged(Sender: TObject);
-    function GetIgnoreCase: Boolean;
-  protected
-    procedure AssignTo(Dest: TPersistent); override;
-  public
-    constructor Create(Collection: TCollection); override;
-    destructor Destroy; override;
-    function CheckToken(const Source: ecString; const Token: TecSyntToken): Boolean;
-  published
-    property TagList: TStrings read FTagList write SetTagList;
-    property CondType: TecTagConditionType read FCondType write SetCondType default tcEqual;
-    property TokenTypes: DWORD read FTokenTypes write SetTokenTypes default 0;
-    property IgnoreCase: Boolean read GetIgnoreCase write SetIgnoreCase default False;
-  end;
-
-  TecConditionCollection = class(TCollection)
-  private
-    FOwner: TecTagBlockCondition;
-    FOnChange: TNotifyEvent;
-    function GetItem(Index: integer): TecSingleTagCondition;
-  protected
-    procedure Update(Item: TCollectionItem); override;
-    function  GetOwner: TPersistent; override;
-  public
-    constructor Create(AOwner: TecTagBlockCondition);
-    function Add: TecSingleTagCondition;
-    property Items[Index: integer]: TecSingleTagCondition read GetItem; default;
-    property OnChange: TNotifyEvent read FOnChange write FOnChange;
-  end;
-
-  TecTagBlockType = (btTagDetect, btLineBreak, btRangeStart, btRangeEnd);
-  TecHighlightPos = (cpAny, cpBound, cpBoundTag, cpRange, cpBoundTagBegin, cpOutOfRange);
-  TecDynamicHighlight = (dhNone, dhBound, dhRangeNoBound, dhRange);
-  TecAutoCloseMode = (acmDisabled, acmCloseNearest, acmCloseOpened);
-
-  TecTagBlockCondition = class(TRuleCollectionItem)
-  private
-    FConditions: TecConditionCollection;
-    FIdentIndex: integer;
-    FLinePos: TecLineBreakPos;
-    FBlockOffset: integer;
-    FBlockEndCond: TecTagBlockCondition;
-    FBlockType: TecTagBlockType;
-    FBlockEndName: string;
-    FEndOfTextClose: Boolean;
-    FNotCollapsed: Boolean;
-    FSameIdent: Boolean;
-    FInvertColors: Boolean;
-    FHighlight: Boolean;
-    FDisplayInTree: Boolean;
-    FNameFmt: ecString;
-    FGroupFmt: ecString;
-    FRefToCondEnd: Boolean;
-    FDynHighlight: TecDynamicHighlight;
-    FHighlightPos: TecHighlightPos;
-    FDynSelectMin: Boolean;
-    FCancelNextRules: Boolean;
-    FOnBlockCheck: TOnBlockCheck;
-    FDrawStaple: Boolean;
-    FGroupIndex: integer;
-    FCollapseFmt: ecString;
-    FSelfClose: Boolean;
-    FNoEndRule: Boolean;
-    FGrammaRuleName: string;
-    FGrammaRule: TParserRule;
-    FTokenType: integer;
-    FTreeItemStyle: string;
-    FTreeItemStyleObj: TecSyntaxFormat;
-    FTreeGroupStyle: string;
-    FTreeGroupStyleObj: TecSyntaxFormat;
-    FTreeGroupImage: integer;
-    FTreeItemImage: integer;
-    FUseCustomPen: Boolean;
-    FPen: TPen;
-    FIgnoreAsParent: Boolean;
-    FAutoCloseText: ecString;
-    FAutoCloseMode: TecAutoCloseMode;
-    procedure ConditionsChanged(Sender: TObject);
-    function GetBlockEndName: string;
-    procedure SetBlockEndName(const Value: string);
-    procedure SetBlockType(const Value: TecTagBlockType);
-    procedure SetConditions(const Value: TecConditionCollection);
-    procedure SetBlockEndCond(const Value: TecTagBlockCondition);
-    procedure SetLinePos(const Value: TecLineBreakPos);
-    procedure SetIdentIndex(const Value: integer);
-    procedure SetBlockOffset(const Value: integer);
-    procedure SetEndOfTextClose(const Value: Boolean);
-    procedure SetNotCollapsed(const Value: Boolean);
-    procedure SetSameIdent(const Value: Boolean);
-    procedure SetHighlight(const Value: Boolean);
-    procedure SetInvertColors(const Value: Boolean);
-    procedure SetDisplayInTree(const Value: Boolean);
-    procedure SetCancelNextRules(const Value: Boolean);
-    procedure SetDynHighlight(const Value: TecDynamicHighlight);
-    procedure SetDynSelectMin(const Value: Boolean);
-    procedure SetGroupFmt(const Value: ecString);
-    procedure SetHighlightPos(const Value: TecHighlightPos);
-    procedure SetNameFmt(const Value: ecString);
-    procedure SetRefToCondEnd(const Value: Boolean);
-    procedure SetDrawStaple(const Value: Boolean);
-    procedure SetCollapseFmt(const Value: ecString);
-    procedure SetSelfClose(const Value: Boolean);
-    procedure SetNoEndRule(const Value: Boolean);
-    procedure SetGrammaRuleName(const Value: string);
-    procedure SetTokenType(const Value: integer);
-    function GetTreeItemStyle: string;
-    procedure SetTreeItemStyle(const Value: string);
-    function GetTreeGroupStyle: string;
-    procedure SetTreeGroupStyle(const Value: string);
-    procedure SetTreeGroupImage(const Value: integer);
-    procedure SetTreeItemImage(const Value: integer);
-    procedure SetPen(const Value: TPen);
-    procedure SetUseCustomPen(const Value: Boolean);
-    procedure SetIgnoreAsParent(const Value: Boolean);
-    procedure SetAutoCloseText(Value: ecString);
-    procedure SetAutoCloseMode(const Value: TecAutoCloseMode);
-  protected
-    procedure AssignTo(Dest: TPersistent); override;
-    function GetItemBaseName: string; override;
-    procedure Loaded; override;
-    function CheckOffset: integer;
-  public
-    constructor Create(Collection: TCollection); override;
-    destructor Destroy; override;
-    function Check(const Source: ecString; Tags: TecClientSyntAnalyzer;
-                   N: integer;  var RefIdx: integer): Boolean;
-    property BlockEndCond: TecTagBlockCondition read FBlockEndCond write SetBlockEndCond;
-    property TreeItemStyleObj: TecSyntaxFormat read FTreeItemStyleObj;
-    property TreeGroupStyleObj: TecSyntaxFormat read FTreeGroupStyleObj;
-  published
-    property BlockType: TecTagBlockType read FBlockType write SetBlockType default btRangeStart;
-    property ConditionList: TecConditionCollection read FConditions write SetConditions;
-    property IdentIndex: integer read FIdentIndex write SetIdentIndex default 0;
-    property LinePos: TecLineBreakPos read FLinePos write SetLinePos default lbTop;
-    property BlockOffset: integer read FBlockOffset write SetBlockOffset default 0;
-    property BlockEnd: string read GetBlockEndName write SetBlockEndName;
-    property EndOfTextClose: Boolean read FEndOfTextClose write SetEndOfTextClose default False;
-    property NotCollapsed: Boolean read FNotCollapsed write SetNotCollapsed default False;
-    property SameIdent: Boolean read FSameIdent write SetSameIdent default False;
-    property Highlight: Boolean read FHighlight write SetHighlight default False;
-    property InvertColors: Boolean read FInvertColors write SetInvertColors default False;
-    property DisplayInTree: Boolean read FDisplayInTree write SetDisplayInTree default True;
-    property NameFmt: ecString read FNameFmt write SetNameFmt;
-    property GroupFmt: ecString read FGroupFmt write SetGroupFmt;
-    property RefToCondEnd: Boolean read FRefToCondEnd write SetRefToCondEnd default False;
-    property DynHighlight: TecDynamicHighlight read FDynHighlight write SetDynHighlight default dhNone;
-    property HighlightPos: TecHighlightPos read FHighlightPos write SetHighlightPos;
-    property DynSelectMin: Boolean read FDynSelectMin write SetDynSelectMin default False;
-    property CancelNextRules: Boolean read FCancelNextRules write SetCancelNextRules default False;
-    property DrawStaple: Boolean read FDrawStaple write SetDrawStaple default False;
-    property GroupIndex: integer read FGroupIndex write FGroupIndex default 0;
-    property CollapseFmt: ecString read FCollapseFmt write SetCollapseFmt;
-    property OnBlockCheck: TOnBlockCheck read FOnBlockCheck write FOnBlockCheck;
-    property SelfClose: Boolean read FSelfClose write SetSelfClose default False;
-    // New in v2.20
-    property NoEndRule: Boolean read FNoEndRule write SetNoEndRule default False;
-    property GrammaRuleName: string read FGrammaRuleName write SetGrammaRuleName;
-    property TokenType: integer read FTokenType write SetTokenType default -1;
-    property TreeItemStyle: string read GetTreeItemStyle write SetTreeItemStyle;
-    property TreeGroupStyle: string read GetTreeGroupStyle write SetTreeGroupStyle;
-    property TreeItemImage: integer read FTreeItemImage write SetTreeItemImage default -1;
-    property TreeGroupImage: integer read FTreeGroupImage write SetTreeGroupImage default -1;
-    // New in 2.40
-    property Pen: TPen read FPen write SetPen;
-    property UseCustomPen: Boolean read FUseCustomPen write SetUseCustomPen default False;
-    property IgnoreAsParent: Boolean read FIgnoreAsParent write SetIgnoreAsParent;
-    // New in 2.50
-    property AutoCloseMode: TecAutoCloseMode read FAutoCloseMode write SetAutoCloseMode default acmDisabled;
-    property AutoCloseText: ecString read FAutoCloseText write SetAutoCloseText;
-  end;
-
-  TecBlockRuleCollection = class(TSyntCollection)
+TecBlockRuleCollection = class(TSyntCollection)
   private
     function GetItem(Index: integer): TecTagBlockCondition;
   public
@@ -506,33 +126,7 @@ type
   end;
 
   // Token identification rule
-  TecTokenRule = class(TRuleCollectionItem)
-  private
-    FRegExpr: TecRegExpr;
-    FTokenType: integer;
-    FOnMatchToken: TOnMatchToken;
-    FColumnTo: integer;
-    FColumnFrom: integer;
-    function GetExpression: ecString;
-    procedure SetExpression(const Value: ecString);
-    procedure SetTokenType(const Value: integer);
-    procedure SetColumnFrom(const Value: integer);
-    procedure SetColumnTo(const Value: integer);
-  protected
-    procedure AssignTo(Dest: TPersistent); override;
-    function GetItemBaseName: string; override;
-    function GetIsInvalid: Boolean; override;
-  public
-    constructor Create(Collection: TCollection); override;
-    destructor Destroy; override;
-    function Match(const Source: ecString; Pos: integer): integer;
-  published
-    property TokenType: integer read FTokenType write SetTokenType default 0;
-    property Expression: ecString read GetExpression write SetExpression;
-    property ColumnFrom: integer read FColumnFrom write SetColumnFrom;
-    property ColumnTo: integer read FColumnTo write SetColumnTo;
-    property OnMatchToken: TOnMatchToken read FOnMatchToken write FOnMatchToken;
-  end;
+
 
   TecTokenRuleCollection = class(TSyntCollection)
   private
@@ -619,211 +213,11 @@ type
 //
 // *******************************************************************
 
+
 // *******************************************************************
 //  Syntax analizer for single client
 //            container of description objects
 // *******************************************************************
-
-  TecTokenList = GRangeList<TecSyntToken>;
-
-  TecSubLexerRanges = class (GRangeList<TecSubLexerRange>)
-  end;
-
-
-  { TecAsyncSelector }
-
-  TecAsyncSelector<TEntity: class>=record
-  strict private
-    FParent: TecParserResults;
-    FEntity, FWorkerEntity: TEntity;
-  private
-    procedure Release();
-    procedure Swap();
-  public
-    procedure Init(const parent: TecParserResults; const aEntity, workEntitiy: TEntity);
-    property Parent: TecParserResults read FParent;
-    property WorkerEntity: TEntity read FWorkerEntity;
-    property Entity: TEntity read FEntity;
-    function Get: TEntity;
-  end;
-
-
-  TecTagListSelector = TecAsyncSelector<TecTokenList>;
-
-  { TecTagListSelectorHelp }
-
-  TecTagListSelectorHelp = record helper for TecTagListSelector
-    procedure SyncWorkerList(toWorker: boolean);
-  end;
-
-  TecSubLexerBlocksSelector = TecAsyncSelector<TecSubLexerRanges>;
-
-
-  { TecParserResults }
-  ISynEditAdapter=interface
-      procedure SyntaxDoneHandler();
-      procedure AppendToPosDone();
-   end;
-
-  TParseStatus=(psNone, psInterrupt,{anything FINAL goes after psAborted,
-               anything in-progess goes before} psAborted, psComplete);
-
-  TecParserResults = class(TTokenHolder, IAsyncSyntaxClient)
-  strict private
-    FCurState: integer;
-    FStateChanges: TecRangeList;
-
-    function GetTags(Index: integer): TecSyntToken;
-    function GetSubLexerRangeCount: integer;
-    function GetSubLexerRange(Index: integer): TecSubLexerRange;
-    procedure SetTags(Index: integer; const AValue: TecSyntToken);
-  strict protected
-    FOwner: TecSyntAnalyzer;
-
-    FParserStatus: TParseStatus;
-    FWorkerTaskMustStop: smallint;
-    FWorkerRequested: boolean;
-    FLastAnalPos: integer;
-
-    FSubLexerBlocks: TecSubLexerBlocksSelector;
-    FTagList: TecTagListSelector;
-    FBuffer: TATStringBuffer;
-
-    procedure Finished; virtual;
-    procedure SaveState;
-    procedure RestoreState;
-    function GetLastPos(const Source: ecString): integer;
-    function ExtractTag(const Source: ecString; var FPos: integer): Boolean;
-
-    function GetTokenCount: integer; override;
-
-    procedure CloseAtEnd(StartTagIdx: integer); virtual; abstract;
-    // whether current thread is Syntaxer
-    function GetIsCoherentThread: boolean;
-
-    procedure AssertNonWorker();
-    procedure AssertCoherent(); inline;
-
-    procedure SwitchContext(toWorker: boolean);
-    procedure WorkerDetached();
-    procedure BeforeDestruction(); override;
-    procedure EnterTagsSync();
-    procedure LeaveTagsSync();
-  protected
-    FClient: IecSyntClient;
-    FWorkerThread: TecSyntaxerThread;
-    function AcquireWorker(): TecSyntaxerThread;
-    function GetIsSyntaxThread(): boolean; inline;
-    function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; virtual;
-    procedure ApplyStates(Rule: TRuleCollectionItem);
-    function GetTokenStr(Index: integer): ecString; override;
-    function GetTokenType(Index: integer): integer; override;
-  public
-    constructor Create(AOwner: TecSyntAnalyzer;
-                       ABuffer: TATStringBuffer;
-                       const AClient: IecSyntClient;
-                       const SynEditAdapter: ISynEditAdapter;
-                       useWorkerThread: boolean); virtual;
-    destructor Destroy; override;
-    procedure Clear; virtual;
-
-    function AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
-    function ParserStateAtPos(TokenIndex: integer): integer;
-    function WaitTillCoherent(roSync: boolean=false; timeOut: Cardinal=High(Cardinal) ): boolean;
-    procedure ReleaseBackgroundLock();
-
-    property Owner: TecSyntAnalyzer read FOwner;
-    property Buffer: TATStringBuffer read FBuffer;
-    property ParserStatus: TParseStatus read FParserStatus;
-    function IsParserBusy: boolean; inline;
-    property TagStr[Index: integer]: ecString read GetTokenStr;
-    property TagCount: integer read GetTokenCount;
-    property Tags[Index: integer]: TecSyntToken read GetTags write SetTags; default;
-    property SubLexerRangeCount: integer read GetSubLexerRangeCount;
-    property SubLexerRanges[Index: integer]: TecSubLexerRange read GetSubLexerRange;
-    property ParserState: integer read FCurState write FCurState;
-    //property TagIndexes[Index: integer]: TRangeListIndex read GetTagIndexes;
-  end;
-
-
-  { TecClientSyntAnalyzer }
-
-  TecClientSyntAnalyzer = class(TecParserResults)
-  strict private
-    FRanges: TSortedList;
-    FOpenedBlocks: TSortedList;    // Opened ranges (without end)
-
-    FTaskAppendDisabled: Boolean;
-    FPrevProgress: integer;
-
-    FRepeateAnalysis: Boolean;
-    FAppendAtPosArg: integer;
-    function GetRangeCount: integer;
-    function GetRanges(Index: integer): TecTextRange;
-    function GetOpened(Index: integer): TecTextRange;
-    function GetOpenedCount: integer;
-    procedure HandleStopRequest;
-    procedure ReportProgress(APos: integer);
-    procedure SetDisableIdleAppend(const Value: Boolean);
-
-  private
-    FStartSepRangeAnal: integer;
-  strict protected
-    FEditAdapter: ISynEditAdapter;
-    procedure HandleAppendToPosDone;
-    function HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
-    function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
-    procedure Finished; override;
-    procedure FireUpdateEditor();
-    function  DoSyntaxWork: boolean;
-    procedure CloseAtEnd(StartTagIdx: integer); override;
-    function DoChangeAtPos(): boolean;
-  protected
-    procedure AddRange(Range: TecTextRange);
-
-  public
-    function StopSyntax(AndWait: boolean): boolean;
-    constructor Create(AOwner: TecSyntAnalyzer;
-                       SrcProc: TATStringBuffer;
-                       const AClient: IecSyntClient;
-                       const synEditAdapter: ISynEditAdapter;
-                       useWorkerThread: boolean); override;
-
-    destructor Destroy; override;
-    procedure Clear; override;
-    procedure HandleAddWork();
-    procedure ChangedAtPos(APos: integer);
-
-    function PriorTokenAt(Pos: integer): integer;
-
-    function RangeFormat(const FmtStr: ecString; Range: TecTextRange): ecString;
-    function GetRangeName(Range: TecTextRange): ecString;
-    function GetRangeGroup(Range: TecTextRange): ecString;
-    function GetCollapsedText(Range: TecTextRange): ecString;
-
-    procedure TextChanged(APos: integer);
-    // Requires analyzed to APos
-    procedure AppendToPos(APos: integer; AUseTimer: boolean= true);
-    // Requires analyzed to APos
-    procedure AppendToPosAsync(APos: integer);
-    function DoAppendToPos(): boolean;
-    procedure SyntaxDoneHandler(thread: TObject);
-    procedure Analyze(ResetContent: Boolean = True); // Requires analyzed all text
-
-
-    procedure CompleteAnalysis;
-
-    function CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
-    function DetectTag(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
-
-    property OpenCount: integer read GetOpenedCount;
-    property Opened[Index: integer]: TecTextRange read GetOpened;
-
-    property RangeCount: integer read GetRangeCount;
-    property Ranges[Index: integer]: TecTextRange read GetRanges;
-    property DisableIdleAppend: Boolean read FTaskAppendDisabled write SetDisableIdleAppend;
-    property SynEditAdapter: ISynEditAdapter read FEditAdapter;
-  end;
 
 // *******************************************************************
 //  Syntax analizer
@@ -852,10 +246,10 @@ type
     property FileName: string read FFileName write LoadFromFile;
   end;
 
-  TParseTokenEvent = procedure(Client: TecParserResults; const Text: ecString; Pos: integer;
+  TParseTokenEvent = procedure(Client: TTokenHolder; const Text: ecString; Pos: integer;
       var TokenLength: integer; var Rule: TecTokenRule) of object;
 
-  TecParseProgressEvent = procedure(Sender: TObject; ALineIndex, ALineCount: integer) of object;
+  TecParseProgressEvent = procedure(Sender: TObject; AProgress: integer) of object;
 
   { TecSyntAnalyzer }
 
@@ -945,16 +339,10 @@ type
     procedure SetCollapseStyle(const Value: TecSyntaxFormat);
     function GetSeparateBlocks: Boolean;
   protected
-    function GetToken(Client: TecParserResults; const Source: ecString;
-                       APos: integer; OnlyGlobal: Boolean): TecSyntToken; virtual;
-    procedure HighlightKeywords(Client: TecParserResults; const Source: ecString;
-                       OnlyGlobal: Boolean); virtual;
-    procedure SelectTokenFormat(Client: TecParserResults; const Source: ecString;
-                       OnlyGlobal: Boolean; N: integer = -1); virtual;
     procedure Loaded; override;
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure Change; dynamic;
-    property SeparateBlockAnalysis: Boolean read GetSeparateBlocks;
+
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -962,15 +350,26 @@ type
     //function AddClient(const Client: IecSyntClient; ABuffer: TATStringBuffer): TecClientSyntAnalyzer;
     procedure ClearClientContents;
     procedure UpdateClients;
-
+    function GetClients:TList;
     procedure AddMasterLexer(SyntAnal: TecSyntAnalyzer);
     procedure RemoveMasterLexer(SyntAnal: TecSyntAnalyzer);
+
+    procedure GetToken(out tok:TecSyntToken; Client: TTokenHolder; const Source: ecString;
+                       APos: integer; OnlyGlobal: Boolean); virtual;
+
+    procedure SelectTokenFormat(Client: TTokenHolder; const Source: ecString;
+                       OnlyGlobal: Boolean; N: integer = -1); virtual;
+
+    procedure HighlightKeywords(Client: TTokenHolder; const Source: ecString;
+                       OnlyGlobal: Boolean); virtual;
 
     property MarkedBlock: TecSyntaxFormat read FMarkedBlock write SetMarkedBlock;
     property SearchMatch: TecSyntaxFormat read FSearchMatch write SetSearchMatch;
     property CurrentLine: TecSyntaxFormat read FCurrentLine write SetCurrentLine;
     property DefStyle: TecSyntaxFormat read FDefStyle write SetDefStyle;
     property CollapseStyle: TecSyntaxFormat read FCollapseStyle write SetCollapseStyle;
+    property SeparateBlockAnalysis: Boolean read GetSeparateBlocks;
+    property _SeparateBlocks:integer read FSeparateBlocks write FSeparateBlocks;
   published
     property Formats: TecStylesCollection read FFormats write SetFormats;
     property TokenRules: TecTokenRuleCollection read FTokenRules write SetTokenRules;
@@ -1077,10 +476,10 @@ var
 
 implementation
 
-uses
-  Forms, Dialogs, Math;
-
-//const minTokenStep = 0;
+uses  Forms, Dialogs,
+  Math,
+  ec_SyntaxClient,
+  ATStringProc_TextBuffer;
 
 const
   SecDefaultTokenTypeNames = 'Unknown' + #13#10 +
@@ -1091,21 +490,13 @@ const
                              'Number'  + #13#10 +
                              'Preprocessor';
 
+
 // Local copy of ecUpCase. it is faster, uses AnsiChar UpCase
 function ecUpCase(ch: WideChar): char; inline;
 begin
   Result:= System.UpCase(char(ch));
 end;
 
-procedure SetDefaultModifiers(RE: TecRegExpr);
-begin
-  RE.ModifierI := True;
-  RE.ModifierG := True;
-  RE.ModifierS := False;
-  RE.ModifierM := True;
-  RE.ModifierX := True;
-  RE.ModifierR := False;
-end;
 
 function IsPosSorted(const A, B: TPoint; AllowEq: boolean): boolean; inline;
 begin
@@ -1118,63 +509,11 @@ end;
 
 { TecSubLexerRange }
 
-class operator TecSubLexerRange.Equal(const a, b: TecSubLexerRange): boolean;
+class operator TecSubLexerRange.Equal(constref a, b: TecSubLexerRange): boolean;
 begin
   Result := false;
 end;
 
-{ TecSyntToken }
-
-constructor TecSyntToken.Create(ARule: TRuleCollectionItem;
-  AStartPos, AEndPos: integer;
-  const APointStart, APointEnd: TPoint);
-begin
-  FRange.StartPos := AStartPos;
-  FRange.EndPos := AEndPos;
-  FRange.PointStart := APointStart;
-  FRange.PointEnd := APointEnd;
-  FRule := ARule;
-  if Assigned(ARule) then
-    FTokenType := TecTokenRule(ARule).TokenType
-  else
-    FTokenType := 0;
-end;
-
-procedure TecSyntToken.CorrectEndRange(aEndPos: integer; constref aPointEnd: TPoint
-  );
-begin
-  FRange.EndPos:= aEndPos;
-  FRange.PointEnd:=aPointEnd;
-end;
-
-procedure TecSyntToken.SetRule(rule: TRuleCollectionItem);
-begin
-  FRule:=rule;
-end;
-
-procedure TecSyntToken.SetTokenType(&type: integer);
-begin
-  FTokenType:=&type;
-end;
-
-function TecSyntToken.GetStr(const Source: ecString): ecString;
-begin
-  with Range do
-    Result := Copy(Source, StartPos + 1, EndPos - StartPos);
-end;
-
-class operator TecSyntToken.Equal(const A, B: TecSyntToken): boolean;
-begin
-  Result:= false;
-end;
-
-function TecSyntToken.GetStyle: TecSyntaxFormat;
-begin
-  if Rule = nil then
-    Result := nil
-  else
-    Result := Rule.Style;
-end;
 
 { TecTextRange }
 
@@ -1198,6 +537,11 @@ begin
   Result := StartPos;
 end;
 
+procedure TecTextRange._SetEndConditionIndex(iValue: integer);
+begin
+  FEndCondIndex:=iValue;
+end;
+
 function TecTextRange.GetLevel: integer;
 var prn: TecTextRange;
 begin
@@ -1210,1159 +554,7 @@ begin
    end;
 end;
 
-{ TSyntCollectionItem }
 
-procedure TSyntCollectionItem.AssignTo(Dest: TPersistent);
-begin
-  if Dest is TSyntCollectionItem then
-   begin
-    (Dest as TSyntCollectionItem).DisplayName := DisplayName;
-    (Dest as TSyntCollectionItem).Enabled := Enabled;
-   end;
-end;
-
-constructor TSyntCollectionItem.Create(Collection: TCollection);
-var NewName: string;
-    n: integer;
-begin
-  inherited;
-  FEnabled := True;
-  if Collection = nil then Exit;
-  n := 1;
-  repeat
-    NewName  := GetItemBaseName + ' ' + IntToStr(n);
-    inc(n);
-  until TSyntCollection(Collection).ItemByName(NewName) = nil;
-  FName := NewName;
-end;
-
-function TSyntCollectionItem.GetDisplayName: string;
-begin
-  Result := FName;
-end;
-
-function TSyntCollectionItem.GetIsInvalid: Boolean;
-begin
-  Result := False;
-end;
-
-function TSyntCollectionItem.GetItemBaseName: string;
-begin
-  Result := 'Item';
-end;
-
-procedure TSyntCollectionItem.Loaded;
-begin
-
-end;
-
-procedure TSyntCollectionItem.SetDisplayName(const Value: string);
-var i: integer;
-begin
-  if Collection <> nil then
-  for i := 0 to Collection.Count - 1 do
-   if Collection.Items[i] <> Self then
-    if Collection.Items[i].DisplayName = Value then
-      Exit;
-  FName := Value;
-end;
-
-procedure TSyntCollectionItem.SetEnabled(const Value: Boolean);
-begin
-  if FEnabled <> Value then
-   begin
-     FEnabled := Value;
-     Changed(False);
-   end;
-end;
-
-{ TSyntCollection }
-
-constructor TSyntCollection.Create(ItemClass: TCollectionItemClass);
-begin
-  if not ItemClass.InheritsFrom(TSyntCollectionItem) then
-   raise Exception.Create('Allow only TSyntCollectionItem Class');
-  inherited;
-end;
-
-function TSyntCollection.GetItems(Index: integer): TSyntCollectionItem;
-begin
-  Result := (inherited Items[Index]) as TSyntCollectionItem;
-end;
-
-function TSyntCollection.GetOwner: TPersistent;
-begin
-  Result := FSyntOwner;
-end;
-
-function TSyntCollection.GetUniqueName(const Base: string): string;
-var n: integer;
-begin
-  Result := Base;
-  n := 0;
-  while ItemByName(Result) <> nil do
-   begin
-    Inc(n);
-    Result := Base + IntToStr(n);
-   end;
-end;
-
-function TSyntCollection.ItemByName(const AName: string): TSyntCollectionItem;
-var i: integer;
-begin
-  for i := 0 to Count - 1 do
-   if Items[i].DisplayName = AName then
-    begin
-      Result := Items[i] as TSyntCollectionItem;
-      Exit;
-    end;
-  Result := nil;
-end;
-
-procedure TSyntCollection.Loaded;
-var i: integer;
-begin
-  for i := 0 to Count - 1 do
-   Items[i].Loaded;
-end;
-
-procedure TSyntCollection.Update(Item: TCollectionItem);
-begin
-  inherited;
-  if Assigned(FOnChange) then FOnChange(Self, TSyntCollectionItem(Item));
-end;
-
-function TSyntCollection.ValidItem(Item: TSyntCollectionItem): Boolean;
-var i: integer;
-begin
-  Result := True;
-  if Item <> nil then
-   for i := 0 to Count - 1 do
-    if Items[i] = Item then Exit;
-  Result := False;
-end;
-
-{ TecSyntaxFormat }
-
-constructor TecSyntaxFormat.Create(Collection: TCollection);
-var i: integer;
-begin
-  FIsBlock := False;
-  FFont := TFont.Create;
-  FFont.Name := 'Courier New';
-  FFont.Size := 10;
-  FBgColor := clNone;
-  FVertAlign := vaCenter;
-  FFormatType := ftFontAttr;
-  for i := 0 to 3 do
-   begin
-    FBorderTypes[i] := blNone;
-    FBorderColors[i] := clBlack;
-   end;
-  FFormatFlags := [ffBold, ffItalic, ffUnderline, ffStrikeOut, ffReadOnly,
-                   ffHidden, ffFontName, ffFontSize, ffFontCharset, ffVertAlign];
-  inherited;
-  FFont.OnChange := FontChanged;
-end;
-
-destructor TecSyntaxFormat.Destroy;
-begin
-  FreeAndNil(FFont);
-  inherited;
-end;
-
-procedure TecSyntaxFormat.AssignTo(Dest: TPersistent);
-var i: integer;
-begin
-  inherited;
-  if Dest is TecSyntaxFormat then
-   with Dest as TecSyntaxFormat do
-    begin
-      FBgColor := Self.BgColor;
-      FFont.Assign(Self.Font);
-      FVertAlign := Self.FVertAlign;
-      FIsBlock := Self.FIsBlock;
-      FFormatType := Self.FFormatType;
-      Hidden := Self.Hidden;
-      ReadOnly := Self.ReadOnly;
-      MultiLineBorder := Self.MultiLineBorder;
-      FChangeCase := Self.ChangeCase;
-      for i := 0 to 3 do
-       begin
-        FBorderTypes[i] := Self.FBorderTypes[i];
-        FBorderColors[i] := Self.FBorderColors[i];
-       end;
-      FFormatFlags := Self.FFormatFlags;
-    end;
-end;
-
-procedure TecSyntaxFormat.SetBgColor(const Value: TColor);
-begin
-  FBgColor := Value;
-  Change;
-end;
-
-procedure TecSyntaxFormat.SetFont(const Value: TFont);
-begin
-  FFont.Assign(Value);
-  Change;
-end;
-
-procedure TecSyntaxFormat.FontChanged(Sender: TObject);
-begin
-  Change;
-end;
-
-procedure TecSyntaxFormat.SetVertAlign(const Value: TecVertAlignment);
-begin
-  FVertAlign := Value;
-  Change;
-end;
-
-function TecSyntaxFormat.GetItemBaseName: string;
-begin
-  Result := 'Style';
-end;
-
-procedure TecSyntaxFormat.SetFormatType(const Value: TecFormatType);
-begin
-  FFormatType := Value;
-  Change;
-end;
-
-procedure TecSyntaxFormat.Change;
-begin
-  Changed(False);
-  if Assigned(FOnChange) then FOnChange(Self);
-end;
-
-procedure TecSyntaxFormat.SetHidden(const Value: Boolean);
-begin
-  FHidden := Value;
-  Change;
-end;
-
-function TecSyntaxFormat.GetBorderColor(Index: Integer): TColor;
-begin
-  if (Index >= 0) and (Index <= 3) then
-    Result := FBorderColors[Index]
-  else
-    Result := clBlack;
-end;
-
-function TecSyntaxFormat.GetBorderType(Index: Integer): TecBorderLineType;
-begin
-  if (Index >= 0) and (Index <= 3) then
-    Result := FBorderTypes[Index]
-  else
-    Result := blNone;
-end;
-
-procedure TecSyntaxFormat.SetBorderColor(Index: Integer;
-  const Value: TColor);
-begin
-  if (Index >= 0) and (Index <= 3) then
-   begin
-    FBorderColors[Index] := Value;
-    Change;
-   end;
-end;
-
-procedure TecSyntaxFormat.SetBorderType(Index: Integer;
-  const Value: TecBorderLineType);
-begin
-  if (Index >= 0) and (Index <= 3) then
-   begin
-    FBorderTypes[Index] := Value;
-    Change;
-   end;
-end;
-
-procedure TecSyntaxFormat.SetMultiLineBorder(const Value: Boolean);
-begin
-  FMultiLineBorder := Value;
-  Change;
-end;
-
-procedure TecSyntaxFormat.SetReadOnly(const Value: Boolean);
-begin
-  FReadOnly := Value;
-  Change;
-end;
-
-procedure TecSyntaxFormat.SetChangeCase(const Value: TecChangeCase);
-begin
-  FChangeCase := Value;
-  Change;
-end;
-
-function TecSyntaxFormat.HasBorder: Boolean;
-var i: integer;
-begin
-  for i := 0 to 3 do
-   if FBorderTypes[i] <> blNone then
-     begin
-      Result := True;
-      Exit;
-     end;
-  Result := False;
-end;
-
-procedure TecSyntaxFormat.SetFormatFlags(const Value: TecFormatFlags);
-begin
-  if FFormatFlags <> Value then
-    begin
-      FFormatFlags := Value;
-      Change;
-    end;
-end;
-
-procedure TecSyntaxFormat.ApplyTo(Canvas: TCanvas; AllowChangeFont: Boolean);
-var fs: TFontStyles;
-  procedure SwitchFontFlag(ff: TecFormatFlag; f: TFontStyle);
-  begin
-    if ff in FormatFlags then
-      if f in Font.Style then Include(fs, f)
-       else Exclude(fs, f);
-  end;
-begin
-  if not Enabled then Exit;
-
-  if BgColor <> clNone then
-    Canvas.Brush.Color := BgColor;
-
-  if FormatType = ftBackGround then Exit else
-   begin
-     if Font.Color <> clNone then
-       Canvas.Font.Color := Font.Color;
-     if FormatType <> ftColor then
-      begin
-       fs := Canvas.Font.Style;
-       SwitchFontFlag(ffBold, fsBold);
-       SwitchFontFlag(ffItalic, fsItalic);
-       SwitchFontFlag(ffUnderline, fsUnderline);
-       SwitchFontFlag(ffStrikeOut, fsStrikeOut);
-       if Canvas.Font.Style <> fs then
-         Canvas.Font.Style := fs;
-       if (FormatType = ftCustomFont) and AllowChangeFont then
-        begin
-          if ffFontName in FormatFlags then
-            Canvas.Font.Name := Font.Name;
-          if ffFontCharset in FormatFlags then
-            Canvas.Font.Charset := Font.Charset;
-          if ffFontSize in FormatFlags then
-            Canvas.Font.Size := Font.Size;
-        end;
-      end;
-   end;
-end;
-
-function TecSyntaxFormat.IsEqual(Other: TecSyntaxFormat): Boolean;
-begin
-  Result := (BgColor = Other.BgColor) and
-            (FormatType = Other.FormatType) and
-            (FormatFlags = Other.FormatFlags) and
-            (Hidden = Other.Hidden) and
-            (ReadOnly = Other.ReadOnly) and
-            (ChangeCase = Other.ChangeCase) and
-            (VertAlignment = Other.VertAlignment);
-  if Result and (FormatType <> ftBackGround) then
-    begin
-      Result := Font.Color = Other.Font.Color;
-      if Result and (FormatType <> ftColor) then
-        begin
-          Result := Font.Style = Other.Font.Style;
-          if Result and (FormatType <> ftFontAttr) then
-            begin
-              Result := (not (ffFontName in FormatFlags) or
-                         (Font.Name = Other.Font.Name))
-                        and
-                        (not (ffFontSize in FormatFlags) or
-                         (Font.Size = Other.Font.Size))
-                        and
-                        (not (ffFontCharSet in FormatFlags) or
-                         (Font.Charset = Other.Font.Charset));
-            end;
-        end;
-    end;
-end;
-
-procedure TecSyntaxFormat.Merge(Over: TecSyntaxFormat);
-var fs: TFontStyles;
-  procedure SwitchFontFlag(ff: TecFormatFlag; f: TFontStyle);
-  begin
-    if ff in Over.FormatFlags then
-      begin
-        Include(FFormatFlags, ff);
-        if f in Over.Font.Style then Include(fs, f)
-         else Exclude(fs, f);
-      end;
-  end;
-begin
-  if ffVertAlign in Over.FormatFlags then
-    VertAlignment := Over.VertAlignment;
-  if ffHidden in Over.FormatFlags then
-    Hidden := Over.Hidden;
-  if ffReadOnly in Over.FormatFlags then
-    ReadOnly := Over.ReadOnly;
-  if Over.BgColor <> clNone then
-    BgColor := Over.BgColor;
-  if Over.ChangeCase <> ccNone then
-    ChangeCase := Over.ChangeCase;
-  if Over.FormatType <> ftBackGround then
-    begin
-      if Over.Font.Color <> clNone then
-        Font.Color := Over.Font.Color;
-      if Over.FormatType <> ftColor then
-        begin
-          fs := Font.Style;
-          SwitchFontFlag(ffBold, fsBold);
-          SwitchFontFlag(ffItalic, fsItalic);
-          SwitchFontFlag(ffUnderline, fsUnderline);
-          SwitchFontFlag(ffStrikeOut, fsStrikeOut);
-          Font.Style := fs;
-          if Over.FormatType <> ftFontAttr then
-            begin
-              if ffFontName in Over.FormatFlags then
-                Font.Name := Over.Font.Name;
-              if ffFontCharset in Over.FormatFlags then
-                Font.Charset := Over.Font.Charset;
-              if ffFontSize in Over.FormatFlags then
-                Font.Size := Over.Font.Size;
-            end;
-        end;
-    end;
-  FormatFlags := FormatFlags + Over.FormatFlags;
-end;
-
-function TecSyntaxFormat.GetHidden: Boolean;
-begin
-  Result := FHidden and (ffHidden in FFormatFlags);
-end;
-
-procedure TecSyntaxFormat.Intersect(Over: TecSyntaxFormat);
-begin
-  FormatFlags := Over.FormatFlags * FormatFlags;
-  if Over.FormatType < FormatType then
-    FormatType := Over.FormatType;
-
-  if (ffVertAlign in FormatFlags) and
-     (VertAlignment <> Over.VertAlignment) then
-    FormatFlags := FormatFlags - [ffVertAlign];
-
-  if (ffReadOnly in FormatFlags) and
-     (ReadOnly <> Over.ReadOnly) then
-    FormatFlags := FormatFlags - [ffReadOnly];
-
-  if (ffHidden in FormatFlags) and
-     (Hidden <> Over.Hidden) then
-    FormatFlags := FormatFlags - [ffHidden];
-
-  if Over.ChangeCase <> ChangeCase then
-    ChangeCase := ccNone;
-
-  if BgColor <> Over.BgColor then
-    BgColor := clNone;
-
-  if FormatType = ftBackGround then Exit;
-
-  if Font.Color <> Over.Font.Color then
-    Font.Color := clNone;
-
-  if FormatType = ftColor then Exit;
-
-  if (ffBold in FormatFlags) and
-     ((fsBold in Font.Style) <> (fsBold in Over.Font.Style)) then
-    FormatFlags := FormatFlags - [ffBold];
-
-  if (ffItalic in FormatFlags) and
-     ((fsItalic in Font.Style) <> (fsItalic in Over.Font.Style)) then
-    FormatFlags := FormatFlags - [ffItalic];
-
-  if (ffUnderline in FormatFlags) and
-     ((fsUnderline in Font.Style) <> (fsUnderline in Over.Font.Style)) then
-    FormatFlags := FormatFlags - [ffUnderline];
-
-  if (ffStrikeOut in FormatFlags) and
-     ((fsStrikeOut in Font.Style) <> (fsStrikeOut in Over.Font.Style)) then
-    FormatFlags := FormatFlags - [ffStrikeOut];
-
-  if FormatType = ftFontAttr then Exit;
-
-  if (ffFontName in FormatFlags) and
-     (not SameText(Font.Name, Over.Font.Name)) then
-    FormatFlags := FormatFlags - [ffFontName];
-
-  if (ffFontSize in FormatFlags) and
-     (Font.Size <> Over.Font.Size) then
-    FormatFlags := FormatFlags - [ffFontSize];
-
-  if (ffFontCharset in FormatFlags) and
-     (Font.Charset <> Over.Font.Charset) then
-    FormatFlags := FormatFlags - [ffFontCharset];
-end;
-
-{ TecStylesCollection }
-
-function TecStylesCollection.Add: TecSyntaxFormat;
-begin
-  Result := (inherited Add) as TecSyntaxFormat;
-end;
-
-constructor TecStylesCollection.Create;
-begin
-  inherited Create(TecSyntaxFormat);
-end;
-
-function TecStylesCollection.GetItem(Index: integer): TecSyntaxFormat;
-begin
-  Result := (inherited Items[Index]) as TecSyntaxFormat;
-end;
-
-function TecStylesCollection.Synchronize(Source: TecStylesCollection): integer;
-var j: integer;
-    f: TecSyntaxFormat;
-begin
-  Result := 0;
-  for j := 0 to Count - 1 do
-   begin
-     f := TecSyntaxFormat(Source.ItemByName(Items[j].DisplayName));
-     if f <> nil then
-      begin
-        Inc(Result);
-        Items[j].Assign(f);
-      end;
-   end;
-end;
-
-{ TecSingleTagCondition }
-
-procedure TecSingleTagCondition.AssignTo(Dest: TPersistent);
-var dst: TecSingleTagCondition;
-begin
-  if Dest is TecSingleTagCondition then
-   begin
-     dst := Dest as TecSingleTagCondition;
-     dst.CondType := CondType;
-     dst.TokenTypes := TokenTypes;
-     dst.FTagList.Assign(FTagList);
-     dst.IgnoreCase := IgnoreCase;
-   end;
-end;
-
-function TecSingleTagCondition.CheckToken(const Source: ecString; const Token: TecSyntToken): Boolean;
-var s: ecString;
-    i, N: integer;
-    RE: TecRegExpr;
-begin
-  Result := False;
-  if FTokenTypes <> 0 then
-   begin
-    Result := ((1 shl Token.TokenType) and FTokenTypes) <> 0;
-    if FCondType = tcSkip then Exit;
-    if not Result then
-    case FCondType of
-      tcStrictMask, tcMask, tcEqual: Exit;
-      tcNotEqual:
-        begin
-          Result := True;
-          Exit;
-        end;
-    end;
-   end;
-  if FTagList.Count > 0 then
-   begin
-    s := Token.GetStr(Source);
-    s := Trim(s); //AT
-    if FCondType in [tcMask, tcStrictMask] then
-     begin
-       RE := TecRegExpr.Create;
-       SetDefaultModifiers(RE);
-       try
-         for i := 0 to FTagList.Count - 1 do
-          begin
-            RE.Expression := FTagList[i];
-            if FCondType = tcMask then
-              Result := RE.MatchLength(s, 1) > 0
-            else
-              begin
-                N := 1;
-                Result := RE.Match(s, N);
-                if Result then
-                  Result := N > Length(S);
-              end;
-
-            if Result then break;
-          end;
-       except
-       end;
-       FreeAndNil(RE);
-     end else
-     begin
-       Result := FTagList.IndexOf(s) <> -1;
-       if FCondType = tcNotEqual then Result := not Result;
-     end;
-   end else Result := FCondType <> tcNotEqual;
-end;
-
-constructor TecSingleTagCondition.Create(Collection: TCollection);
-begin
-  inherited;
-  FCondType := tcEqual;
-  FTagList := TStringList.Create;
-  TStringList(FTagList).Sorted := true;
-  TStringList(FTagList).Delimiter := ' ';
-  TStringList(FTagList).Duplicates := dupIgnore;
-  TStringList(FTagList).CaseSensitive := True;
-  TStringList(FTagList).OnChange := TagListChanged;
-  TStringList(FTagList).QuoteChar := ' ';
-end;
-
-destructor TecSingleTagCondition.Destroy;
-begin
-  FreeAndNil(FTagList);
-  inherited;
-end;
-
-procedure TecSingleTagCondition.SetIgnoreCase(const Value: Boolean);
-begin
-  TStringList(FTagList).CaseSensitive := not Value;
-end;
-
-function TecSingleTagCondition.GetIgnoreCase: Boolean;
-begin
-  Result := not TStringList(FTagList).CaseSensitive;
-end;
-
-procedure TecSingleTagCondition.SetTagList(const Value: TStrings);
-begin
-  TStringList(FTagList).DelimitedText := Value.Text;
-  Changed(False);
-end;
-
-procedure TecSingleTagCondition.SetTokenTypes(const Value: DWORD);
-begin
-  FTokenTypes := Value;
-  Changed(False);
-end;
-
-procedure TecSingleTagCondition.SetCondType(const Value: TecTagConditionType);
-begin
-  FCondType := Value;
-  Changed(False);
-end;
-
-procedure TecSingleTagCondition.TagListChanged(Sender: TObject);
-begin
-  Changed(False);
-end;
-
-{ TecConditionCollection }
-
-function TecConditionCollection.Add: TecSingleTagCondition;
-begin
-  Result := (inherited Add) as TecSingleTagCondition;
-end;
-
-constructor TecConditionCollection.Create(AOwner: TecTagBlockCondition);
-begin
-  inherited Create(TecSingleTagCondition);
-  FOwner := AOwner;
-  PropName := 'Conditions';
-end;
-
-function TecConditionCollection.GetItem(Index: integer): TecSingleTagCondition;
-begin
-  Result := (inherited Items[Index]) as TecSingleTagCondition;
-end;
-
-function TecConditionCollection.GetOwner: TPersistent;
-begin
-  Result := FOwner;
-end;
-
-procedure TecConditionCollection.Update(Item: TCollectionItem);
-begin
-  inherited;
-  if Assigned(FOnChange) then FOnChange(Self);
-end;
-
-{ TecTagBlockCondition }
-
-constructor TecTagBlockCondition.Create(Collection: TCollection);
-begin
-  inherited;
-  FConditions := TecConditionCollection.Create(Self);
-  FConditions.OnChange := ConditionsChanged;
-  FBlockType := btRangeStart;
-  FLinePos := lbTop;
-  FDisplayInTree := True;
-//  FHighlightPos := cpBound;
-  FTokenType := -1;
-  FTreeItemImage := -1;
-  FTreeGroupImage := -1;
-  FPen := TPen.Create;
-  FPen.OnChange := ConditionsChanged;
-end;
-
-procedure TecTagBlockCondition.AssignTo(Dest: TPersistent);
-var dst: TecTagBlockCondition;
-begin
-  inherited;
-  if Dest is TecTagBlockCondition then
-   begin
-     dst := Dest as TecTagBlockCondition;
-     dst.ConditionList := ConditionList;
-     dst.FIdentIndex := IdentIndex;
-     dst.FLinePos := LinePos;
-     dst.FBlockOffset := BlockOffset;
-     dst.FBlockType := BlockType;
-     dst.BlockEnd := BlockEnd;
-     dst.FEndOfTextClose := FEndOfTextClose;
-     dst.FNotCollapsed := FNotCollapsed;
-     dst.FSameIdent := FSameIdent;
-     dst.Highlight := Highlight;
-     dst.InvertColors := InvertColors;
-     dst.DisplayInTree := DisplayInTree;
-     dst.NameFmt := NameFmt;
-     dst.GroupFmt := GroupFmt;
-     dst.RefToCondEnd := RefToCondEnd;
-     dst.DynHighlight := DynHighlight;
-     dst.HighlightPos := HighlightPos;
-     dst.DynSelectMin := DynSelectMin;
-     dst.CancelNextRules := CancelNextRules;
-     dst.DrawStaple := DrawStaple;
-     dst.GroupIndex := GroupIndex;
-     dst.OnBlockCheck := OnBlockCheck;
-     dst.CollapseFmt := CollapseFmt;
-     dst.FSelfClose := SelfClose;
-     dst.FNoEndRule := NoEndRule;
-     dst.GrammaRuleName := GrammaRuleName;
-     dst.TokenType := TokenType;
-     dst.TreeItemStyle := TreeItemStyle;
-     dst.TreeGroupStyle := TreeGroupStyle;
-     dst.TreeItemImage := TreeItemImage;
-     dst.TreeGroupImage := TreeGroupImage;
-     dst.Pen := Pen;
-     dst.UseCustomPen := UseCustomPen;
-     dst.IgnoreAsParent := IgnoreAsParent;
-     dst.AutoCloseText := AutoCloseText;
-     dst.AutoCloseMode := AutoCloseMode;
-   end;
-end;
-
-function TecTagBlockCondition.Check(const Source: ecString;
-  Tags: TecClientSyntAnalyzer; N: integer; var RefIdx: integer): Boolean;
-var i, offs, idx, skipped, skip_cond: integer;
-begin
-  Result := False;
-  offs := CheckOffset;
-  skipped := 0;
-  skip_cond := 0;
-  i := 0;
-  while i < ConditionList.Count do
-  begin
-   idx := N - 1 - i - offs - skipped + skip_cond;
-   if (ConditionList[i].CondType = tcSkip) and (i < ConditionList.Count - 1)
-      and (ConditionList[i+1].CondType <> tcSkip) then
-     begin
-      inc(i);
-      inc(skip_cond);
-      while (idx >= 0) and not ConditionList[i].CheckToken(Source, Tags[idx]) do
-       begin
-         if not ConditionList[i - 1].CheckToken(Source, Tags[idx]) then
-           Exit;
-         dec(idx);
-         inc(skipped);
-       end;
-      if idx < 0 then Exit;
-     end;
-   with ConditionList[i] do
-    if (idx < 0) or not CheckToken(Source, Tags[idx]) then Exit;
-   inc(i);
-  end;
-
-  Result := ConditionList.Count > 0;
-//  if FRefToCondEnd then
-  RefIdx := N - ConditionList.Count - offs - skipped + skip_cond;
-//  else
-//    RefIdx := N - 1 - offs;
-end;
-
-destructor TecTagBlockCondition.Destroy;
-begin
-  FreeAndNil(FConditions);
-  FreeAndNil(FPen);
-  inherited;
-end;
-
-function TecTagBlockCondition.GetItemBaseName: string;
-begin
-  Result := 'Tag block rule';
-end;
-
-function TecTagBlockCondition.GetBlockEndName: string;
-var FSynt: TecSyntAnalyzer;
-begin
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-
-  if csLoading in FSynt.ComponentState then
-    Result := FBlockEndName
-  else
-   if Assigned(FBlockEndCond) then
-    Result := FBlockEndCond.DisplayName
-   else
-    Result := '';
-end;
-
-procedure TecTagBlockCondition.SetBlockEndName(const Value: string);
-var FSynt: TecSyntAnalyzer;
-begin
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-  if csLoading in FSynt.ComponentState then
-    FBlockEndName := Value
-  else
-    FBlockEndCond := TecTagBlockCondition(TecBlockRuleCollection(Collection).ItemByName(Value));
-  Changed(False);
-end;
-
-procedure TecTagBlockCondition.Loaded;
-var FSynt: TecSyntAnalyzer;
-begin
-  inherited;
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-  if FBlockEndName <> '' then
-    FBlockEndCond := TecTagBlockCondition(FSynt.FBlockRules.ItemByName(FBlockEndName));
-  if FTreeItemStyle <> '' then
-    FTreeItemStyleObj := TecSyntaxFormat(FSynt.Formats.ItemByName(FTreeItemStyle));
-  if FTreeGroupStyle <> '' then
-    FTreeGroupStyleObj := TecSyntaxFormat(FSynt.Formats.ItemByName(FTreeGroupStyle));
-end;
-
-function TecTagBlockCondition.CheckOffset: integer;
-begin
-  Result := 0;
-  if FRefToCondEnd then Exit;
-  if FIdentIndex < 0 then Result := -FIdentIndex;
-  if (FBlockOffset < 0) and (FBlockOffset < FIdentIndex) then
-    Result := -FBlockOffset;
-end;
-
-procedure TecTagBlockCondition.SetBlockType(const Value: TecTagBlockType);
-begin
-  FBlockType := Value;
-  if FBlockType in [btTagDetect, btLineBreak] then
-   begin
-     FBlockOffset := 0;
-     FBlockEndCond := nil;
-   end;
-  Changed(False);
-end;
-
-procedure TecTagBlockCondition.SetConditions(
-  const Value: TecConditionCollection);
-begin
-  FConditions.Assign(Value);
-end;
-
-procedure TecTagBlockCondition.ConditionsChanged(Sender: TObject);
-begin
-  Changed(False);
-end;
-
-procedure TecTagBlockCondition.SetBlockEndCond(
-  const Value: TecTagBlockCondition);
-begin
-  if FBlockEndCond <> Value then
-    begin
-      FBlockEndCond := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetLinePos(const Value: TecLineBreakPos);
-begin
-  if FLinePos <> Value then
-    begin
-      FLinePos := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetIdentIndex(const Value: integer);
-begin
-  if FIdentIndex <> Value then
-    begin
-      FIdentIndex := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetBlockOffset(const Value: integer);
-begin
-  if FBlockOffset <> Value then
-    begin
-      FBlockOffset := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetEndOfTextClose(const Value: Boolean);
-begin
-  if FEndOfTextClose <> Value then
-    begin
-      FEndOfTextClose := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetNotCollapsed(const Value: Boolean);
-begin
-  if FNotCollapsed <> Value then
-    begin
-      FNotCollapsed := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetSameIdent(const Value: Boolean);
-begin
-  if FSameIdent <> Value then
-    begin
-      FSameIdent := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetHighlight(const Value: Boolean);
-begin
-  if FHighlight <> Value then
-    begin
-      FHighlight := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetInvertColors(const Value: Boolean);
-begin
-  if FInvertColors <> Value then
-    begin
-      FInvertColors := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetDisplayInTree(const Value: Boolean);
-begin
-  if FDisplayInTree <> Value then
-    begin
-      FDisplayInTree := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetCancelNextRules(const Value: Boolean);
-begin
-  if FCancelNextRules <> Value then
-    begin
-      FCancelNextRules := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetDynHighlight(
-  const Value: TecDynamicHighlight);
-begin
-  if FDynHighlight <> Value then
-    begin
-      FDynHighlight := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetDynSelectMin(const Value: Boolean);
-begin
-  if FDynSelectMin <> Value then
-    begin
-      FDynSelectMin := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetGroupFmt(const Value: ecString);
-begin
-  if FGroupFmt <> Value then
-    begin
-      FGroupFmt := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetHighlightPos(const Value: TecHighlightPos);
-begin
-  if FHighlightPos <> Value then
-    begin
-      FHighlightPos := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetNameFmt(const Value: ecString);
-begin
-  if FNameFmt <> Value then
-    begin
-      FNameFmt := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetRefToCondEnd(const Value: Boolean);
-begin
-  if FRefToCondEnd <> Value then
-    begin
-      FRefToCondEnd := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetDrawStaple(const Value: Boolean);
-begin
-  if FDrawStaple <> Value then
-    begin
-      FDrawStaple := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetCollapseFmt(const Value: ecString);
-begin
-  if FCollapseFmt <> Value then
-    begin
-      FCollapseFmt := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetSelfClose(const Value: Boolean);
-begin
-  if FSelfClose <> Value then
-    begin
-      FSelfClose := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetNoEndRule(const Value: Boolean);
-begin
-  if FNoEndRule <> Value then
-    begin
-      FNoEndRule := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetGrammaRuleName(const Value: string);
-begin
-  if FGrammaRuleName <> Value then
-   begin
-    FGrammaRuleName := Value;
-    FGrammaRule :=
-      TSyntCollection(Collection).SyntOwner.Gramma.ParserRuleByName(Value);
-   end;
-end;
-
-procedure TecTagBlockCondition.SetTokenType(const Value: integer);
-begin
-  if FTokenType <> Value then
-    begin
-      FTokenType := Value;
-      Changed(False);
-    end;
-end;
-
-function TecTagBlockCondition.GetTreeItemStyle: string;
-begin
-  Result := ValidStyleName(FTreeItemStyle, FTreeItemStyleObj);
-end;
-
-procedure TecTagBlockCondition.SetTreeItemStyle(const Value: string);
-begin
-  ValidSetStyle(Value, FTreeItemStyle, FTreeItemStyleObj);
-end;
-
-function TecTagBlockCondition.GetTreeGroupStyle: string;
-begin
-  Result := ValidStyleName(FTreeGroupStyle, FTreeGroupStyleObj);
-end;
-
-procedure TecTagBlockCondition.SetTreeGroupStyle(const Value: string);
-begin
-  ValidSetStyle(Value, FTreeGroupStyle, FTreeGroupStyleObj);
-end;
-
-procedure TecTagBlockCondition.SetTreeGroupImage(const Value: integer);
-begin
-  if FTreeGroupImage <> Value then
-    begin
-      FTreeGroupImage := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetTreeItemImage(const Value: integer);
-begin
-  if FTreeItemImage <> Value then
-    begin
-      FTreeItemImage := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetPen(const Value: TPen);
-begin
-  FPen.Assign(Value);
-end;
-
-procedure TecTagBlockCondition.SetUseCustomPen(const Value: Boolean);
-begin
-  if FUseCustomPen <> Value then
-    begin
-      FUseCustomPen := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetIgnoreAsParent(const Value: Boolean);
-begin
-  if FIgnoreAsParent <> Value then
-    begin
-      FIgnoreAsParent := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetAutoCloseText(Value: ecString);
-begin
-  if Value = sLineBreak then
-    Value := '';
-  if FAutoCloseText <> Value then
-    begin
-      FAutoCloseText := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTagBlockCondition.SetAutoCloseMode(const Value: TecAutoCloseMode);
-begin
-  if FAutoCloseMode <> Value then
-    begin
-      FAutoCloseMode := Value;
-      Changed(False);
-    end;
-end;
 
 { TecBlockRuleCollection }
 
@@ -2379,268 +571,6 @@ end;
 function TecBlockRuleCollection.GetItem(Index: integer): TecTagBlockCondition;
 begin
   Result := inherited Items[Index] as TecTagBlockCondition;
-end;
-
-{ TecTokenRule }
-
-procedure TecTokenRule.AssignTo(Dest: TPersistent);
-var dst: TecTokenRule;
-begin
-  inherited;
-  if Dest is TecTokenRule then
-   begin
-    dst := Dest as TecTokenRule;
-    dst.FTokenType := FTokenType;
-    dst.FRegExpr.Expression := Expression;
-    dst.OnMatchToken := OnMatchToken;
-    dst.ColumnFrom := ColumnFrom;
-    dst.ColumnTo := ColumnTo;
-   end;
-end;
-
-constructor TecTokenRule.Create(Collection: TCollection);
-begin
-  inherited;
-  FBlock := nil;
-  FFormat := nil;
-  FRegExpr := TecRegExpr.Create;
-  SetDefaultModifiers(FRegExpr);
-end;
-
-destructor TecTokenRule.Destroy;
-begin
-  FreeAndNil(FRegExpr);
-  inherited;
-end;
-
-function TecTokenRule.GetExpression: ecString;
-begin
-  Result := FRegExpr.Expression;
-end;
-
-function TecTokenRule.GetIsInvalid: Boolean;
-begin
-  Result := FRegExpr.IsInvalid;
-end;
-
-function TecTokenRule.GetItemBaseName: string;
-begin
-  Result := 'Token rule';
-end;
-
-function TecTokenRule.Match(const Source: ecString; Pos: integer): integer;
-begin
- try
-  Result := FRegExpr.MatchLength(Source, Pos);
- except
-  Result := 0;
- end;
-end;
-
-procedure TecTokenRule.SetColumnFrom(const Value: integer);
-begin
-  if FColumnFrom <> Value then
-    begin
-      FColumnFrom := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTokenRule.SetColumnTo(const Value: integer);
-begin
-  if FColumnTo <> Value then
-    begin
-      FColumnTo := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TecTokenRule.SetExpression(const Value: ecString);
-begin
-  try
-    FRegExpr.Expression := Value;
-  except
-    Application.HandleException(Self);
-  end;
-  Changed(False);
-end;
-
-procedure TecTokenRule.SetTokenType(const Value: integer);
-begin
-  if FTokenType <> Value then
-    begin
-      FTokenType := Value;
-      Changed(False);
-    end;
-end;
-
-{ TRuleCollectionItem }
-
-function TRuleCollectionItem.ValidStyleName(const AStyleName: string;
-  AStyle: TecSyntaxFormat): string;
-var FSynt: TecSyntAnalyzer;
-begin
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  Result := '';
-  if not Assigned(FSynt) then Exit;
-
-  if csLoading in FSynt.ComponentState then
-    Result := AStyleName
-  else
-   if Assigned(AStyle) then
-    Result := AStyle.DisplayName;
-end;
-
-function TRuleCollectionItem.ValidSetStyle(const AStyleName: string;
-  var AStyleField: string; var AStyle: TecSyntaxFormat): string;
-var FSynt: TecSyntAnalyzer;
-begin
-  Result := '';
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-  if csLoading in FSynt.ComponentState then
-    AStyleField := AStyleName
-  else
-    AStyle := TecSyntaxFormat(FSynt.FFormats.ItemByName(AStyleName));
-  Changed(False);
-end;
-
-function TRuleCollectionItem.GetStyleName: string;
-begin
-  Result := ValidStyleName(FStyleName, FFormat);
-end;
-
-procedure TRuleCollectionItem.SetStyleName(const Value: string);
-begin
-  ValidSetStyle(Value, FStyleName, FFormat);
-end;
-
-procedure TRuleCollectionItem.Loaded;
-var FSynt: TecSyntAnalyzer;
-begin
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-  if FStyleName <> '' then
-    FFormat := TecSyntaxFormat(FSynt.FFormats.ItemByName(FStyleName));
-  if FBlockName <> '' then
-    FBlock := TecTagBlockCondition(FSynt.BlockRules.ItemByName(FBlockName));
-end;
-
-function TRuleCollectionItem.GetBlockName: string;
-var FSynt: TecSyntAnalyzer;
-begin
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-
-  if csLoading in FSynt.ComponentState then
-    Result := FBlockName
-  else
-   if Assigned(FBlock) then
-    Result := FBlock.DisplayName
-   else
-    Result := '';
-end;
-
-procedure TRuleCollectionItem.SetBlockName(const Value: string);
-var FSynt: TecSyntAnalyzer;
-begin
-  FSynt := TSyntCollection(Collection).SyntOwner;
-  if not Assigned(FSynt) then Exit;
-  if csLoading in FSynt.ComponentState then
-    FBlockName := Value
-  else
-   begin
-//    FBlock := TecTagBlockCondition(FSynt.BlockRules.ItemByName(Value));
-    FBlock := TecTagBlockCondition(FSynt.BlockRules.ItemByName(Value));
-    Changed(False);
-   end;
-end;
-
-procedure TRuleCollectionItem.AssignTo(Dest: TPersistent);
-var dst: TRuleCollectionItem;
-begin
-  inherited;
-  if Dest is TRuleCollectionItem then
-    begin
-      dst := Dest as TRuleCollectionItem;
-      dst.StyleName := StyleName;
-      dst.BlockName := BlockName;
-      dst.StrictParent := StrictParent;
-      dst.NotParent := NotParent;
-      dst.AlwaysEnabled := AlwaysEnabled;
-      dst.StatesAbsent := StatesAbsent;
-      dst.StatesAdd := StatesAdd;
-      dst.StatesRemove := StatesRemove;
-      dst.StatesPresent := StatesPresent;
-    end;
-end;
-
-procedure TRuleCollectionItem.SetNotParent(const Value: Boolean);
-begin
-  if FNotParent <> Value then
-    begin
-      FNotParent := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TRuleCollectionItem.SetStrictParent(const Value: Boolean);
-begin
-  if FStrictParent <> Value then
-    begin
-      FStrictParent := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TRuleCollectionItem.SetAlwaysEnabled(const Value: Boolean);
-begin
-  if FAlwaysEnabled <> Value then
-    begin
-      FAlwaysEnabled := Value;
-      Changed(False);
-    end;
-end;
-
-function TRuleCollectionItem.GetSyntOwner: TecSyntAnalyzer;
-begin
-  Result := TSyntCollection(Collection).SyntOwner;
-end;
-
-procedure TRuleCollectionItem.SetStatesAdd(const Value: integer);
-begin
-  if FStatesAdd <> Value then
-    begin
-      FStatesAdd := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TRuleCollectionItem.SetStatesAbsent(const Value: integer);
-begin
-  if FStatesAbsent <> Value then
-    begin
-      FStatesAbsent := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TRuleCollectionItem.SetStatesRemove(const Value: integer);
-begin
-  if FStatesRemove <> Value then
-    begin
-      FStatesRemove := Value;
-      Changed(False);
-    end;
-end;
-
-procedure TRuleCollectionItem.SetStatesPresent(const Value: integer);
-begin
-  if FStatesPresent <> Value then
-    begin
-      FStatesPresent := Value;
-      Changed(False);
-    end;
 end;
 
 { TecTokenRuleCollection }
@@ -2660,1659 +590,8 @@ begin
   Result := inherited Items[Index] as TecTokenRule;
 end;
 
-{ TecParserResults }
 
-constructor TecParserResults.Create(
-  AOwner: TecSyntAnalyzer;
-  ABuffer: TATStringBuffer;
-  const AClient: IecSyntClient;
-  const SynEditAdapter: ISynEditAdapter;
-  useWorkerThread: boolean);
-begin
-  self._AddRef();
-  FLastAnalPos:=0;
-  inherited Create;
-  if ABuffer = nil then
-    raise Exception.Create('TextBuffer not passed to parser');
-  FOwner := AOwner;
-  FBuffer := ABuffer;
-  FClient := AClient;
-  FWorkerThread:=nil;
 
- //FSubLexerBlocks := TecSubLexerRanges.Create;
-  FSubLexerBlocks.Init(self, TecSubLexerRanges.Create, nil);
-  FCurState := 0;
-  FStateChanges := TecRangeList.Create;
-  FWorkerRequested:=useWorkerThread;
-  if useWorkerThread then begin
-    FTagList.Init(self, TecTokenList.Create(False), nil);
-  end
-  else begin
-    FTagList.Init(self, TecTokenList.Create(False), nil);
-  end;
-
-  FOwner.FClientList.Add(Self);
-end;
-
-destructor TecParserResults.Destroy;
-begin
-  inherited;
-  if Assigned(FWorkerThread) then begin
-    FWorkerThread.Terminate2;
-    FWorkerThread := nil;
-  end;
-
-  FOwner.FClientList.Remove(Self);
-  FTagList.Release();
-  FSubLexerBlocks.Release();
-  FreeAndNil(FStateChanges);
-end;
-
-procedure TecParserResults.Clear;
-begin
-  WaitTillCoherent();
-  try
-    FTagList.Get.Clear;
-    FSubLexerBlocks.Get.Clear;
-    FStateChanges.Clear;
-    FCurState := 0;
-  finally ReleaseBackgroundLock();end;
-end;
-
-procedure TecParserResults.Finished;
-begin
-  AssertCoherent();
-  FParserStatus := psComplete;
-  // Performs Gramma parsing
-  //AnalyzeGramma;
-  //FTagList.UpdateIndexer; //AT
-end;
-
-function TecParserResults.IsEnabled(Rule: TRuleCollectionItem;
-  OnlyGlobal: Boolean): Boolean;
-begin
-  Result := Rule.Enabled and (not OnlyGlobal or Rule.AlwaysEnabled) and
-            ((Rule.StatesPresent = 0) or ((FCurState and Rule.StatesPresent) = Rule.StatesPresent)) and
-            ((Rule.StatesAbsent = 0) or ((FCurState and Rule.StatesAbsent) = 0));
-end;
-
-function TecParserResults.GetTokenCount: integer;
-begin
-  WaitTillCoherent(true);
-  try
-    Result := FTagList.Get.Count;
-  finally ReleaseBackgroundLock();  end;
-end;
-
-function TecParserResults.GetIsCoherentThread: boolean;
-begin
-  Result := not Assigned(FWorkerThread) or GetIsSyntaxThread();
-end;
-
-function TecParserResults.GetIsSyntaxThread(): boolean;
-begin
-  Result := Assigned(FWorkerThread) and FWorkerThread.GetIsWorkerThread();
-end;
-
-function TecParserResults.GetTags(Index: integer): TecSyntToken;
-begin
-  WaitTillCoherent(true);
-  try
-    Result := FTagList.Get[Index];
-  finally ReleaseBackgroundLock();  end;
-end;
-
-function TecParserResults.GetTokenStr(Index: integer): ecString;
-begin
-  //AT: all TagStr[] calls are inside WaitTillCoherent blocks, so blocking not needed
-  AssertCoherent();
-  //WaitTillCoherent();
-  //try
-    if Index >= 0 then
-      with Tags[Index] do
-        Result := FBuffer.SubString(Range.StartPos + 1, Range.EndPos - Range.StartPos)
-    else
-      Result := '';
-  //finally ReleaseBackgroundLock();  end;
-end;
-
-function TecParserResults.GetLastPos(const Source: ecString): integer;
-var tagCount: integer;
-begin
-  AssertCoherent();
-  tagCount := FTagList.Get.Count;
-  if tagCount = 0 then Result := 1 else
-    Result := FTagList.Get[tagCount - 1].Range.EndPos + 1;
-  if FLastAnalPos > Result then Result := FLastAnalPos;
-end;
-
-procedure TecParserResults.SaveState;
-var b: Boolean;
-begin
- AssertCoherent();
- if FStateChanges.Count = 0 then
-   b := FCurState <> 0
- else
-   b := FCurState <> FStateChanges.Last.EndPos;
- if b then
-   FStateChanges.Add(TRange.Create(FTagList.Get.Count, FCurState));
-end;
-
-// True if end of the text
-function TecParserResults.ExtractTag(const Source: ecString; var FPos: integer): Boolean;
-var N: integer;
-    token: TecSyntToken;
-    own: TecSyntAnalyzer;
-    subLexerBlocks: TecSubLexerRanges;
-
-   // Select current lexer
-   procedure GetOwner;
-   var i, N: integer;
-     Sub: TecSubLexerRange;
-   begin
-    own := FOwner;
-    for i := subLexerBlocks.Count - 1 downto 0 do
-     begin
-       Sub:= subLexerBlocks[i];
-       if FPos > Sub.Range.StartPos then
-        if Sub.Range.EndPos = -1 then
-          begin
-            // try close sub lexer
-    //        if Rule.ToTextEnd then N := 0 else
-            N := Sub.Rule.MatchEnd(Source, FPos);
-            if N > 0 then
-             begin
-               if Sub.Rule.IncludeBounds then
-                 begin // New mode in v2.35
-                   Sub.Range.EndPos := FPos - 1 + N;
-                   Sub.Range.PointEnd := FBuffer.StrToCaret(Sub.Range.EndPos);
-                   Sub.CondEndPos := Sub.Range.EndPos;
-                   own := Sub.Rule.SyntAnalyzer;
-                 end else
-                 begin
-                   Sub.Range.EndPos := FPos - 1;
-                   Sub.Range.PointEnd := FBuffer.StrToCaret(Sub.Range.EndPos);
-                   Sub.CondEndPos := Sub.Range.EndPos + N;
-                 end;
-               // Close ranges which belongs to this sub-lexer range
-               CloseAtEnd(FTagList.Get.PriorAt(Sub.Range.StartPos));
-               subLexerBlocks[i] := Sub; // Write back to list
-             end else
-             begin
-               own := Sub.Rule.SyntAnalyzer;
-               Exit;
-             end;
-          end else
-       if FPos < Sub.Range.EndPos then
-         begin
-               own := Sub.Rule.SyntAnalyzer;
-               Exit;
-         end;
-    end;
-   end;
-
-   procedure CheckIntersect;
-   var i: integer;
-     Sub: TecSubLexerRange;
-   begin
-    for i := subLexerBlocks.Count - 1 downto 0 do
-    begin
-      Sub := subLexerBlocks[i];
-      if (token.Range.EndPos > Sub.Range.StartPos) and (token.Range.StartPos < Sub.Range.StartPos) then
-       begin
-        token.CorrectEndRange(Sub.Range.StartPos, FBuffer.StrToCaret(token.Range.EndPos));
-        Exit;
-       end;
-    end;
-   end;
-
-   function CanOpen(Rule: TecSubAnalyzerRule): Boolean;
-   var N: integer;
-       sub: TecSubLexerRange;
-   begin
-     Result := IsEnabled(Rule, False) and (Rule.SyntAnalyzer <> nil);
-     if not Result then Exit;
-     Result := Rule.FromTextBegin and (FPos = 1);
-     if Result then N := 0 else
-                    N := Rule.MatchStart(Source, FPos);
-     Result := Result or (N > 0);
-     if not Result then Exit;
-     // To prevent repeated opening
-     if subLexerBlocks.Count > 0 then
-     begin
-       sub := subLexerBlocks.Last;
-       if (sub.Range.EndPos = FPos - 1) and
-          (sub.Rule = Rule) then Exit;
-     end;
-
-     ApplyStates(Rule);
-
-     FillChar(sub, SizeOf(sub), 0);
-     sub.Rule := Rule;
-     sub.CondStartPos := FPos - 1;
-     if Rule.IncludeBounds then
-       sub.Range.StartPos := FPos - 1
-     else
-       sub.Range.StartPos := FPos + N - 1;
-     sub.Range.EndPos := -1;
-     sub.Range.PointStart := FBuffer.StrToCaret(sub.Range.StartPos);
-     sub.CondEndPos := -1;
-     subLexerBlocks.Add(sub);
-   end;
-
-
-   procedure TryOpenSubLexer;
-   var i, sCnt: integer;
-   begin
-     sCnt :=own.SubAnalyzers.Count;
-     for i := 0 to sCnt - 1 do
-      if CanOpen(own.SubAnalyzers[i]) then Exit;
-     if own <> FOwner then begin
-      sCnt:=FOwner.SubAnalyzers.Count;
-      for i := 0 to sCnt - 1 do
-       if FOwner.SubAnalyzers[i].AlwaysEnabled and CanOpen(FOwner.SubAnalyzers[i]) then Exit;
-     end;
-   end;
-
-var
-  NNextPos: integer;
-begin
-   AssertCoherent();
-  subLexerBlocks :=FSubLexerBlocks.Get;
-  GetOwner;
-  TryOpenSubLexer;
-  if own.SkipSpaces then
-    begin
-     if own.ParseEndOfLine then
-      N := SkipSpacesNoLineBreak(Source, FPos)
-      else N := SkipSpaces(Source, FPos);
-    end
-   else if FPos > Length(Source) then N := -1 else N := 0;
-  TryOpenSubLexer;
-  GetOwner;
-
-  Result := N = -1;
-  if Result then Exit;
-
-  token := FOwner.GetToken(Self, Source, FPos, own <> FOwner);
-  if (own <> FOwner) and (token.Range.StartPos < 0) then
-    token := own.GetToken(Self, Source, FPos, False);
-  if token.Range.StartPos < 0 then  // no token
-   begin
-     NNextPos := FPos;
-     SkipSpaces(Source, NNextPos); // needed for huge space-only lines, where Inc(FPos) is very slow
-     if NNextPos > FPos then
-       FPos := NNextPos
-     else
-       Inc(FPos);
-   end else
-   begin
-    CheckIntersect;
-    SaveState;
-    FTagList.Get.Add(token);
-    if not FOwner.SeparateBlockAnalysis then  begin
-      FOwner.SelectTokenFormat(Self, Source, own <> FOwner);
-      if own <> FOwner then
-        own.SelectTokenFormat(Self, Source, False);
-     end else
-//    if not IsIdle then
-     begin  // Only for first iteration of analysis
-      FOwner.HighlightKeywords(Self, Source, own <> FOwner);
-      if own <> FOwner then
-        own.HighlightKeywords(Self, Source, False);
-     end;
-    FPos := token.Range.EndPos + 1;
-   end;
-   FLastAnalPos := FPos;
-end;
-
-function TecParserResults.AnalyzerAtPos(APos: integer): TecSyntAnalyzer;
-var
-  N: integer;
-  Rng: TecSubLexerRange;
-  subLexerBlocks: TecSubLexerRanges;
-begin
-  Result := FOwner;
-  if APos < 0 then Exit;
-  WaitTillCoherent(true);
-  subLexerBlocks := FSubLexerBlocks.Get;
-  try
-    N := subLexerBlocks.PriorAt(APos);
-    if N < 0 then Exit;
-    Rng :=   subLexerBlocks.Items[N];
-    if (Rng.Range.StartPos<=APos) and (APos<Rng.Range.EndPos) then
-      Result := Rng.Rule.SyntAnalyzer;
-   {
- for i := 0 to FSubLexerBlocks.Count - 1 do
-  with FSubLexerBlocks[i] do
-   if APos < Range.StartPos then Break else
-    if (Range.EndPos = -1) or (APos < Range.EndPos) then
-      Result := Rule.SyntAnalyzer;
-  }
-  finally ReleaseBackgroundLock();end;
-end;
-
-function TecParserResults.GetSubLexerRangeCount: integer;
-begin
-  WaitTillCoherent();
-  try
-    Result := FSubLexerBlocks.Get.Count;
-  finally ReleaseBackgroundLock();end;
-end;
-
-function TecParserResults.GetSubLexerRange(Index: integer): TecSubLexerRange;
-begin
-  WaitTillCoherent();
-  try
-    Result := FSubLexerBlocks.Get[Index];
-  finally ReleaseBackgroundLock();end;
-end;
-
-procedure TecParserResults.SetTags(Index: integer; const AValue: TecSyntToken);
-begin
-  WaitTillCoherent();
-  try
-    FTagList.Get[Index] := AValue
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecParserResults.GetTokenType(Index: integer): integer;
-begin
-  WaitTillCoherent();
-  try
-    Result := Tags[Index].TokenType;
-  finally ReleaseBackgroundLock(); end;
-end;
-
-
-procedure TecParserResults.SwitchContext(toWorker: boolean);
-begin
-  //if not toWorker then
-  //  Dec(FWorkerTaskMustStop);
-  //FWorkerTaskMustStop := false;
-  EnterTagsSync();
-  FSubLexerBlocks.Swap();
-  FTagList.Swap();
-  LeaveTagsSync();
-end;
-
-procedure TecParserResults.WorkerDetached();
-begin
- if assigned(FWorkerThread) then
-    FWorkerThread.RequestRelease(FWorkerThread);
-end;
-
-procedure TecParserResults.BeforeDestruction();
-begin
-  frefcount:=0;
-end;
-
-
-function TecParserResults.WaitTillCoherent(roSync: boolean; timeOut: Cardinal): boolean;
-var isMain: boolean;
-begin
-  if Assigned(FWorkerThread) then begin
-     isMain := not GetIsSyntaxThread();
-     if isMain then begin
-       if not roSync then
-         Inc(FWorkerTaskMustStop); //:= true;
-     end;
-     FWorkerThread.AcquireSync(roSync);
-     //if isMain then
-     //  Dec(FWorkerTaskMustStop);
-     //FWorkerTaskMustStop:=false;
-  end;
-  Result := true;
-end;
-
-procedure TecParserResults.AssertNonWorker();
-var isWorker: boolean;
-begin
-  isWorker := GetIsSyntaxThread();
-  if isWorker then
-    Assert(false);
-end;
-
-
-procedure TecParserResults.AssertCoherent();
-{$IFDEF DEBUG}
-var coherent, isWorker, noTask, notWorking, synAccessible: boolean;
-begin
-  coherent :=(FWorkerThread= nil);
-  if coherent then exit;
-  isWorker := GetIsSyntaxThread();
-  if isWorker then exit;
-  noTask:=true;//not FSyntaxerThread.GetIsTaskAssigned();
-  notWorking:=not FWorkerThread.BusyWorking;
-  synAccessible:=FWorkerThread.GetSyncNowAccessible();
-  coherent := noTask and notWorking and synAccessible ;
-  if not coherent then
-  Assert(coherent);
-{$ELSE}
-begin
-{$ENDIF}
-
-end;
-
-
-procedure TecParserResults.ReleaseBackgroundLock();
-begin
-  if Assigned(FWorkerThread) then
-    FWorkerThread.ReleaseSync();
-end;
-
-function TecParserResults.IsParserBusy: boolean; inline;
-begin
-  Result := FParserStatus<psAborted;
-end;
-
-
-procedure TecParserResults.ApplyStates(Rule: TRuleCollectionItem);
-begin
-  WaitTillCoherent();
-  try
-    if Rule.StatesRemove <> 0 then
-      FCurState := FCurState and not Rule.StatesRemove;
-    if Rule.StatesAdd <> 0 then
-      FCurState := FCurState or Rule.StatesAdd;
-  finally ReleaseBackgroundLock(); end;
-end;
-
-procedure TecParserResults.RestoreState;
-var i: integer;
-begin
-  WaitTillCoherent();
-  try
-    for i := FStateChanges.Count - 1 downto 0 do
-      if FStateChanges.Last.StartPos >= TagCount then
-        FStateChanges.Delete(FStateChanges.Count - 1)
-      else
-        Break;
-
-    if FStateChanges.Count > 0 then
-      FCurState := FStateChanges.Last.EndPos
-    else
-      FCurState := 0;
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecParserResults.ParserStateAtPos(TokenIndex: integer): integer;
-var i: integer;
-begin
-  WaitTillCoherent();
-  try
-   for i := FStateChanges.Count - 1 downto 0 do
-     if FStateChanges[i].StartPos <= TokenIndex then
-       begin
-         Result := FStateChanges[i].EndPos;
-         Exit;
-       end;
-   Result := 0;
-  finally ReleaseBackgroundLock(); end;
-end;
-
-procedure TecParserResults.EnterTagsSync();
-begin
-  if not assigned(FWorkerThread) then exit;
-  FWorkerThread.DoTagSync(true);
-end;
-
-procedure TecParserResults.LeaveTagsSync();
-begin
-  if not assigned(FWorkerThread) then exit;
-  FWorkerThread.DoTagSync(false);
-end;
-
-function TecParserResults.AcquireWorker(): TecSyntaxerThread;
-begin
-   result := FWorkerThread;
-   if assigned(result) then exit;
-   result := TecSyntaxerThread.Create(self, nil);
-   FWorkerThread:=result;
-end;
-
-{ TecClientSyntAnalyzer }
-
-constructor TecClientSyntAnalyzer.Create(
-  AOwner: TecSyntAnalyzer;
-  SrcProc: TATStringBuffer;
-  const AClient: IecSyntClient;
-  const synEditAdapter: ISynEditAdapter;
-  useWorkerThread: boolean);
-begin
-  FWorkerTaskMustStop:=0;
-  //FWorkerIsBusy:=false;
-  FTaskAppendDisabled:=false;
-  FRepeateAnalysis:=false;
-  FEditAdapter:=SynEditAdapter;
-  inherited Create(AOwner, SrcProc, AClient, synEditAdapter, useWorkerThread);
-  FRanges := TSortedList.Create(True);
-  FOpenedBlocks := TSortedList.Create(False);
-  FPrevProgress := -1;
-end;
-
-destructor TecClientSyntAnalyzer.Destroy;
-begin
-  StopSyntax(true);
-  FreeAndNil(FRanges);
-  FreeAndNil(FOpenedBlocks);
-  inherited;
-end;
-
-
-procedure TecClientSyntAnalyzer.Clear;
-begin
-  WaitTillCoherent();
-  try
-    inherited;
-    FRepeateAnalysis := False;
-    FTagList.Get.Clear;
-    FRanges.Clear;
-    FOpenedBlocks.Clear;
-    StopSyntax(true);
-    FParserStatus := psNone;
-    FLastAnalPos := 0;
-    FStartSepRangeAnal := 0;
-    FWorkerTaskMustStop:=0;
-  finally ReleaseBackgroundLock(); end;
-  HandleAddWork();
-end;
-
-procedure TecClientSyntAnalyzer.AddRange(Range: TecTextRange);
-begin
-  WaitTillCoherent();
-  try
-    Range.Index := FRanges.Count;
-    FRanges.Add(Range);
-    if FOpenedBlocks.Count > 0 then
-      Range.Parent := TecTextRange(FOpenedBlocks[FOpenedBlocks.Count - 1]);
-    if Range.EndIdx = -1 then
-      FOpenedBlocks.Add(Range);
-  finally ReleaseBackgroundLock(); end;
-end;
-
-
-function IndentOf(const S: ecString): Integer;
-var
-  i: Integer;
-begin
-  Result:= 0;
-  for i:= 1 to Length(S) do
-    case S[i] of
-      ' ': Inc(Result);
-      #9: Inc(Result, 4);
-      else Break;
-   end;
-end;
-
-function TecClientSyntAnalyzer.CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
-var j: integer;
-    b: boolean;
-begin
-  WaitTillCoherent();
-  try
-    for j := FOpenedBlocks.Count - 1 downto 0 do
-     with TecTextRange(FOpenedBlocks[j]) do
-       if Assigned(Rule) then  begin
-           if Cond.BlockType = btRangeStart then
-             b := Cond.SelfClose and (Rule = Cond)
-           else
-             b := (Rule.FBlockEndCond = Cond) or (Rule = Cond.FBlockEndCond);
-           if b then  begin
-               if Cond.SameIdent and not SameText(TagStr[RefTag - Cond.IdentIndex] , TagStr[IdentIdx]) then Continue;
-               EndIdx := RefTag - Cond.BlockOffset;
-               if (Rule = Cond) and (EndIdx > 0) then Dec(EndIdx); // for self closing
-               FEndCondIndex := RefTag;
-               if Assigned(Owner.OnCloseTextRange) then
-                 Owner.OnCloseTextRange(Self, TecTextRange(FOpenedBlocks[j]), StartIdx, EndIdx);
-               FOpenedBlocks.Delete(j);
-               Result := True;
-               Exit;
-            end;
-         end;//if rule
-  finally  ReleaseBackgroundLock(); end;
-  Result := False;
-end;
-
-function TecClientSyntAnalyzer.HasOpened(Rule: TRuleCollectionItem; Parent: TecTagBlockCondition; Strict: Boolean): Boolean;
-var i: integer;
-    prn: TecTagBlockCondition;
-begin
-  AssertCoherent();
-  if Strict then  begin
-      if FOpenedBlocks.Count > 0 then
-        begin
-          i := FOpenedBlocks.Count - 1;
-          prn := TecTextRange(FOpenedBlocks[i]).Rule;
-          if (Rule is TecTagBlockCondition) and TecTagBlockCondition(Rule).SelfClose and (prn = Rule) then
-            Dec(i);
-          repeat
-            if i < 0 then
-              begin
-                Result := False;
-                Exit;
-              end;
-            prn := TecTextRange(FOpenedBlocks[i]).Rule;
-            Dec(i);
-          until not prn.IgnoreAsParent;
-          Result := prn = Parent;
-        end else Result := Parent = nil;
-    end
-  else
-    begin
-      Result := True;
-      if Parent = nil then Exit;
-      for i := FOpenedBlocks.Count - 1 downto 0 do
-        if TecTextRange(FOpenedBlocks[i]).Rule = Parent then
-          Exit;
-      Result := False;
-    end;
-end;
-
-procedure TecClientSyntAnalyzer.HandleAppendToPosDone;
-begin
-  if assigned(FEditAdapter) then begin
-     TThread.Queue(nil,
-     FEditAdapter.AppendToPosDone
-     );
-   end;
-end;
-
-procedure TecClientSyntAnalyzer.Finished;
-var i: integer;
-  Sub: TecSubLexerRange;
-  subLexerBlocks: TecSubLexerRanges;
-begin
-  if not IsParserBusy then Exit;
-
-  AssertCoherent();
-  subLexerBlocks:=FSubLexerBlocks.Get;
-  // Close SubLexers at the End of Text
-  for i := subLexerBlocks.Count - 1 downto 0 do  begin
-    Sub := subLexerBlocks[i];
-    if (Sub.Range.EndPos = -1) and Sub.Rule.ToTextEnd then
-     begin
-       Sub.Range.EndPos := FBuffer.TextLength{ - 1};
-       Sub.Range.PointEnd := Point(
-                      FBuffer.LineLength(FBuffer.Count-1),
-                      FBuffer.Count-1); //at end
-       Sub.CondEndPos := Sub.Range.EndPos;
-       subLexerBlocks[i] := Sub;
-     end;
-  end;
-
-  // Close blocks at the end of text
-  CloseAtEnd(0);
-
-  FRepeateAnalysis := True;
-  inherited Finished;
-  if  GetIsSyntaxThread() and assigned(FEditAdapter) then
-   TThread.Queue(nil, FireUpdateEditor);
-end;
-
-procedure TecClientSyntAnalyzer.FireUpdateEditor();
-begin
-  {$IFDEF DEBUGLOG}
-  TSynLog.Add.Log(sllServiceCall, 'FireUpdateEditor - parser Finished');
-  {$ENDIF}
-  if assigned(FEditAdapter) then
-      FEditAdapter.SyntaxDoneHandler();
-end;
-
-
-procedure TecClientSyntAnalyzer.ReportProgress(APos: integer);
-const
-  OffsetStep = 2000;
-var
-  NCount, NLine: integer;
-begin
-  if Abs(APos-FPrevProgress)>OffsetStep then
-  begin
-    FPrevProgress := APos;
-    NCount := FTagList.Get.Count;
-    if NCount=0 then exit;
-    NLine := FTagList.Get[NCount-1].Range.PointStart.Y;
-    if Assigned(OnLexerParseProgress) then
-      OnLexerParseProgress(Owner, NLine, Buffer.Count);
-  end;
-end;
-
-
-function TecClientSyntAnalyzer.DoSyntaxWork: boolean;
-var FPos, tmp, i: integer;
-    own: TecSyntAnalyzer;
-    isAsync: boolean;
-    tokenCounter: integer;
-    {$ifdef DEBUGLOG}
-    time: Cardinal;
-    {$endif}
-label _Exit;
-
-  procedure CheckSyncRequest; inline;
-  begin
-    if isAsync then //and ((tokenCounter and minTokenStep)=minTokenStep) then
-    begin
-      FWorkerThread.YieldData();
-      ReportProgress(FPos);
-    end;
-  end;
-
-begin
-  FPos := 0;
-  Result := true; // assume work is done
-  tokenCounter := 0;
-  isAsync := GetIsSyntaxThread();
-  if IsParserBusy then
-    FParserStatus:= psNone;
-
-  while (FWorkerTaskMustStop<=0) and IsParserBusy do
-  begin
-     tmp := GetLastPos(FBuffer.FText);
-     if tmp > FPos then FPos := tmp;
-     CheckSyncRequest;
-     Inc(tokenCounter);
-     Result := ExtractTag(FBuffer.FText, FPos{, True}) ;
-
-     if Result then
-     begin
-       if FOwner.SeparateBlockAnalysis then
-       begin
-         {$ifdef DEBUGLOG}
-         time := GetTickCount;
-         {$endif}
-         for i := FStartSepRangeAnal + 1 to TagCount do
-         begin
-             if (FWorkerTaskMustStop<>0) or not IsParserBusy then goto _Exit;
-             CheckSyncRequest;
-             Inc(tokenCounter);
-             own := Tags[i - 1].Rule.SyntOwner;
-             FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
-             if own <> FOwner then
-               own.SelectTokenFormat(Self, FBuffer.FText, False, i);
-         end;//for
-         {$ifdef DEBUGLOG}
-         time := GetTickCount-time;
-         {$endif}
-       end;
-
-       Finished;
-     end;
-  end;
-
-  _Exit:
-  if (FWorkerTaskMustStop<>0) then begin
-    HandleStopRequest;
-  end;
-
-  Result := true;
-end;
-
-
-procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; AUseTimer: boolean=true);
-begin
-  FWorkerTaskMustStop := 0;
-  FParserStatus := psNone;
-  if FBuffer.TextLength = 0 then Exit;
-  if not IsParserBusy then Exit;
-  FAppendAtPosArg := APos;
-  if FWorkerRequested then begin
-    AppendToPosAsync(APos);
-  end
-  else begin
-    DoAppendToPos();
-  end;
-  HandleAddWork();
-end;
-
-
-procedure TecClientSyntAnalyzer.AppendToPosAsync(APos: integer);
-begin
-  if FBuffer.TextLength = 0 then Exit;
-  if not IsParserBusy then Exit;
-  FAppendAtPosArg := APos;
-  FBuffer.Lock; //SyntaxDoneHandler would release the lock
-  AcquireWorker().ScheduleWork(DoAppendToPos, APos, SyntaxDoneHandler, true
-                              {$IFDEF DEBUGLOG},'DoAppendToPosAsync'{$ENDIF} );
-end;
-
-function TecClientSyntAnalyzer.DoAppendToPos(): boolean;
-var aPos, currentPos, tokenCount: integer;
-    callRemainingSyntax, tokensDone, isAsync: boolean;
-
-  procedure CheckSyncRequest; inline;
-  begin
-    if isAsync then begin //and (tokenCount and minTokenStep =minTokenStep) then  begin
-      FWorkerThread.YieldData();
-      //CheckProgress();
-    end;
-  end;
-
-const
-  cOffsetStepCheckSync = 5000;
-begin
-  Result := true;
-  isAsync := GetIsSyntaxThread();
-  if isAsync then
-    aPos := (TThread.CurrentThread as TecSyntaxerThread).Argument
-  else
-    aPos := FAppendAtPosArg;
-
-  callRemainingSyntax := true;
-  tokenCount := 0;
-
-  try
-    currentPos := GetLastPos(FBuffer.FText);
-    while (currentPos - 1 <= APos + 1) and IsParserBusy do
-    begin
-       if aPos-currentPos>cOffsetStepCheckSync then
-         CheckSyncRequest();
-       Inc(tokenCount);
-       tokensDone := ExtractTag(FBuffer.FText, currentPos{, False});
-       if tokensDone then begin
-         if not FOwner.SeparateBlockAnalysis then begin
-           Finished;
-           callRemainingSyntax := false;
-         end
-         else begin
-           callRemainingSyntax := true;
-           //if AUseTimer and not assigned(FSyntaxerThread) then  // TODO:  Get rid of AUseTimer
-           //  IdleAppend
-           //else
-           //  TimerIdleTick(nil);
-         end;
-         Break;
-       end; //if
-    end; //while
-    HandleAppendToPosDone();
-    if callRemainingSyntax then
-      DoSyntaxWork();
-  finally
-    FBuffer.Unlock;
-  end;
-end;
-
-
-procedure TecClientSyntAnalyzer.SyntaxDoneHandler(thread: TObject);
-begin
-  FBuffer.Unlock;
-end;
-
-
-procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
-begin
-   StopSyntax(true);
-   FParserStatus := psNone;
-   FWorkerTaskMustStop := 0;
-   if FWorkerRequested then begin
-     FBuffer.Lock;
-     AcquireWorker().ScheduleWork(DoChangeAtPos, aPos, SyntaxDoneHandler, false
-                                  {$IFDEF DEBUGLOG},'ChangedAtPos'{$ENDIF} );
-   end
-   else begin
-     FAppendAtPosArg := APos;
-     DoChangeAtPos();
-   end;
-end;
-
-
-function TecClientSyntAnalyzer.PriorTokenAt(Pos: integer): integer;
-begin
-  WaitTillCoherent(true);
-  try
-    Result := FTagList.Get.PriorAt(Pos);
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.GetRangeCount: integer;
-begin
-  WaitTillCoherent();
-  try
-    Result := FRanges.Count;
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.GetRanges(Index: integer): TecTextRange;
-begin
-  WaitTillCoherent();
-  try
-    Result := TecTextRange(FRanges[Index]);
-  finally ReleaseBackgroundLock(); end;
-end;
-
-procedure TecClientSyntAnalyzer.Analyze(ResetContent: Boolean);
-var OldSep: integer;
-begin
-  if IsParserBusy then Exit;
-  if ResetContent then
-  begin
-    WaitTillCoherent();
-    try
-      OldSep := FOwner.FSeparateBlocks;
-      FOwner.FSeparateBlocks := 2; // disable separation analysis
-      Clear;
-      AppendToPos(FBuffer.TextLength);
-      FOwner.FSeparateBlocks := OldSep;
-    finally ReleaseBackgroundLock();  end;
-  end
-  else
-  begin
-    AppendToPos(FBuffer.TextLength);
-  end;
-end;
-
-procedure TecClientSyntAnalyzer.CompleteAnalysis;
-var own: TecSyntAnalyzer;
-    i: integer;
-begin
-  WaitTillCoherent();
-  try
-    AppendToPos(FBuffer.TextLength);
-    if FOwner.SeparateBlockAnalysis then
-      for i := FStartSepRangeAnal + 1 to TagCount do  begin
-        own := Tags[i - 1].Rule.SyntOwner;
-        FOwner.SelectTokenFormat(Self, FBuffer.FText, own <> FOwner, i);
-        if own <> FOwner then
-          own.SelectTokenFormat(Self, FBuffer.FText, False, i);
-        StopSyntax(true);
-        Finished;
-      end;//for
-  finally  ReleaseBackgroundLock();  end;
-end;
-
-function TecClientSyntAnalyzer.RangeFormat(const FmtStr: ecString;
-  Range: TecTextRange): ecString;
-var i, j, idx, N, to_idx: integer;
-    rng: TecTextRange;
-    LineMode: integer;
-
-{ HAW: hans@werschner.de [Oct'07] ......... additions to formatting token parts ......
-
-     I have added syntax to each single ".... %xyz ...." clause processing
-
-     a) %(S|E)P*(L|Z)?[0-9]+  may be expanded to
-
-        %(S|E)P*([\[]<token>[\]]<offset>?)?
-
-          where <token> is a specific token that is "searched from the specified
-          starting point (S for first token in the range , or E for the last token)
-          towards the respective range end (up- or downwards). The search-direction
-          is kept in the variable "rngdir" which is set in the "S" , "E" decision.
-
-          example:  line(s) is/are ".... for x = 1 to 12 do ...... end ;  ..."
-                                         0   1 2 3 4  5  6  ...    27  28
-
-          range-start = "for", range-end = "end"
-
-          then "...%s[to] ..." will skip forward to the token "to" (with index 4).
-
-          The token values are searched on a "asis" basis, there is no case-insensitivity
-          option yet.
-
-          A "numeric number following the token value will define an <offset> relative
-          to the found token.
-
-          For this clause, the variable "idx" is not set by taking the static
-          numeric value as in "...%s2 ..." , instead the "found token index" is kept.
-
-          For "%S..." the search starts at idx=0 up to max 28.     ---> rngdir = +1;
-          For "%E..." the search starts at idx=28 downto min 0.    ---> rngdir = -1;
-
-          The options L or Z introduced in V2.35 will not combine with the new (range)
-          specifying options --> somebody else may find a use for such extended ranges.
-
-          Notes:  Avoid to search for tokens that can occur at multiple places (for
-                  example a ";" between statements).
-
-                  The above syntax is simple as it allows to identify the
-
-                    block-start-tokens      "for x = 1 to 12 do"
-
-                    block-body                anything after block-start tokens up to
-
-                    block-end-tokens        "end ;"
-
-                  but many syntax formats do not trivially support this separation.
-
-                  The current implementation does not provide the information where
-                  "block-start", "block-body" and "block-end" are beginning/ending.
-                  A "%B0..." for the "block-body" portion and a "ignore block-body
-                  tokens" option may be nice !?
-
-     b) any such clause (either absolute or given by token value) can "start a token
-        range" by additionally specifying:
-
-          %(S|E)...~(S|E)P*[0-9]+
-
-        or
-
-          %(S|E)...~(S|E)P*([\[]<token>[\]]<offset>?)?
-
-        or
-
-          %(S|E)...~[\[]<token>[\]]
-
-        The first form uses the static index specification to define the end-range:
-
-          "%s0~s3"        results in "for x = 1"            (tokens 0, 1, ... 3)
-
-        The 2nd form uses the new syntax to "search for an end-token beginning at the
-        starting range index (idx) up- or down-wards.
-
-          "%s0~s[do]"     results in "for x = 1 to 12 do"   (tokens 0, 1, ... 6)
-
-          if a search is not satisfied, the complete range up to "e0" is taken.
-
-          Because of the same "S", the search starts with "TagStr[idx]" ...
-
-          "s0~e[do]"      results in the same string, but starts at the final "end"
-                          of the block and scanning downwards.
-
-          Caution: This may produce WRONG results if nested loops are scanned !
-
-                   I could not find a valid representation of "range-start" token-
-                   streams, the range-body alone and/or the range-end token-stream.
-
-                   Such information may be helpful to better display blocks and/or
-                   collapse display of the "block-body" alone.
-
-        The 3rd form is an abbreviation where the S/E indicators are taken to be
-        identical as the starting point
-
-          "S1~[do]1"      results in "x = 1 to 12"          (tokens 1, 2, ... 5)
-
-                          The <offset> "1" will here skip back by 1 from the found
-                          token "do".
-
-        The range-end is kept in the variable "to_idx".
-
-        The "token-value" to search for can not be whitespace #00..#20. Leading and
-        trailing whitespace withing the "...[vvvvvvv] ..." enclosed by [ and ]
-        characters sequence is removed before searching. the "vvvvvv" can contain
-        escaped characters like "... [\]] ..." to allow "[" and/or "]" to be part
-        of the value. The \r, \n, \f ...escapes are not supported here.
-
-        The token accumulation simply (?) takes all tokens from "idx" ... "to_idx"
-        and builds a string by appending all tokens with ONE " " (blank) as separating
-        delimiter. There is no process to keep the original token positions within
-        the source line(s) and any whitepace including cr/lf's there. This may be an
-        addition but I currently do not see a need for it.
-
-     c) "ranges as specified above may accumulate many tokens and it may be desirable
-        to "limit" the result string.
-
-        This can be done by using another operand syntax
-
-          %(S|E)...~[0-9]+
-
-        or
-
-          %(S|E)...~(S|E)([\[]<token>[\]]<offset>?)?~[0-9]+
-
-        or
-
-          %(S|E)...~[\[]<token>[\]]~[0-9]+
-
-        In all three forms the "~" is immediately followed by a numeric value which
-        is interpreted as
-
-          "maximum number of tokens in the substituted string", if the range takes
-          MORE than this maximum
-
-        The value is internally kept in the variable "rngmax" below.
-
-        When the result string is accumulated (taking all tokens between "idx" up-
-        resp. down-to "to_idx") the number of appended tokens can not go beyond "rngmax".
-
-        If this happens the result will be created in the form "t-1 t-2 -- t-max ..." with
-        the ellipsis string " ..."  appended.
-
-     d) There is another addition to the token clause syntax which is NOT YET operational:
-
-        I am not too happy that the collapsed string displayed is completely in "grey"
-        colour. As I want to have some control over "highlighting" in this string also,
-        I tried to add some style-reference information to the token clause.
-
-        *** I currently do not yet understand HOW to activate such a style within
-            the results of this formatting, but I will TRY !!
-
-        OK, the added syntax for styles for future use ;-)
-
-          .... %:<style>:(S|E) ....
-
-        where the <style> is the alphanumeric name of a style as defined in the lexer
-        definition and this style-name is "enclosed" with the ":" characters.
-
-        The code keeps the found style-name in the variable "rngstyle" for any later
-        use.
-
-        This addition only assigns styles to the token substitution parts, but not to any
-        text outside and/or the total "collapsed" text formatting. This may be some
-        enhancement to define in the lexer GUI.
-
-    Hans L. Werschner, Oct '07
-}
-var rngstyle: string;                      // HAW: add style identifier to range expression
-    rngtoken, rngResult: string;           //      a few more vars
-    swp_idx, rngdir, rngoffset, rngmax: integer;
-    to_rng: TecTextRange;
-
-function RangeNumber( const FmtStrNumber: string; var gotnbr: integer ): boolean;
-begin
-    N := 0; Result := false;
-    while (j + N) <= length( FmtStrNumber ) do
-      if (FmtStrNumber[j + N] >= '0') and (FmtStrNumber[j + N] <= '9') or (N = 0) and
-         ((FmtStrNumber[j + N] = '+') or (FmtStrNumber[j + N] = '-'))
-         then inc(N) else Break;
-    if  N > 0  then  begin
-      gotnbr := StrToInt( copy( FmtStrNumber, j, N ) );
-      inc( j, N );
-      Result := true;
-    end;
-end;
-
-begin
-  idx := 0;
-  Result := FmtStr;
-  WaitTillCoherent();
-  try try
-   // HAW: obsolete -> to_idx := Length(Result);
-   //      the variable "j" is now always pointing to the next character to process.
-   //      Only during numeric sub-operand scan, the "N" will keep the found digits
-   //      count. After such number, the var "j" is immediately adjusted again.
-
-   for i := Length(Result) - 1 downto 1 do
-    if Result[i] = '%' then
-    begin
-     j := i + 1;
-
-     rngstyle := '';                  // HAW: keep style name
-     if  Result[j] = ':' then  begin  // HAW: begin of embedded style name
-       inc( j );
-       while  (j <= length( Result ))  and  (Result[j] <> ':') do begin
-         if  Result[j] > ' '  then
-           rngstyle := rngstyle+Result[j];
-         inc( j );
-       end;
-       if  (j > length( Result ))  or  (Result[j] <> ':')  then
-         continue;
-       inc( j );
-       // now we have a style name, and can resume after "%:ssssss:"
-     end;
-
-     rng    := Range;
-     rngdir := 1;                     // HAW: positive increment (for "%..e..")
-                                      //      negative for "..e.." clauses
-     rngmax := 1000000000;            // HAW: allow a great amount of tokens
-
-     while ecUpCase(Result[j]) = 'P' do
-      begin
-       rng := rng.Parent;
-       if (rng = nil) or (j = Length(Result)) then Continue;
-       inc(j);
-      end;
-
-     case ecUpCase(Result[j]) of
-       'S': idx := rng.StartIdx + rng.Rule.BlockOffset;
-       'E': begin  rngdir := -1;      // HAW: mark downwards direction
-                   if (rng.EndIdx <> -1) and Assigned(rng.Rule.BlockEndCond) then
-                     idx := rng.EndIdx + rng.Rule.BlockEndCond.BlockOffset
-                   else
-                     idx := 1000000000;
-            end;
-       else continue;
-     end;
-     inc(j);
-
-     case ecUpCase(Result[j]) of // <== v2.35
-       'L': LineMode := 1; // from start of line
-       'Z': LineMode := 2; // to end of line
-       else LineMode := 0;
-     end;
-     if LineMode <> 0 then Inc(j);
-
-     // HAW: check for "...s[token]..." instead of numeric index
-     if  LineMode = 0  then
-       if  (j < length( Result ))  and  (Result[j] = '[')  then  begin
-         inc( j );  rngtoken := '';
-         while  (j < length( Result ))  and  (Result[j] <> ']')  do  begin
-           if  Result[j] = '\' then  inc( j );
-           rngtoken := rngtoken + Result[j];  inc( j );
-         end;
-         if  j > length( Result ) then
-           continue;
-         while  (rngtoken <> '')  and  (rngtoken[length( rngtoken )] < ' ')  do
-           rngtoken := copy( rngtoken, 1, length( rngtoken )-1 );
-         while  (rngtoken <> '')  and  (rngtoken[1] < ' ')  do
-           rngtoken := copy( rngtoken, 2, length( rngtoken )-1 );
-         if  rngtoken = ''  then
-           continue;
-         inc( j );
-         if  rngdir > 0 then  begin  // upwards search
-           while  idx <= (rng.EndIdx + rng.Rule.BlockEndCond.BlockOffset) do  begin
-             if  rngtoken = TagStr[idx]  then  break;
-             inc( idx );
-           end;
-         end  else
-         if  rngdir < 0 then         // downwards search
-           while  idx >= (rng.StartIdx + rng.Rule.BlockOffset) do  begin
-             if  rngtoken = TagStr[idx]  then  break;
-             dec( idx );
-           end;
-         rngdir := 0;    // allow for missing <offset>
-       end;
-     if  not RangeNumber( Result, rngoffset )  then  begin
-       if  rngdir <> 0 then
-         Continue;
-     end  else
-       idx := idx - rngoffset;
-
-     to_idx := idx;
-     to_rng := rng;
-
-     // HAW: now allow an explicit "to_idx" range by using "%from-idx~to-idx"
-     if  (j < length( Result ))  and  (Result[j] = '~')  then
-       // a numeric value alone sets just the maximum tokens to use
-       if (Result[j+1] >= '0') and (Result[j+1] <= '9')  then  begin  // only positive values !
-         to_idx := to_rng.EndIdx + to_rng.Rule.BlockEndCond.BlockOffset;
-         LineMode := 3;
-       end else
-       begin
-
-         if  LineMode <> 0  then  // not a good combination
-           continue;
-         // ... otherwise we have a real end-token clause
-         inc( j );  // skip over the [
-
-         rngdir := 1;
-         if  Result[j] <> '['   then  begin
-           // to_rng := Range;  // be sure that we start with the range itself
-           while ecUpCase(Result[j]) = 'P' do
-            begin
-             to_rng := rng.Parent;
-             if (to_rng = nil) or (j = Length(Result)) then Continue;
-             inc(j);
-            end;
-
-           case ecUpCase(Result[j]) of
-             'S': to_idx := to_rng.StartIdx + to_rng.Rule.BlockOffset;
-             'E': begin
-                    rngdir := -1;       // HAW: mark downwards direction
-                    if (to_rng.EndIdx <> -1) and Assigned(to_rng.Rule.BlockEndCond) then
-                     to_idx := to_rng.EndIdx + to_rng.Rule.BlockEndCond.BlockOffset
-                    else
-                     to_idx := 1000000000;
-                  end;
-             else continue;
-           end;
-           inc(j);
-         end;
-         if  (j < length( Result ))  and  (Result[j] = '[')  then  begin
-           inc( j );  rngtoken := '';
-           while  (j < length( Result ))  and  (Result[j] <> ']')  do  begin
-             if  Result[j] = '\' then  inc( j );
-             rngtoken := rngtoken + Result[j];  inc( j );
-           end;
-           if  j > length( Result ) then
-             continue;
-           while  (rngtoken <> '')  and  (rngtoken[length( rngtoken )] < ' ')  do
-             rngtoken := copy( rngtoken, 1, length( rngtoken )-1 );
-           while  (rngtoken <> '')  and  (rngtoken[1] < ' ')  do
-             rngtoken := copy( rngtoken, 2, length( rngtoken )-1 );
-           if  rngtoken = ''  then
-             continue;
-           inc( j );
-           if  rngdir > 0 then  begin  // upwards search
-             while  to_idx <= (rng.EndIdx + rng.Rule.BlockEndCond.BlockOffset) do  begin
-               if  rngtoken = TagStr[to_idx]  then  break;
-               inc( to_idx );
-             end;
-           end  else
-           if  rngdir < 0 then         // downwards search
-             while  to_idx >= (rng.StartIdx + rng.Rule.BlockOffset) do  begin
-               if  rngtoken = TagStr[to_idx]  then  break;
-               dec( to_idx );
-             end;
-           rngdir := 0;  // allow for missing <offset>
-         end;
-         if  not RangeNumber( Result, rngoffset )  then  begin
-           if  rngdir <> 0 then
-             Continue;
-         end  else
-           to_idx := to_idx - rngoffset;
-
-         LineMode := 3;  // enforce new mode as we have an explicit range
-       end;
-
-     if  (j < length( Result ))  and
-         (Result[j] = '~')         and
-         (Result[j+1] >= '0') and (Result[j+1] <= '9')  // only positive values !
-     then  begin  // we hav a "maximum" range value attached
-       inc( j );
-       if  not RangeNumber( Result, rngmax ) then
-         Continue;
-     end;
-     // HAW: ... end of added range checking ,
-     //      variable "j" points to first character AFTER all clauses
-     Delete(Result, i, j - i);
-
-     if (idx >= 0) and (idx < FTagList.Get.Count) then
-       case LineMode of
-         0: Insert(TagStr[idx], Result, i);
-         1: begin
-              N := FBuffer.OffsetToOffsetOfLineStart(Tags[idx].Range.StartPos);
-              to_idx := Tags[idx].Range.EndPos;
-              Insert(FBuffer.SubString(N, to_idx - N + 1), Result, i);
-            end;
-         2: begin
-              to_idx := FBuffer.OffsetToOffsetOfLineEnd(Tags[idx].Range.EndPos);
-              N := Tags[idx].Range.StartPos;
-              Insert(FBuffer.SubString(N+1, to_idx - N + 1), Result, i); //AT: fixed substring offset/len (2 patches)
-            end;
-         // HAW: new mode = 3 --- explicit range  idx...to_idx
-         3: if  (to_idx >= 0)  and  (to_idx < FTagList.Get.Count)  then  begin
-              if  to_idx < idx  then  begin
-                swp_idx := idx;  idx := to_idx;  to_idx := swp_idx;
-              end;
-              rngResult := '';
-              while  idx <= to_idx  do  begin
-                if  rngmax <= 0   then  begin
-                  rngResult := rngResult+' ...';
-                  break;
-                end;
-                if  (rngResult <> '') and (idx > 0) and (Tags[idx-1].Range.EndPos <> Tags[idx].Range.StartPos) then //MZ fix
-                  rngResult := rngResult + ' ';
-                rngResult := rngResult + TagStr[idx];
-                inc( idx );  dec( rngmax );
-              end;
-              Insert(rngResult, Result, i);
-            end;
-         // HAW: ... end of token range accumulation mode
-      end;
-
-      // HAW: I am currently not sure how to handle the "stylename" property here
-      //      ... will be added, when available
-    end;
-  finally ReleaseBackgroundLock();end;
-  except Result := ''; end;
-end;
-
-function TecClientSyntAnalyzer.GetRangeName(Range: TecTextRange): ecString;
-begin
-  Result := '';
-  WaitTillCoherent();
-  try
-    if Assigned(Range.Rule) and (Range.Rule.NameFmt <> '') then
-      Result := RangeFormat(Range.Rule.NameFmt, Range);
-    if Result = '' then
-      Result := TagStr[Range.IdentIdx];
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.GetRangeGroup(Range: TecTextRange): ecString;
-begin
-  WaitTillCoherent();
-  try
-    Result := RangeFormat(Range.Rule.GroupFmt, Range);
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.GetCollapsedText(Range: TecTextRange): ecString;
-begin
-  WaitTillCoherent();
-  try
-    Result := RangeFormat(Range.Rule.CollapseFmt, Range);
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;
-begin
-  WaitTillCoherent();
-  try
-    Result := inherited IsEnabled(Rule, OnlyGlobal) and
-      (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
-  finally ReleaseBackgroundLock();  end;
-end;
-
-procedure TecClientSyntAnalyzer.TextChanged(APos: integer);
-begin
-  if APos = -1 then
-    Clear
-  else
-    ChangedAtPos(APos);
-end;
-
-function TecClientSyntAnalyzer.GetOpened(Index: integer): TecTextRange;
-begin
-  WaitTillCoherent();
-  try
-    Result := TecTextRange(FOpenedBlocks[Index]);
-  finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.GetOpenedCount: integer;
-begin
-  WaitTillCoherent();
-  try
-    Result := FOpenedBlocks.Count;
-  finally ReleaseBackgroundLock(); end;
-end;
-
-procedure TecClientSyntAnalyzer.HandleStopRequest;
-begin
- {$IFDEF DEBUGLOG }
-  TSynLog.Add.Log(sllLeave, 'Stop Request!');
- {$ENDIF}
-  FWorkerTaskMustStop:=0;
-  if IsParserBusy then begin
-     FParserStatus:=psInterrupt;
-     TThread.Queue(nil, HandleAddWork  );
-  end;
-end;
-
-procedure TecClientSyntAnalyzer.SetDisableIdleAppend(const Value: Boolean);
-begin
-  if FTaskAppendDisabled <> Value then
-    begin
-      FTaskAppendDisabled := Value;
-      if not IsParserBusy then
-        DoSyntaxWork();// TimerIdleTick(nil);
-    end;
-end;
-
-function TecClientSyntAnalyzer.StopSyntax(AndWait: boolean): boolean;
-var isAsync: boolean;
-begin
-  FParserStatus := psAborted;
-  FWorkerTaskMustStop := 100;
-  isAsync := Assigned(FWorkerThread);
-  if isAsync then
-    FWorkerThread.StopCurrentTask()
-  else
-   exit(true);
-
-  FWorkerThread.CancelExpendableTasks();
-  if AndWait then  begin
-    Result := FWorkerThread.WaitTaskDone(10*1000);
-    Assert(Result);
-    FWorkerTaskMustStop := 0;
-  end
-  else
-    Result := not FWorkerThread.GetIsTaskAssigned();
-  //dont call App.ProgressMessages, it causes CudaText bug #1927
-end;
-
-
-function TecClientSyntAnalyzer.DetectTag(Rule: TecTagBlockCondition;
-  RefTag: integer): Boolean;
-var
-  Tag: TecSyntToken;
-begin
-  WaitTillCoherent();
-  try
-    Tag := Tags[RefTag];
-    Tag.SetRule(Rule);
-    if Rule.TokenType >= 0 then
-      Tag.SetTokenType(Rule.TokenType);
-
-    Tags[RefTag] := Tag;
-    Result := True;
-  finally ReleaseBackgroundLock();  end;
-end;
-
-procedure TecClientSyntAnalyzer.CloseAtEnd(StartTagIdx: integer);
-const
-  cSpecIndentID = 20;
-    //special number for "Group index" lexer property, which activates indent-based folding for a rule
-  cSpecTokenStart: char = '1';
-    //special char - must be first of token's type name (e.g. "1keyword");
-    //Also such tokens must contain spaces+tabs at the beginning (use parser regex like "^[\x20\x09]*\w+")
-var i, j, IndentSize: integer;
-    Range: TecTextRange;
-    Token: TecSyntToken;
-    S: string;
-begin
- WaitTillCoherent();
- try
-  for i := FOpenedBlocks.Count - 1 downto 0 do
-   begin
-    Range := TecTextRange(FOpenedBlocks[i]);
-    if Range.Rule.EndOfTextClose and
-       ((StartTagIdx = 0) or (Range.StartIdx >= StartTagIdx)) then
-     begin
-       Range.EndIdx := TagCount - 1;
-       if Range.Rule.SyntOwner = Owner then
-       if Range.Rule.GroupIndex = cSpecIndentID then
-       begin
-         IndentSize := IndentOf(TagStr[Range.StartIdx]);
-         for j := Range.StartIdx+1 to TagCount-1 do
-         begin
-           Token := Tags[j];
-           if Token.Rule.SyntOwner <> Owner then Continue; // Check that token is not from sublexer
-           S := Owner.TokenTypeNames[Token.TokenType];
-           if (S <> '') and (S[1] = cSpecTokenStart) and (IndentOf(TagStr[j]) <= IndentSize) then
-           begin
-             Range.EndIdx := j-1;
-             Break
-           end;
-         end;
-       end;
-       FOpenedBlocks.Delete(i);
-     end;
-   end;
- finally ReleaseBackgroundLock(); end;
-end;
-
-function TecClientSyntAnalyzer.DoChangeAtPos(): boolean;
-var
-  aPos, i, N, tokenCount: integer;
-  Sub: TecSubLexerRange;
-  sublexerBlocks: TecSubLexerRanges;
-  txtRange: TecTextRange;
-  tagList: TecTokenList;
-  isAsync: boolean;
-  {$ifdef DEBUGLOG}
-  time: Cardinal;
-  {$endif}
-
-  procedure CheckSyncRequest; inline;
-  begin
-    if isAsync then begin //and (tokenCount and minTokenStep =minTokenStep) then  begin
-      FWorkerThread.YieldData();
-    end;
-  end;
-
- procedure CleanRangeList(List: TSortedList; IsClosed: Boolean);
- var i: integer;
- begin
-   for i := List.Count - 1 downto 0 do
-    with TecTextRange(List[i]) do
-     if (FCondIndex >= N) or (StartIdx >= N) or IsClosed and
-        ((FEndCondIndex >= N) or (EndIdx >= N)) then
-      List.Delete(i);
- end;
-
-begin
-   Result := true;
-   isAsync := GetIsSyntaxThread();
-   if isAsync then
-     aPos := (TThread.CurrentThread as TecSyntaxerThread).Argument
-   else
-     aPos := FAppendAtPosArg;
-   if IsParserBusy then
-     FParserStatus := psNone;
-   WaitTillCoherent();
-   {$ifdef DEBUGLOG}
-   time := GetTickCount;
-   {$endif}
-   sublexerBlocks := FSubLexerBlocks.Get;
-   try
-     FParserStatus := psNone;
-     Dec(APos);
-     if APos<0 then APos := 0;
-
-     if FBuffer.TextLength <= Owner.FullRefreshSize then
-       APos := 0
-     else
-     if Owner.RestartFromLineStart then
-       APos := Min(APos, FBuffer.OffsetToOffsetOfLineStart(APos + 1));
-
-     // Check sub lexer ranges
-     for i := sublexerBlocks.Count - 1 downto 0 do begin
-      tokenCount:=i;
-      CheckSyncRequest();
-       Sub:= sublexerBlocks[i];
-       if APos < Sub.Range.StartPos then begin
-          if APos > Sub.CondStartPos then APos := Sub.CondStartPos;
-          sublexerBlocks.Delete(i);  // remove sub lexer
-        end else
-       if APos < Sub.CondEndPos then begin
-          if APos > Sub.Range.EndPos then APos := Sub.Range.EndPos;
-          Sub.Range.EndPos := -1;       // open sub lexer
-          Sub.CondEndPos := -1;
-          sublexerBlocks[i] := Sub;
-        end;
-     end; //for
-     // Remove tokens
-     tagList := FTagList.Get;
-     tagList.ClearFromPos(APos);
-
-     FLastAnalPos := 0;   // Reset current position
-     N := tagList.Count;
-     FStartSepRangeAnal := N;
-     // Remove text ranges from service containers
-     CleanRangeList(FOpenedBlocks, False);
-     // Remove text ranges from main storage
-     for i := FRanges.Count - 1 downto 0 do begin
-      tokenCount:=i;
-      CheckSyncRequest();
-      txtRange := TecTextRange(FRanges[i]);
-      with txtRange  do
-       if (FCondIndex >= N) or (StartIdx >= N) then FRanges.Delete(i)  else
-        if (FEndCondIndex >= N) or (EndIdx >= N) then
-         begin
-           EndIdx := -1;
-           FEndCondIndex := -1;
-           FOpenedBlocks.Add(FRanges[i]);
-         end;
-     end;
-
-     // Restore parser state
-     RestoreState;
-     {$ifdef DEBUGLOG}
-     time := GetTickCount-time;
-     {$endif}
-  finally ReleaseBackgroundLock(); end;
-end;
-
-
-procedure TecClientSyntAnalyzer.HandleAddWork();
-begin
-  if not FWorkerRequested then
-    DoSyntaxWork
-  else
-   AcquireWorker().ScheduleWork(DoSyntaxWork, -100, nil, true
-    {$IFDEF DEBUGLOG},'DoSyntaxWork'{$ENDIF});
-end;
 
 { TecSyntAnalyzer }
 
@@ -4347,7 +626,7 @@ begin
   FMarkedBlock.Font.Color := clHighlightText;
   FMarkedBlock.FormatType := ftColor;
   FMarkedBlock.DisplayName := 'Marked block';
-  FMarkedBlock.FIsBlock := True;
+  FMarkedBlock._SetIsBlock(True);
 
   FCodeTemplates := TecCodeTemplates.Create(Self);
   FSkipSpaces := True;
@@ -4433,7 +712,7 @@ begin
    TecClientSyntAnalyzer(FClientList[i]).HandleAddWork();
 end;
 
-procedure TecSyntAnalyzer.HighlightKeywords(Client: TecParserResults;
+procedure TecSyntAnalyzer.HighlightKeywords(Client: TTokenHolder;
   const Source: ecString; OnlyGlobal: Boolean);
 var i, N, ki, RefIdx: integer;
     Accept: Boolean;
@@ -4443,7 +722,7 @@ begin
   for i := 0 to FBlockRules.Count - 1 do
    with FBlockRules[i] do
     if Enabled and (BlockType = btTagDetect) and
-       (Block = nil) and (FGrammaRule = nil) then
+       (Block = nil) and (GrammaRule = nil) then
       begin
        if OnlyGlobal and not AlwaysEnabled then Continue;
        RefIdx := 0;
@@ -4452,22 +731,22 @@ begin
          OnBlockCheck(FBlockRules[i], TecClientSyntAnalyzer(Client), Source, RefIdx, Accept);
        if Accept then
          begin
-           if FRefToCondEnd then ki := RefIdx - IdentIndex
+           if RefToCondEnd then ki := RefIdx - IdentIndex
              else ki := N - 1 - CheckOffset - IdentIndex;
 
            Tag := TecClientSyntAnalyzer(Client).Tags[ki];
            Tag.SetRule(FBlockRules[i]);
            if TokenType >= 0 then
               Tag.SetTokenType(TokenType);
-           TecClientSyntAnalyzer(Client).Tags[ki] := Tag;
+           TecParserResults(Client).SetTags(ki, tag);// Tags[ki] := Tag;
 
            if CancelNextRules then Exit;   // 2.27
          end;
       end;
 end;
 
-procedure TecSyntAnalyzer.SelectTokenFormat(Client: TecParserResults;
-            const Source: ecString; OnlyGlobal: Boolean; N: integer);
+procedure TecSyntAnalyzer.SelectTokenFormat(Client: TTokenHolder;
+  const Source: ecString; OnlyGlobal: Boolean; N: integer);
 var i, li, ki, strt, RefIdx: integer;
     Range: TecTextRange;
     Accept: Boolean;
@@ -4483,18 +762,18 @@ begin
     N := Client.TagCount;
   if not (Client is TecClientSyntAnalyzer)  then Exit;
   RClient := TecClientSyntAnalyzer(Client);
-  RClient.FStartSepRangeAnal := N + 1;
+  RClient._SetStartSeparateWork(N + 1);
   try
     for i := 0 to FBlockRules.Count - 1 do
       with FBlockRules[i] do
        if not SeparateBlockAnalysis or (BlockType <> btTagDetect) or
-          (Block = nil) or (FGrammaRule = nil) then
-       if Client.IsEnabled(FBlockRules[i], OnlyGlobal) then
+          (Block = nil) or (GrammaRule = nil) then
+       if RClient.IsEnabled(FBlockRules[i], OnlyGlobal) then
         begin
           RefIdx := 0;
-          if FGrammaRule <> nil then
+          if GrammaRule <> nil then
            begin
-             RefIdx := FGrammaParser.TestRule(N - 1, FGrammaRule, Client);
+             RefIdx := FGrammaParser.TestRule(N - 1, GrammaRule, Client);
              Accept := RefIdx <> -1;
            end else
              Accept := Check(Source, RClient, N, RefIdx);
@@ -4503,8 +782,8 @@ begin
             OnBlockCheck(FBlockRules[i], RClient, Source, RefIdx, Accept);
 
           if Accept then begin
-           Client.ApplyStates(FBlockRules[i]);
-           if FRefToCondEnd then strt := RefIdx
+           TecClientSyntAnalyzer(Client).ApplyStates(FBlockRules[i]);
+           if RefToCondEnd then strt := RefIdx
              else strt := N - 1 - CheckOffset;
       //    strt := N - 1 - CheckOffset;
            ki := strt - IdentIndex;
@@ -4554,43 +833,45 @@ begin
   FSampleText.Assign(Value);
 end;
 
-function TecSyntAnalyzer.GetToken(Client: TecParserResults; const Source: ecString;
-                              APos: integer; OnlyGlobal: Boolean): TecSyntToken;
-var i, N, lp, trCount: integer;
+procedure TecSyntAnalyzer.GetToken(out tok:TecSyntToken; Client: TTokenHolder; const Source: ecString;
+  APos: integer; OnlyGlobal: Boolean);
+var i, N, lp,trCount: integer;
     Rule: TecTokenRule;
     PntStart, PntEnd: TPoint;
-
+    buf:TATStringBuffer;
+    cli:TecClientSyntAnalyzer;
 begin
   PntStart.X := -1;
   PntStart.Y := -1;
-  Result := TecSyntToken.Create(nil, -1, -1, PntStart, PntStart);
-
-  if Assigned(FOnParseToken) then
-    begin
+  cli:=TecClientSyntAnalyzer(client);
+  buf := cli.Buffer;
+  if Assigned(FOnParseToken) then begin
       N := 0;
       Rule := nil;
       FOnParseToken(Client, Source, APos, N, Rule);
-      if Assigned(Rule) then
-        Result := TecSyntToken.Create(Rule,
+      if Assigned(Rule) then begin
+        tok.Make(Rule,
                APos - 1,
                APos + N - 1,
-               Client.Buffer.StrToCaret(APos-1),
-               Client.Buffer.StrToCaret(APos+N-1)
+               buf.StrToCaret(APos-1),
+               buf.StrToCaret(APos+N-1)
                );
+      end
+      else
+        tok.Make(nil, -1, -1, PntStart, PntStart);
       Exit;
     end;
 
   lp := 0;
   trCount:=FTokenRules.Count - 1;
-  for i := 0 to trCount do
-    begin
+  for i := 0 to trCount do  begin
       Rule := FTokenRules[i];
-      if Client.IsEnabled(Rule, OnlyGlobal) then
+      if cli.IsEnabled(Rule, OnlyGlobal) then
         with Rule do  begin
             if (ColumnFrom > 0) or (ColumnTo > 0) then
               begin
                if lp = 0 then
-                 lp := Client.Buffer.OffsetToDistanceFromLineStart(APos - 1)+1;
+                 lp := buf.OffsetToDistanceFromLineStart(APos - 1)+1;
 
                if (ColumnFrom > 0) and (lp < ColumnFrom) or
                   (ColumnTo > 0) and (lp > ColumnTo) then
@@ -4601,20 +882,20 @@ begin
               OnMatchToken(Rule, Client, Source, APos, N);
             if N > 0 then
               begin
-                Client.ApplyStates(Rule);
+                cli.ApplyStates(Rule);
 
-                PntStart := Client.Buffer.StrToCaret(APos-1);
+                PntStart := buf.StrToCaret(APos-1);
 
                 //optimization: if token is short, get PntEnd simpler
-                if PntStart.X + N >= Client.Buffer.LineLength(PntStart.Y) then
-                  PntEnd := Client.Buffer.StrToCaret(APos+N-1)
+                if PntStart.X + N >= buf.LineLength(PntStart.Y) then
+                  PntEnd := buf.StrToCaret(APos+N-1)
                 else
                 begin
                   PntEnd.Y := PntStart.Y;
                   PntEnd.X := PntStart.X + N;
                 end;
 
-                Result := TecSyntToken.Create(Rule,
+                tok.Make(Rule,
                        APos - 1,
                        APos + N - 1,
                        PntStart,
@@ -4624,10 +905,12 @@ begin
               end;
           end;
     end;
+  tok.Make(nil, -1, -1, PntStart, PntStart);
 end;
 
 procedure TecSyntAnalyzer.FormatsChanged(Sender: TCollection; Item: TSyntCollectionItem);
 var i: integer;
+    blockRule:TecTagBlockCondition;
 begin
   ClearClientContents;
   if Item = nil then
@@ -4636,14 +919,14 @@ begin
     if not FFormats.ValidItem(FCurrentLine) then FCurrentLine := nil;
     if not FFormats.ValidItem(FDefStyle) then FDefStyle := nil;
     if not FFormats.ValidItem(FSearchMatch) then FSearchMatch := nil;
-    for i := 0 to FBlockRules.Count - 1 do
-     begin
-      if not FFormats.ValidItem(FBlockRules[i].Style) then FBlockRules[i].Style := nil;
-      if not FFormats.ValidItem(FBlockRules[i].TreeItemStyleObj) then FBlockRules[i].FTreeItemStyleObj := nil;
-      if not FFormats.ValidItem(FBlockRules[i].TreeGroupStyleObj) then FBlockRules[i].FTreeGroupStyleObj := nil;
+    for i := 0 to FBlockRules.Count - 1 do   begin
+        blockRule:=FBlockRules[i];
+        blockRule.RemoveInvalid(FFormats);
      end;
+
     for i := 0 to FTokenRules.Count - 1 do
      if not FFormats.ValidItem(FTokenRules[i].Style) then FTokenRules[i].Style := nil;
+
     for i := 0 to FSubAnalyzers.Count - 1 do
      if not FFormats.ValidItem(FSubAnalyzers[i].Style) then FSubAnalyzers[i].Style := nil;
    end;
@@ -4673,7 +956,7 @@ begin
 end;
 
 procedure TecSyntAnalyzer.ClearClientContents;
-var i: integer;
+var i:integer;
 begin
   if FCoping then Exit;
   FCoping := True;
@@ -4693,20 +976,25 @@ begin
 end;
 
 procedure TecSyntAnalyzer.UpdateClients;
-var i: integer;
+var i:integer;
 begin
   if FCoping then Exit;
   FCoping := True;
   try
     for i := 0 to FClientList.Count - 1 do
      with TecClientSyntAnalyzer(FClientList[i]) do
-       if FClient <> nil then
-         FClient.FormatChanged;
+         HandleFormatChanged();
+
     for i := 0 to FMasters.Count - 1 do
       TecSyntAnalyzer(FMasters[i]).UpdateClients;
   finally
     FCoping := False;
   end;
+end;
+
+function TecSyntAnalyzer.GetClients: TList;
+begin
+  result := FClientList;
 end;
 
 procedure TecSyntAnalyzer.Loaded;
@@ -4954,15 +1242,15 @@ begin
 end;
 
 procedure TecSyntAnalyzer.CompileGramma;
-var i, brCount: integer;
-    bRule: TecTagBlockCondition;
+var i, brCount : integer;
+    bRule:TecTagBlockCondition;
 begin
   FGrammaParser.CompileGramma(FTokenTypeNames);
   brCount:=FBlockRules.Count;
   for i := 0 to brCount - 1 do begin
     bRule:=FBlockRules[i];
-    bRule.FGrammaRule :=
-     FGrammaParser.ParserRuleByName(bRule.FGrammaRuleName);
+    bRule.SetRule(
+     FGrammaParser.ParserRuleByName(bRule.GrammaRuleName) );
   end;
 end;
 
@@ -5387,7 +1675,7 @@ end;
 
 procedure TLoadableComponent.SetName(const NewName: TComponentName);
 var Base: string;
-    n: integer;
+    n:integer;
 begin
   if not FSkipNewName then
    if CheckExistingName and (Owner.FindComponent(NewName) <> nil) then
@@ -5498,7 +1786,7 @@ var own: TecSyntAnalyzer;
 begin
   if FSyntAnalyzer <> Value then
    begin
-     own := (Collection as TSyntCollection).SyntOwner;
+     own := (Collection as TSyntCollection).SyntOwner as TecSyntAnalyzer;
      if Assigned(FSyntAnalyzer) and (FSyntAnalyzer <> own) and not IsLinked(FSyntAnalyzer) then
        FSyntAnalyzer.RemoveMasterLexer(own);
      FSyntAnalyzer := Value;
@@ -5562,67 +1850,10 @@ begin
   FStyles.Assign(Value);
 end;
 
-{ TecAsyncSelector }
-
-procedure TecAsyncSelector<TEntity>.Init(const parent: TecParserResults;
-  const aEntity, workEntitiy: TEntity);
-begin
- FParent := parent;
- FEntity :=aEntity;
- FWorkerEntity:= workEntitiy;
-end;
-
-procedure TecAsyncSelector<TEntity>.Release();
-begin
- FreeAndNil(FEntity);
- FreeAndNil(FWorkerEntity);
-end;
-
-
-
-procedure TecAsyncSelector<TEntity>.Swap();
-var glass: TEntity;
-begin
- with FParent.FWorkerThread do begin
-    DoTagSync(true);
-    try
-      glass:=FWorkerEntity;
-      FWorkerEntity:=FEntity;
-      FEntity:=glass;
-    finally DoTagSync(false);  end;
-  end;
-end;
-
-function TecAsyncSelector<TEntity>.Get: TEntity;
-begin
-  if FParent.GetIsSyntaxThread() then
-    Result := FWorkerEntity
-  else
-    Result := FEntity;
-  if not Assigned(Result) then
-    Result := nil; //AT: ??
-end;
-
-{ TecTagListSelectorHelp }
-
-procedure TecTagListSelectorHelp.SyncWorkerList(toWorker: boolean);
-begin
-  with Self.Parent.FWorkerThread do begin
-    DoTagSync(true);
-    try
-      if toWorker then
-        WorkerEntity.Assign(Entity)
-      else
-        Entity.Assign(WorkerEntity);
-    finally
-      DoTagSync(false);
-    end;
-  end;
-end;
 
 
 initialization
-  Classes.RegisterClass(TLibSyntAnalyzer);
 
+  Classes.RegisterClass(TLibSyntAnalyzer);
 end.
 
