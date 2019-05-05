@@ -263,7 +263,7 @@ type
 
 
   { TecSyntToken }
-
+PecSyntToken=^TecSyntToken;
 TecSyntToken = record
 strict private
   FRange: TRange;
@@ -279,7 +279,7 @@ public
   procedure CorrectEndRange(aEndPos:integer;constref aPointEnd:TPoint);
   procedure SetRule(rule:TRuleCollectionItem);
   procedure SetTokenType(&type:integer);
-  function GetStr(const Source: ecString): ecString;
+  function GetStr(const Source: ecString): ecString;inline;
   class operator Equal(constref A,B: TecSyntToken): boolean;
   property Style: TecSyntaxFormat read GetStyle;
   property Range:TRange read FRange;
@@ -305,7 +305,7 @@ TecTagConditionType = (tcEqual, tcNotEqual, tcMask, tcSkip, tcStrictMask);
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
-    function CheckToken(const Source: ecString; const Token: TecSyntToken): Boolean;
+    function CheckToken(const Source: ecString; constref Token: TecSyntToken): Boolean;
   published
     property TagList: TStrings read FTagList write SetTagList;
     property CondType: TecTagConditionType read FCondType write SetCondType default tcEqual;
@@ -340,7 +340,8 @@ uses
   forms,
   ec_token_holder,
   ec_synt_collection,
-  ec_SyntAnal;
+  ec_SyntAnal,
+  ec_SyntaxClient;
 
 
 procedure SetDefaultModifiers(RE: TecRegExpr);
@@ -520,37 +521,43 @@ function TecTagBlockCondition.Check(const Source: ecString;
   Tags: TObject; N: integer; var RefIdx: integer): Boolean;
 
 var
-   i, offs, idx, skipped, skip_cond: integer;
-   tokens:TTokenHolder;
-
+   condIx, offs, idx, skipped, skip_cond: integer;
+   tokens:TecParserResults;
+   pToken:PecSyntToken;
+   tagCondition, nextCondition:TecSingleTagCondition;
 begin
   Result := False;
-  tokens := TTokenHolder(tags);
+  tokens := TecParserResults(tags);
   offs := CheckOffset;
   skipped := 0;
   skip_cond := 0;
-  i := 0;
-  while i < ConditionList.Count do
-  begin
-   idx := N - 1 - i - offs - skipped + skip_cond;
-   if (ConditionList[i].CondType = tcSkip) and (i < ConditionList.Count - 1)
-      and (ConditionList[i+1].CondType <> tcSkip) then
-     begin
-      inc(i);
-      inc(skip_cond);
-      while (idx >= 0) and not ConditionList[i].CheckToken(Source, tokens[idx]) do
-       begin
-         if not ConditionList[i - 1].CheckToken(Source, tokens[idx]) then
-           Exit;
-         dec(idx);
-         inc(skipped);
-       end;
-      if idx < 0 then Exit;
+  condIx := 0;
+  while condIx < ConditionList.Count do begin
+   tagCondition:= ConditionList[condIx];
+   idx := N - 1 - condIx - offs - skipped + skip_cond;
+   if (tagCondition.CondType = tcSkip) and (condIx < ConditionList.Count - 1)
+      and (ConditionList[condIx+1].CondType <> tcSkip) then
+    begin
+        inc(condIx);
+        nextCondition:= ConditionList[condIx];
+        inc(skip_cond);
+        while (idx >= 0) do // and not ConditionList[condIx].CheckToken(Source, tokens[idx]) do
+         begin
+          pToken:=tokens.__UnsafeGetTagPtr(idx);
+          if nextCondition.CheckToken(Source, pToken^) then break;
+
+           if not tagCondition.CheckToken(Source, pToken^) then  exit(false);
+           dec(idx);
+           inc(skipped);
+         end;
+        if idx < 0 then exit(false);
+        tagCondition:=nextCondition;
      end;
-   with ConditionList[i] do
-    if (idx < 0) or not CheckToken(Source, tokens[idx]) then Exit;
-   inc(i);
-  end;
+
+   with tagCondition do
+    if (idx < 0) or not CheckToken(Source, tokens.__UnsafeGetTagPtr(idx)^) then exit(false);
+   inc(condIx);
+  end;//while
 
   Result := ConditionList.Count > 0;
 //  if FRefToCondEnd then
@@ -1224,7 +1231,7 @@ begin
    end;
 end;
 
-function TecSingleTagCondition.CheckToken(const Source: ecString; const Token: TecSyntToken): Boolean;
+function TecSingleTagCondition.CheckToken(const Source: ecString; constref Token: TecSyntToken): Boolean;
 var s: ecString;
     i, N: integer;
     RE: TecRegExpr;
@@ -1244,8 +1251,7 @@ begin
         end;
     end;
    end;
-  if FTagList.Count > 0 then
-   begin
+  if FTagList.Count > 0 then begin
     s := Token.GetStr(Source);
     s := Trim(s); //AT
     if FCondType in [tcMask, tcStrictMask] then
