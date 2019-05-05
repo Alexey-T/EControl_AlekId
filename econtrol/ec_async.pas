@@ -1,7 +1,9 @@
 unit ec_Async;
 
 {$mode Delphi}{$H+}
-
+{$IFDEF DEBUG}
+{$INLINE OFF}
+{$ENDIF}
 interface
 
 uses
@@ -43,15 +45,15 @@ type
 
     { TecSyntaxerThread }
     TecSyntaxerThread=class(TThread)
+    private
+      FSyncRequestCount: integer;
     protected
 
     type
     TWorkQueue= TQueue<TSyntaxWork>;
     TIdleDestroyTime= 1..300;
-
     ///<summary>Request and wait for access to the syntaxer data</summary>
-
-
+    procedure AcquireSyncHarder(const roSync: boolean);
     strict protected
     FClientSyntaxer:IAsyncSyntaxClient;
     //FStopCurrentTask,
@@ -84,13 +86,15 @@ type
     constructor Create(const syntaxer:IAsyncSyntaxClient;
                    const errorHandler:TExceptionHandler);
     destructor Destroy();override;
-    function GetIsTaskAssigned():boolean;
-    function GetIsWorkerThread():boolean;
+    procedure ResetIdleTimer();
+    function GetIsTaskAssigned():boolean;inline;
+    function GetIsWorkerThread():boolean;inline;
     function RequestRelease(var me:TecSyntaxerThread):boolean;
     function GetSyncNowAccessible:boolean;
-    procedure AcquireSync(roSync:boolean);
-    function TryAcquireSync():boolean;
-    procedure ReleaseSync();
+    procedure AcquireSync(roSync:boolean);inline;
+    function TryAcquireSync():boolean;inline;
+    function HasSyncRequests():boolean;
+    procedure ReleaseSync();inline;
 //    function WaitTaskAndSync(const timeOut:Cardinal):boolean;
     function GetIsWorking():boolean; inline;
     procedure YieldData(andWait:boolean);
@@ -101,9 +105,10 @@ type
                    aArg, aBufferVersion:integer; aDoneHandler:TTaskDoneHandler;
                    expendable:boolean
                    {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}):boolean;
-    procedure IssueSyncRequest();
+    procedure IssueSyncRequest();inline;
     procedure DoTagSync(enter:boolean);
     procedure Terminate2;
+    property SyncRequestCount:integer read FSyncRequestCount;
     property BusyWorking:boolean read GetIsWorking;
     property IdleDestroyTime:TIdleDestroyTime read FIdleDestroyTime write FIdleDestroyTime;
   end;
@@ -194,31 +199,21 @@ begin
 end;
 
 procedure TecSyntaxerThread.AcquireSync(roSync:boolean);
-var time:Cardinal;
-    done:boolean;
+var  done:boolean;
 begin
  done:=FSyncWall.TryEnter;
  if done then exit;
-  time:=GetTickCount();
-  if roSync then begin
-     repeat
-        FSynRequestCount:=1;
-     until FSyncWall.TryEnter;
-
-  end
-  else
-     FSyncWall.Enter();
-
-  time:=GetTickCount-time;
-  {$IFDEF DEBUGLOG}
-  if time > 50 then
-     TSynLog.Add.Log(sllWarning, 'AcquireSync waited: %d ms', [time]);
-  {$ENDIF}
+ AcquireSyncHarder(roSync);
 end;
 
 function TecSyntaxerThread.TryAcquireSync(): boolean;
 begin
  result:=FSyncWall.TryEnter;
+end;
+
+function TecSyntaxerThread.HasSyncRequests(): boolean;
+begin
+ result :=FSyncRequestCount>0;
 end;
 
 procedure TecSyntaxerThread.ReleaseSync();
@@ -299,6 +294,7 @@ begin
     Assert(false, 'Schedule, when it''s disabled');
 
   BeginSchedule;
+  ResetIdleTimer();
    try
       newTask.Setup(syntaxProc,aArg,aBufferVersion, aDoneHandler, expendable
       {$IFDEF DEBUGLOG},name{$ENDIF} );
@@ -362,13 +358,34 @@ end;
 
 
 
+procedure TecSyntaxerThread.AcquireSyncHarder(const roSync: boolean);
+var time:Cardinal;
+begin
+  {$IFDEF DEBUGLOG}
+   time:=GetTickCount();
+  {$ENDIF}
+   if roSync then begin
+      repeat
+         IssueSyncRequest();
+         Yield();
+      until FSyncWall.TryEnter;
+   end
+   else
+      FSyncWall.Enter();
+   {$IFDEF DEBUGLOG}
+   time:=GetTickCount-time;
+   if time > 50 then
+      TSynLog.Add.Log(sllWarning, 'AcquireSync waited: % ms', [time]);
+   {$ENDIF}
+end;
+
 procedure TecSyntaxerThread.HandleTaskDone(var task:TSyntaxWork);
 begin
   if assigned(task.DoneHandler) then
            task.DoneHandler(self, @task);
  {$IFDEF DEBUGLOG}
   FStartTime:=GetTickCount()-FStartTime;
-  TSynLog.Add.Log(sllTrace, 'Task %s done in %d ms',[task.Name, FStartTime]);
+  TSynLog.Add.Log(sllTrace, 'Task %s done in % ms',[task.Name, FStartTime]);
  {$ENDIF}
  task.Clear();
  FTaskDoneEvent.SetEvent();
@@ -553,6 +570,13 @@ begin
   FreeAndNil(FTagSync);
   FreeAndNil(FSyntaxQueue);
   inherited Destroy();
+end;
+
+procedure TecSyntaxerThread.ResetIdleTimer();
+begin
+ BeginSchedule;
+ FIdleTimeStart:=GetTickCount;
+ EndSchedule;
 end;
 
 function TecSyntaxerThread.GetIsTaskAssigned(): boolean;
