@@ -363,7 +363,7 @@ end;
 
 function TecParserResults.__UnsafeGetTagPtr(index: integer): PecSyntToken;
 begin
- result:=FTagList.Get.InternalGet(index);
+ result:=FTagList.Get._GetItemPtr(index);
 end;
 
 procedure TecParserResults.Finished;
