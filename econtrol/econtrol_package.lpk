@@ -21,8 +21,13 @@
       </CodeGeneration>
       <Other>
         <CustomOptions Value="-Sa
+<<<<<<< HEAD
 -dDEBUGa
 -dDEBUGLOGa"/>
+=======
+-dDEBUG
+-dDEBUGLOG__no"/>
+>>>>>>> 96b2b9ac56d2d184012f87763ef171ea0b061765
         <OtherDefines Count="1">
           <Define0 Value="DEBUG"/>
         </OtherDefines>

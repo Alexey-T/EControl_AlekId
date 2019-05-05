@@ -322,14 +322,20 @@ begin
     'D': Result := not IsDigitChar(C);
     's': Result := IsSpaceChar(C);
     'S': Result := not IsSpaceChar(C);
+    {
+    //AT commented
     'h': Result := IsHexDigitChar(C);
     'H': Result := not IsHexDigitChar(C);
     'l': Result := IsAlphaChar(C);
     'L': Result := not IsAlphaChar(C);
+    }
     'c': Result := IsIdentChar(C);
     'C': Result := not IsIdentChar(C);
+    {
+    //AT commented
     'g': Result := IsIdentLetterChar(C);
     'G': Result := not IsIdentLetterChar(C);
+    }
     'k': Result := IsIdentDigitChar(C);
     'K': Result := not IsIdentDigitChar(C);
   end;
@@ -378,9 +384,9 @@ begin
     't': Result := #$9;
     'n': Result := #$A;
     'r': Result := #$D;
-    'f': Result := #$C;
-    'a': Result := #$7;
-    'e': Result := #$1B;
+    //'f': Result := #$C; //AT commented
+    //'a': Result := #$7; //AT commented
+    //'e': Result := #$1B; //AT commented
     'x': begin
           inc(aPos);
           if aPos > Length(Expression) then
@@ -839,14 +845,26 @@ begin
     'W': Result := 'C';
     'd': Result := 'k';
     'D': Result := 'K';
+    {
+    //AT commented
     'l': Result := 'g';
     'L': Result := 'G';
-    's', 'S', 'h', 'H', 'c', 'C', 'g', 'G', 'k', 'K': Result := C;
+    }
+    's', 'S',
+    //'h', 'H', //AT commented
+    'c', 'C',
+    //'g', 'G', //AT commented
+    'k', 'K': Result := C;
     else Result := #0;
   end else
   case C of
-    'w', 'W', 'd', 'D', 'l', 'L',
-    's', 'S', 'h', 'H', 'c', 'C', 'g', 'G', 'k', 'K': Result := C;
+    'w', 'W', 'd', 'D',
+    //'l', 'L', //AT commented
+    's', 'S',
+    //'h', 'H', //AT commented
+    'c', 'C',
+    //'g', 'G', //AT commented
+    'k', 'K': Result := C;
     else Result := #0;
   end;
 end;
@@ -1116,7 +1134,7 @@ begin
                 Add(sub);
                 sub.Compile(Expression, aPos, Modifiers);
                 if (aPos > Len) or (Expression[aPos] <> ')') then
-                 raise Exception.Create('Do not closed sub expression');
+                 raise Exception.Create('Not closed sub expression');
                 ReadRepeaters(sub);
               end;
             end;
@@ -1390,7 +1408,7 @@ begin
                 Add(sub);
                 sub.Compile(Expression, aPos, Modifiers);
                 if (aPos > Len) or (Expression[aPos] <> ')') then
-                 raise Exception.Create('Do not closed sub expression');
+                 raise Exception.Create('Not closed sub expression');
                 ReadRepeaters(sub);
               end;
             end;
