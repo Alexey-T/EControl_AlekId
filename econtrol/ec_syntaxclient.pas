@@ -175,10 +175,11 @@ type
     FTaskAppendDisabled: Boolean;
     FPrevProgress: integer;
 
-    FRepeateAnalysis: Boolean;
+    FDestroying,FRepeateAnalysis: Boolean;
     FAppendAtPosArg:integer;
     FParseOffsetTargetP:TPoint;
     FParseOffsetTarget:integer;
+
     function GetRangeCount: integer;
     function GetRanges(Index: integer): TecTextRange;
     function GetOpened(Index: integer): TecTextRange;
@@ -253,7 +254,7 @@ type
   end;
 
 implementation
-uses math;
+uses math, forms;
 
 const minTokenStep=0;
 
@@ -333,6 +334,7 @@ end;
 
 destructor TecParserResults.Destroy;
 begin
+
  inherited;
   if assigned(FWorkerThread) then begin
    FWorkerThread.Terminate2;
@@ -893,6 +895,7 @@ constructor TecClientSyntAnalyzer.Create(AOwner: TecSyntAnalyzer; SrcProc: TATSt
   const AClient: IecSyntClient;const synEditAdapter:ISynEditAdapter; useWorkerThread:boolean);
 begin
   FEditAdapter:=nil;
+  FDestroying:= false;
   FTaskAppendDisabled:=false;
   FRepeateAnalysis:=false;
   FEditAdapter:=SynEditAdapter;
@@ -905,9 +908,10 @@ end;
 
 destructor TecClientSyntAnalyzer.Destroy;
 begin
+  FDestroying:= true;
+
   StopSyntax(true);
-
-
+  Application.ProcessMessages;
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);
   inherited;
@@ -1201,6 +1205,7 @@ end;
 procedure TecClientSyntAnalyzer.DelayedWork();
 var worker:TecSyntaxerThread;
 begin
+  if FDestroying then exit;
   worker :=AcquireWorker();
   worker.ScheduleWork(DoAsyncPause, 1000, FBuffer.Version, nil, true
   {$IFDEF DEBUGLOG},'DoAsyncPause'{$ENDIF});
@@ -1211,6 +1216,7 @@ procedure TecClientSyntAnalyzer.AppendToPos(APos: integer; force: boolean);
 var FPos, len: integer;
 
 begin
+  if FDestroying then exit;
  FParserStatus.ResetNonComplete();
  len :=FBuffer.TextLength;
   if len <= 0 then Exit;
@@ -1311,6 +1317,7 @@ end;
 
 procedure TecClientSyntAnalyzer.ChangedAtPos(APos: integer);
 begin
+ if FDestroying then exit;
  Dec(APos);
  if APos<0 then APos := 0;
 
@@ -2105,6 +2112,7 @@ end;
 procedure TecClientSyntAnalyzer.HandleAddWork();
 var worker:TecSyntaxerThread;
 begin
+  if FDestroying then exit;
   FParserStatus.ResetNonComplete();
   if not FWorkerRequested then begin
     DoSyntaxWork(nil);
