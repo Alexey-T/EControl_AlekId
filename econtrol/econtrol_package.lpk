@@ -10,7 +10,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="&quot;d:\devsoft\cmp\mORMot&quot;&quot;d:\devsoft\cmp\mORMot&quot;;..\..\..\cmp\mORMot"/>
-        <OtherUnitFiles Value="&quot;d:\devsoft\cmp\mORMot&quot;;&quot;d:\devsoft\cmp\mORMot\SQLite3&quot;;..\..\..\cmp\mORMot;..\..\..\cmp\mORMot\SQLite3"/>
+        <OtherUnitFiles Value="..\..\..\cmp\mORMot;..\..\..\cmp\mORMot\SQLite3"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <CodeGeneration>
@@ -21,13 +21,9 @@
       </CodeGeneration>
       <Other>
         <CustomOptions Value="-Sa
-<<<<<<< HEAD
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
 -dDEBUGa
 -dDEBUGLOGa"/>
-=======
--dDEBUG
--dDEBUGLOG__no"/>
->>>>>>> 96b2b9ac56d2d184012f87763ef171ea0b061765
         <OtherDefines Count="1">
           <Define0 Value="DEBUG"/>
         </OtherDefines>

@@ -334,8 +334,7 @@ end;
 
 destructor TecParserResults.Destroy;
 begin
- FDestroying:= true;
- Application.ProcessMessages;
+
  inherited;
   if assigned(FWorkerThread) then begin
    FWorkerThread.Terminate2;
@@ -909,9 +908,10 @@ end;
 
 destructor TecClientSyntAnalyzer.Destroy;
 begin
+  FDestroying:= true;
+
   StopSyntax(true);
-
-
+  Application.ProcessMessages;
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);
   inherited;
