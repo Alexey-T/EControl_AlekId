@@ -18,6 +18,9 @@ interface
 {$IFDEF DEBUGLOG}
 {$DEFINE DEBUG}
 {$ENDIF}
+{$IFDEF DEBUG}
+{$INLINE OFF}
+{$ENDIF}
 uses
   SysUtils,
   Classes,
@@ -751,7 +754,7 @@ var i, li, ki, strt, RefIdx: integer;
     Range: TecTextRange;
     Accept: Boolean;
     RClient: TecClientSyntAnalyzer;
-
+    blockRule:TecTagBlockCondition;
   function CheckIndex(Idx: integer): Boolean; inline;
   begin
    Result := (Idx >= 0) and (Idx < N);
@@ -764,25 +767,24 @@ begin
   RClient := TecClientSyntAnalyzer(Client);
   RClient._SetStartSeparateWork(N + 1);
   try
-    for i := 0 to FBlockRules.Count - 1 do
-      with FBlockRules[i] do
-       if not SeparateBlockAnalysis or (BlockType <> btTagDetect) or
+    for i := 0 to FBlockRules.Count - 1 do begin
+      blockRule:=FBlockRules[i];
+      with blockRule do
+       if not SeparateBlockAnalysis or (blockRule.BlockType <> btTagDetect) or
           (Block = nil) or (GrammaRule = nil) then
-       if RClient.IsEnabled(FBlockRules[i], OnlyGlobal) then
-        begin
+       if RClient.IsEnabled(blockRule, OnlyGlobal) then  begin
           RefIdx := 0;
-          if GrammaRule <> nil then
-           begin
+          if GrammaRule <> nil then  begin
              RefIdx := FGrammaParser.TestRule(N - 1, GrammaRule, Client);
              Accept := RefIdx <> -1;
            end else
              Accept := Check(Source, RClient, N, RefIdx);
 
           if Assigned(OnBlockCheck) then
-            OnBlockCheck(FBlockRules[i], RClient, Source, RefIdx, Accept);
+            OnBlockCheck(blockRule, RClient, Source, RefIdx, Accept);
 
           if Accept then begin
-           TecClientSyntAnalyzer(Client).ApplyStates(FBlockRules[i]);
+           RClient.ApplyStates(blockRule);
            if RefToCondEnd then strt := RefIdx
              else strt := N - 1 - CheckOffset;
       //    strt := N - 1 - CheckOffset;
@@ -790,21 +792,20 @@ begin
            if CheckIndex(ki) then
             case BlockType of
                btTagDetect: // Tag detection
-                 if not RClient.DetectTag(FBlockRules[i], ki) then
+                 if not RClient.DetectTag(blockRule, ki) then
                    Continue;
                btRangeStart: // Start of block
                 begin
-                  if FBlockRules[i].SelfClose then
-                    RClient.CloseRange(FBlockRules[i], strt);
+                  if blockRule.SelfClose then
+                    RClient.CloseRange(blockRule, strt);
                   li := strt - BlockOffset;
                   if CheckIndex(li) then
                    begin
                     Range := TecTextRange.Create(li, RClient.Tags[li].Range.StartPos);
                     Range.IdentIdx := ki;
-                    Range.Rule := FBlockRules[i];
+                    Range.Rule := blockRule;
                     Range.FCondIndex := N - 1;
-                    if NoEndRule then
-                     begin
+                    if NoEndRule then begin
                       Range.EndIdx := N - 1 - CheckOffset;
                       Range.FEndCondIndex := N - 1;
                       Range.StartIdx := RefIdx - BlockOffset;
@@ -813,7 +814,7 @@ begin
                    end;
                 end;
                btRangeEnd:  // End of block
-                 if not RClient.CloseRange(FBlockRules[i], strt) then
+                 if not RClient.CloseRange(blockRule, strt) then
                    Continue;
                btLineBreak:
                  begin
@@ -823,6 +824,7 @@ begin
            if CancelNextRules then Break;
           end;
         end;
+    end;//for
   except
     Application.HandleException(Self);
   end;
@@ -1293,8 +1295,7 @@ function TecSyntAnalyzer.GetSeparateBlocks: Boolean;
   end;
 var i: integer;
 begin
-  if FSeparateBlocks = 0 then
-    begin
+  if FSeparateBlocks = 0 then begin
       Result := not FAlwaysSyncBlockAnal and
                 not HasStateModif(FBlockRules) and
                 not HasStateModif(FSubAnalyzers);

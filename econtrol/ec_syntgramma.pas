@@ -73,6 +73,8 @@ type
 
 
 
+  { TGrammaAnalyzer }
+
   TGrammaAnalyzer = class(TPersistent)
   private
     FGrammaRules: TList;
@@ -81,7 +83,8 @@ type
     FRoot: TParserRule;
     FSkipRule: TParserRule;
     FOnChange: TNotifyEvent;
-
+    FCallStack:TList;
+    FSyncWall:TRTLCriticalSection;
     function GetGrammaCount: integer;
     function GetGrammaRules(Index: integer): TParserRule;
     function GetGramma: ecString;
@@ -98,7 +101,8 @@ type
     function ParserRuleByName(const AName: string): TParserRule;
     function IndexOfRule(Rule: TParserRule): integer;
     function CompileGramma(TokenNames: TStrings): Boolean;
-    function ParseRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): TParserNode;
+    function  ParseRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): TParserNode;
+    function  ParseRuleFaster(aFromIndex: integer; Rule: TParserRule; Tags: TTokenHolder):integer;
     function TestRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): integer;
 
     property GrammaCount: integer read GetGrammaCount;
@@ -208,6 +212,8 @@ begin
   inherited;
   FGrammaRules := TObjectList.Create;
   FGrammaDefs := TATStringBuffer.Create;
+  FCallStack := TList.Create;
+  InitCriticalSection(FSyncWall);
 end;
 
 destructor TGrammaAnalyzer.Destroy;
@@ -215,6 +221,8 @@ begin
   Clear;
   FGrammaDefs.Free;
   FGrammaRules.Free;
+  FreeAndNil(FCallStack);
+  DoneCriticalSection(FSyncWall);
   inherited;
 end;
 
@@ -515,6 +523,9 @@ end;
 function TGrammaAnalyzer.TestRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): integer;
 var FRootProgNode: TParserNode; // Results of Gramma analisys
 begin
+Result:=ParseRuleFaster(FromIndex, Rule, Tags);
+exit;
+{$IF (false) }
   FRootProgNode := ParseRule(FromIndex, Rule, Tags);
   if Assigned(FRootProgNode) then
     begin
@@ -522,9 +533,11 @@ begin
       FRootProgNode.Free;
     end else
       Result := -1;
+{$ENDIF}
 end;
 
-function TGrammaAnalyzer.ParseRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): TParserNode;
+function TGrammaAnalyzer.ParseRule(FromIndex: integer; Rule: TParserRule;
+                        Tags: TTokenHolder): TParserNode;
 var CurIdx: integer;
     CallStack: TList;
     In_SkipRule: Boolean;
@@ -583,8 +596,7 @@ var CurIdx: integer;
 
     sv_idx := CurIdx;
     Result := TParserBranchNode.Create(Branch);
-    for i := Branch.Count - 1 downto 0 do
-     begin
+    for i := Branch.Count - 1 downto 0 do  begin
        rep_cnt := 0;
        node := nil;
        while ((rep_cnt = 0) or (node <> nil)) and
@@ -634,6 +646,121 @@ begin
     Result := RuleProcess(Rule);
   finally
     CallStack.Free;
+  end;
+end;
+
+
+
+
+function TGrammaAnalyzer.ParseRuleFaster(aFromIndex: integer;
+  Rule: TParserRule; Tags: TTokenHolder):integer;
+var curIdx: integer;
+    In_SkipRule: Boolean;
+
+  function RuleProcess(Rule: TParserRule): integer; forward;
+
+  procedure SipComments;
+  var skipped: integer;
+  begin
+    if not In_SkipRule and (FSkipRule <> nil) then
+     try
+       In_SkipRule := True;
+       skipped := RuleProcess(FSkipRule);
+       //if skipped <> nil then skipped.Free;
+     finally
+       In_SkipRule := False;
+     end;
+  end;
+
+  function ItemProcess(Item: TParserRuleItem): integer;
+  begin
+    Result := -1;
+    if curIdx >= 0 then
+     if Item.ItemType = itParserRule then begin
+          Result := RuleProcess(Item.ParserRule);
+          exit;
+      end;
+
+      case Item.ItemType of
+        itTerminal:
+          if Tags.GetTokenStr(curIdx) = Item.Terminal then
+            Result := curIdx;// TParserTermNode.Create(Item, curIdx);
+        itTerminalNoCase:
+          if SameText(Tags.GetTokenStr(curIdx), Item.Terminal) then
+            Result := curIdx; //TParserTermNode.Create(Item, curIdx);
+        itTokenRule:
+          if (Item.TokenType = 0) or (Tags.GetTokenType(curIdx) = Item.TokenType) then
+            Result := curIdx;// TParserTermNode.Create(Item, curIdx);
+      end;//case
+      if Result >= 0 then begin
+        Dec(curIdx);
+        SipComments;
+       end;
+  end;
+
+  function BranchProcess(Branch: TParserRuleBranch): integer;
+  var branchIx, sv_idx, rep_cnt: integer;
+      node, ruleCount: integer;
+      curBranch:TParserRuleItem;
+
+  begin
+    ruleCount:=Branch.Count-1;
+    if ruleCount < 0 then
+             Exit(-1);
+    sv_idx := curIdx;
+    Result := -1;
+    for branchIx := ruleCount  downto 0 do  begin
+       rep_cnt := 0;
+       node := -1;
+       curBranch:=Branch.Items[branchIx];
+       while ((rep_cnt = 0) or (node >= 0)) and
+             ((curBranch.RepMax = -1) or (rep_cnt < curBranch.RepMax)) do
+        begin
+         node := ItemProcess(curBranch);
+         if node >=0  then Result:=node
+         else if rep_cnt < curBranch.RepMin then begin
+            curIdx := sv_idx;
+            Exit(-1);
+         end
+         else Break;
+         Inc(rep_cnt);
+        end;
+     end;
+  end;
+
+  function RuleProcess(Rule: TParserRule): integer;
+  var ruleIx, handle, ruleCount: integer;
+      ruleBranch:TParserRuleBranch;
+  begin
+    // Check stack
+    handle := curIdx shl 16 + Rule.Index;
+    if FCallStack.IndexOf(TObject(handle)) <> -1 then
+       raise Exception.Create('Circular stack');
+    FCallStack.Add(TObject(handle));
+
+    try
+      Result := -1;
+      ruleCount:= Rule.Count - 1;
+      for ruleIx := ruleCount downto 0 do begin
+       ruleBranch:=Rule.Branches[ruleIx];
+  //       if Assigned(TraceParserProc) and not In_SkipRule then
+  //           TraceParserProc(Self, curIdx, ' ' + Rule.FName);
+         Result := BranchProcess(ruleBranch);
+         if Result >=0 then break;
+       end;
+    finally
+      FCallStack.Delete(FCallStack.Count - 1);
+    end;
+  end;
+
+begin
+  FCallStack.Clear;
+  EnterCriticalSection(FSyncWall);
+  try
+    curIdx := aFromIndex;
+    Result := RuleProcess(Rule);
+  finally
+    LeaveCriticalSection(FSyncWall);
   end;
 end;
 
