@@ -1910,6 +1910,7 @@ end;
 
 function TecClientSyntAnalyzer.SyncDataToMainThread(const wrk: PSyntaxWork):boolean;
 begin
+  FBuffer.Unlock
   FWorkerThread.YieldData(true);
   result := wrk.FBufferVersion<>FBuffer.Version;
   if result  then  begin
