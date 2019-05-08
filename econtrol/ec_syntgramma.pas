@@ -83,7 +83,6 @@ type
     FRoot: TParserRule;
     FSkipRule: TParserRule;
     FOnChange: TNotifyEvent;
-    FCallStack:TList;
     FSyncWall:TRTLCriticalSection;
     function GetGrammaCount: integer;
     function GetGrammaRules(Index: integer): TParserRule;
@@ -102,7 +101,7 @@ type
     function IndexOfRule(Rule: TParserRule): integer;
     function CompileGramma(TokenNames: TStrings): Boolean;
     function  ParseRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): TParserNode;
-    function  ParseRuleFaster(aFromIndex: integer; Rule: TParserRule; Tags: TTokenHolder):integer;
+    function  ParseRuleFaster(const aFromIndex: integer; Rule: TParserRule; Tags: TTokenHolder):integer;
     function TestRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): integer;
 
     property GrammaCount: integer read GetGrammaCount;
@@ -212,7 +211,6 @@ begin
   inherited;
   FGrammaRules := TObjectList.Create;
   FGrammaDefs := TATStringBuffer.Create;
-  FCallStack := TList.Create;
   InitCriticalSection(FSyncWall);
 end;
 
@@ -221,7 +219,6 @@ begin
   Clear;
   FGrammaDefs.Free;
   FGrammaRules.Free;
-  FreeAndNil(FCallStack);
   DoneCriticalSection(FSyncWall);
   inherited;
 end;
@@ -527,9 +524,10 @@ end;
 function TGrammaAnalyzer.TestRule(FromIndex: integer; Rule: TParserRule; Tags: TTokenHolder): integer;
 var FRootProgNode: TParserNode; // Results of Gramma analisys
 begin
+{$IF true}
 Result:=ParseRuleFaster(FromIndex, Rule, Tags);
-exit;
-{$IF (false) }
+
+{$ELSE}
   FRootProgNode := ParseRule(FromIndex, Rule, Tags);
   if Assigned(FRootProgNode) then
     begin
@@ -656,10 +654,43 @@ end;
 
 
 
-function TGrammaAnalyzer.ParseRuleFaster(aFromIndex: integer;
+function TGrammaAnalyzer.ParseRuleFaster(const aFromIndex: integer;
   Rule: TParserRule; Tags: TTokenHolder):integer;
+const max=31;
 var curIdx: integer;
     In_SkipRule: Boolean;
+  pList:packed array[0..max] of LongWord;
+   stackPtr:shortint;
+
+  function ruleHash(r:TParserRule):LongWord;inline;
+  begin
+    result:=(r.Index shl 16) or (curIdx-aFromIndex+100)
+  end;
+
+  function CheckRecursive(r:TParserRule):boolean;
+  var checkHash:LongWord;
+      ruleIx:-1..max;
+  begin
+    checkHash:=ruleHash(r);
+     for ruleIx:= stackPtr downto 0 do
+      if  pList[ruleIx]=checkHash then exit(true);
+
+     result:=false;
+  end;
+
+  procedure Push(r:TParserRule) ;inline;
+  begin
+    Inc(stackPtr);
+    assert( (stackPtr<=max) and (r.Index<High(Word)) );
+    pList[stackPtr] := ruleHash(r);
+  end;
+
+
+  procedure Pop;inline;
+  begin
+    Dec(stackPtr);
+    Assert(stackPtr>=-1);
+  end;
 
   function RuleProcess(Rule: TParserRule): integer; forward;
 
@@ -735,12 +766,14 @@ var curIdx: integer;
   function RuleProcess(Rule: TParserRule): integer;
   var ruleIx, handle, ruleCount: integer;
       ruleBranch:TParserRuleBranch;
+      rmIx:integer;
   begin
     // Check stack
-    handle := curIdx shl 16 + Rule.Index;
-    if FCallStack.IndexOf(TObject(handle)) <> -1 then
+    //handle := curIdx shl 16 + Rule.Index;
+    if CheckRecursive(rule) then// ; FCallStack.IndexOf(TObject(handle)) <> -1 then
        raise Exception.Create('Circular stack');
-    FCallStack.Add(TObject(handle));
+    Push(rule);
+    //FCallStack.Add(TObject(handle));
 
     try
       Result := -1;
@@ -753,12 +786,13 @@ var curIdx: integer;
          if Result >=0 then break;
        end;
     finally
-      FCallStack.Delete(FCallStack.Count - 1);
+      Pop();
+      //FCallStack.Delete(FCallStack.Count - 1);
     end;
   end;
 
 begin
-  FCallStack.Clear;
+  stackPtr:=-1;
   EnterCriticalSection(FSyncWall);
   try
     curIdx := aFromIndex;
@@ -775,5 +809,7 @@ end;
 
 initialization
   TraceParserProc := nil;
+
+finalization
 
 end.
