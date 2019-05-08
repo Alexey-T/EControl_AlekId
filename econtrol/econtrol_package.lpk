@@ -13,15 +13,30 @@
         <OtherUnitFiles Value="..\..\..\cmp\mORMot;..\..\..\cmp\mORMot\SQLite3"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <Conditionals Value="// example for adding linker options on Mac OS X
+//if TargetOS=&apos;darwin&apos; then
+//  LinkerOptions := &apos; -framework OpenGL&apos;;
+
+// example for adding a unit and include path on Windows
+//if SrcOS=&apos;win&apos; then begin
+//  UnitPath += &apos;;win&apos;;
+//  IncPath += &apos;;win&apos;;
+//end;
+
+if defined(FULLSPEED) then begin
+undefine(DEBUG);
+CustomOptions:=CustomOptions+&apos; -dTRICK -O3&apos;;
+end
+else begin
+CustomOptions:=CustomOptions+&apos; -dTRICK -O1 -g -gl -dDEBUG &apos;;
+end;"/>
       <CodeGeneration>
-        <SmartLinkUnit Value="True"/>
         <Optimizations>
-          <OptimizationLevel Value="2"/>
+          <OptimizationLevel Value="0"/>
         </Optimizations>
       </CodeGeneration>
       <Other>
         <CustomOptions Value="-Sa
-&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
 -dDEBUGa
 -dDEBUGLOGa"/>
         <OtherDefines Count="1">

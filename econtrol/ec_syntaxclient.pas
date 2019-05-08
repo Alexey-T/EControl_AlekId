@@ -19,10 +19,9 @@ uses
  ATStringProc_TextBuffer;
 
 
+
+
 type
-
-
-
   TecParserResults=class;
    { TecAsyncSelector }
 
@@ -185,7 +184,9 @@ type
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
     function CheckSyncRequest(wrk:PSyntaxWork;tokenCounter:integer):boolean;
+    function SyncDataToMainThread(const wrk:PSyntaxWork):boolean;
     procedure HandlePostpone;
+
 //    procedure SetDisableIdleAppend(const Value: Boolean);
 
   private
@@ -909,8 +910,10 @@ end;
 destructor TecClientSyntAnalyzer.Destroy;
 begin
   FDestroying:= true;
-
+  if assigned(FWorkerThread) then
+     FWorkerThread.Terminate();
   StopSyntax(true);
+
   Application.ProcessMessages;
   FreeAndNil(FRanges);
   FreeAndNil(FOpenedBlocks);
@@ -1268,7 +1271,7 @@ begin
   if isAsync then begin
    aPos:= wrk.Arg;
    save_sep:=Self.Owner._SeparateBlocks;
-   Self.Owner._SeparateBlocks:=1;
+   //Self.Owner._SeparateBlocks:=;
  end
  else
     aPos:=FAppendAtPosArg;
@@ -1288,7 +1291,9 @@ begin
        if tokenCount and 255 = 255 then CheckProgress(currentPos);
        tokensDone := ExtractTag(FBuffer.FText, currentPos{, False});
        if tokensDone then begin
+         CheckProgress(currentPos);
         callRemainingSyntax:=FOwner.SeparateBlockAnalysis;
+
         FParserStatus.ResetNonComplete();
         if not callRemainingSyntax then
              Finished
@@ -1303,7 +1308,7 @@ begin
        end;//if done
     end;// while
     if isAsync then begin
-         Self.Owner._SeparateBlocks:=save_sep;
+       //  Self.Owner._SeparateBlocks:=save_sep;
     end;
 
     if FParserStatus=psPostpone then
@@ -1889,16 +1894,9 @@ begin
       or not FWorkerThread.HasSyncRequests()    then
            exit(false);
 
-  FBuffer.Unlock;
-  FWorkerThread.YieldData(true);
-  result := wrk.FBufferVersion<>FBuffer.Version;
-  if result  then  begin
-   wrk.DoneHandler:=nil; exit(true);
-  end;
-  FBuffer.Lock;
-  Result:=false;
-end;
+  SyncDataToMainThread(wrk);
 
+end;
 
 
 procedure TecClientSyntAnalyzer.HandlePostpone;
@@ -1908,6 +1906,18 @@ begin
  {$ENDIF}
  FParserStatus.ResetNonComplete();
  TThread.Queue(nil, DelayedWork);
+end;
+
+function TecClientSyntAnalyzer.SyncDataToMainThread(const wrk: PSyntaxWork):boolean;
+begin
+  FBuffer.Unlock
+  FWorkerThread.YieldData(true);
+  result := wrk.FBufferVersion<>FBuffer.Version;
+  if result  then  begin
+   wrk.DoneHandler:=nil; exit(true);
+  end;
+  FBuffer.Lock;
+  Result:=false;
 end;
 
 //procedure TecClientSyntAnalyzer.SetDisableIdleAppend(const Value: Boolean);

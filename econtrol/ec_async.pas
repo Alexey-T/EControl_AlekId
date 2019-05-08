@@ -11,6 +11,7 @@ uses
   Generics.Collections
    {$IFDEF DEBUGLOG},Forms , SynCommons, SynLog,mORMotHttpClient  {$ENDIF};
 
+
 type
     IAsyncSyntaxClient=interface
      procedure SwitchContext(toWorker:boolean);
@@ -324,8 +325,9 @@ end;
 
 procedure TecSyntaxerThread.Terminate2;
 begin
- FClientSyntaxer:=nil;
  inherited Terminate;
+
+ FClientSyntaxer:=nil;
 end;
 
 function TecSyntaxerThread.GetIsWorkerThread(): boolean;
@@ -468,7 +470,7 @@ begin
      gotTask:=WaitForNewTask(taskDelegate);
      if  not gotTask then  continue;
    end;
-
+   if Terminated then break;
    AcquireSync(false);
 
    FClientSyntaxer.SwitchContext(true);
