@@ -13,7 +13,18 @@
         <OtherUnitFiles Value="..\..\..\cmp\mORMot;..\..\..\cmp\mORMot\SQLite3"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
-      <Conditionals Value="// example for adding linker options on Mac OS X
+      <Conditionals Value="if defined(FULLSPEED) then begin
+undefine(DEBUG);
+CustomOptions:=CustomOptions+&apos; -dTRICK -O3 -g -gl &apos;;
+end
+else begin
+CustomOptions:=CustomOptions+&apos; -O1 -dDEBUG -g -gl -ddebug_show_fps&apos;;
+end;
+if defined(UseLogger) then begin
+CustomOptions:=CustomOptions+&apos; -dDEBUGLOG &apos;;
+end;
+
+// example for adding linker options on Mac OS X
 //if TargetOS=&apos;darwin&apos; then
 //  LinkerOptions := &apos; -framework OpenGL&apos;;
 
@@ -21,19 +32,7 @@
 //if SrcOS=&apos;win&apos; then begin
 //  UnitPath += &apos;;win&apos;;
 //  IncPath += &apos;;win&apos;;
-//end;
-
-if defined(FULLSPEED) then begin
-undefine(DEBUG);
-CustomOptions:=CustomOptions+&apos; -dTRICK -O3 -g -gl &apos;;
-end
-else begin
-CustomOptions:=CustomOptions+&apos; -O1 -g -gl -dDEBUG &apos;;
-end;
-
-if defined(UseLogger) then begin
-CustomOptions:=CustomOptions+&apos; -dDEBUGLOG &apos;;
-end;"/>
+//end;"/>
       <CodeGeneration>
         <Optimizations>
           <OptimizationLevel Value="0"/>

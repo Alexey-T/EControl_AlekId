@@ -65,7 +65,6 @@ type
     FWakeUpEvent, FTaskDoneEvent : TEvent;
     FIdleTimeStart:Cardinal;
     FSyncWall, _FSchedulerWall, FTagSync: TCriticalSection;
-    FSynRequestCount:integer;
     FOnError : TExceptionHandler;
     FStartTime: Cardinal;
     FIdleDestroyTime: TIdleDestroyTime;
@@ -95,11 +94,11 @@ type
     function GetSyncNowAccessible:boolean;
     procedure AcquireSync(roSync:boolean);inline;
     function TryAcquireSync():boolean;inline;
-    function HasSyncRequests():boolean;
+    function GetHasSyncRequests():boolean;inline;
     procedure ReleaseSync();inline;
 //    function WaitTaskAndSync(const timeOut:Cardinal):boolean;
     function GetIsWorking():boolean; inline;
-    procedure YieldData(andWait:boolean);
+    procedure YieldData(timeWait:Cardinal);
     procedure StopCurrentTask();
     procedure CancelExpendableTasks();
     function WaitTaskDone(time:Cardinal):boolean;
@@ -107,7 +106,7 @@ type
                    aArg, aBufferVersion:integer; aDoneHandler:TTaskDoneHandler;
                    expendable:boolean
                    {$IFDEF DEBUGLOG}; const name:ansistring{$ENDIF}):boolean;
-    procedure IssueSyncRequest();inline;
+    procedure IssueSyncRequest();
     procedure DoTagSync(enter:boolean);
     procedure Terminate2;
     property SyncRequestCount:integer read FSyncRequestCount;
@@ -185,7 +184,7 @@ begin
   FClientSyntaxer:=syntaxer;
   Inc(FThreadCount);
   FSyntaxQueue := TWorkQueue.Create();
-  FSynRequestCount:= 0;
+  FSyncRequestCount:= 0;
   FWakeUpEvent:=TEvent.Create(nil, false, false,'');
   {$IFDEF DEBUGLOG}
   TSynLog.Add.Log(sllInfo, 'Worker thread created');
@@ -213,9 +212,9 @@ begin
  result:=FSyncWall.TryEnter;
 end;
 
-function TecSyntaxerThread.HasSyncRequests(): boolean;
+function TecSyntaxerThread.GetHasSyncRequests(): boolean;
 begin
- result :=FSyncRequestCount>0;
+ result :=volatile(FSyncRequestCount)<>0;
 end;
 
 procedure TecSyntaxerThread.ReleaseSync();
@@ -302,7 +301,7 @@ begin
       {$IFDEF DEBUGLOG},name{$ENDIF} );
 
       {$IFDEF DEBUGLOG}
-         TSynLog.Add.Log(sllInfo, 'Task %s added [%d]', [name, FSyntaxQueue.Count]);
+         TSynLog.Add.Log(sllSQL, 'Task %s added [%d]', [name, FSyntaxQueue.Count]);
       {$ENDIF}
       FSyntaxQueue.Enqueue(newTask);
   finally
@@ -313,7 +312,7 @@ end;
 
 procedure TecSyntaxerThread.IssueSyncRequest();
 begin
-FSynRequestCount:=1;
+self.FSyncRequestCount:=1;
 end;
 
 procedure TecSyntaxerThread.DoTagSync(enter: boolean);
@@ -362,22 +361,30 @@ end;
 
 
 procedure TecSyntaxerThread.AcquireSyncHarder(const roSync: boolean);
-var time:Cardinal;
+var time, spinCnt:Cardinal;
+    acquired:boolean;
 begin
   {$IFDEF DEBUGLOG}
    time:=GetTickCount();
   {$ENDIF}
    if roSync then begin
+     spinCnt:=0;
       repeat
-         IssueSyncRequest();
-         Yield();
-      until FSyncWall.TryEnter;
+         FSyncRequestCount:=1;
+         Inc(spinCnt);
+         acquired:=FSyncWall.TryEnter;
+      until  acquired or (spinCnt>1000*1000) ;
+
+      if not acquired then //gave up spinning, wait properly
+         FSyncWall.Enter;
+
+      FSyncRequestCount:=0;
    end
    else
       FSyncWall.Enter();
    {$IFDEF DEBUGLOG}
    time:=GetTickCount-time;
-   if time > 50 then
+   if (time > 50) or (roSync and (time>10)) then
       TSynLog.Add.Log(sllWarning, 'AcquireSync waited: % ms', [time]);
    {$ENDIF}
 end;
@@ -462,7 +469,7 @@ begin
   {$IFDEF DEBUGLOG}
   TSynLog.Add.Log(sllInfo, 'Worker thread started %', [ThreadID]);
   {$ENDIF}
-  FSynRequestCount:= 0;
+  FSyncRequestCount:= 0;
   taskDelegate.Clear;
   FIdleTimeStart:=GetTickCount();
   repeat
@@ -536,18 +543,22 @@ end;
 
 
 
-procedure TecSyntaxerThread.YieldData(andWait:boolean);
+procedure TecSyntaxerThread.YieldData(timeWait:Cardinal);
+var doWait:boolean;
 begin
-  if FSynRequestCount<=0 then exit;
+//  if FSynRequestCount<=0 then exit;
   FClientSyntaxer.SwitchContext(false);
-  FSynRequestCount:=0;
   FSyncWall.Release;
   {$IFDEF DEBUGLOG}
-  TSynLog.Add.Log( sllEnter, 'Yield Data!');
+  TSynLog.Add.Log( sllEnter, 'Yield Data %ms!', [timeWait]);
   {$ENDIF}
-  if andWait then
-     Sleep(100)
-  else Yield;
+  Yield;
+  doWait :=timeWait>0;
+  if (FSyncRequestCount>0) or doWait then begin
+     if not doWait then timeWait:=30;
+     Sleep(timeWait);
+  end;
+  FSyncRequestCount:=0;
   FSyncWall.Acquire;
   FClientSyntaxer.SwitchContext(true);
 end;
@@ -632,7 +643,10 @@ end;
 var hlog:TSQLHttpClient;
 procedure MakeLogger();
 begin
- TSynLog.Family.LevelStackTrace:=[sllWarning,sllCustom1, sllCustom2] ;
+ TSynLog.Family.LevelStackTrace:=[sllWarning,sllCustom1, sllCustom2
+ {$IFDEF DEBUG} ,sllCache, sllSQL{$ENDIF}
+ ] ;
+
  TSynLog.Family.Level:=LOG_VERBOSE;
  TSynLog.Family.PerThreadLog:=ptIdentifiedInOnFile;
  try

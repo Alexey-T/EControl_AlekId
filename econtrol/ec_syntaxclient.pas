@@ -102,7 +102,6 @@ type
     FWorkerRequested:boolean;
     FDelayWorker:smallInt;
     procedure Finished; virtual;
-    procedure QueueSyntaxWork;
     procedure SaveState;
     procedure RestoreState;
     function GetLastPos(const Source: ecString): integer;
@@ -183,8 +182,8 @@ type
     function GetRanges(Index: integer): TecTextRange;
     function GetOpened(Index: integer): TecTextRange;
     function GetOpenedCount: integer;
-    function CheckSyncRequest(wrk:PSyntaxWork;tokenCounter:integer):boolean;
-    function SyncDataToMainThread(const wrk:PSyntaxWork):boolean;
+    function CheckSyncRequest(wrk:PSyntaxWork;tokenCounter:integer;timeWait:Cardinal=500):boolean;inline;
+    function SyncDataToMainThread(const wrk:PSyntaxWork;timeWait:Cardinal):boolean;
     procedure HandlePostpone;
 
 //    procedure SetDisableIdleAppend(const Value: Boolean);
@@ -205,6 +204,7 @@ type
     function DoChangeAtPos(wrk:PSyntaxWork):boolean;
     procedure SetParseOffsetTarget(ofs:integer);
     procedure CheckProgress(curPos:integer);
+    procedure QueueSyntaxWork(delayed:boolean);
   public
 
     constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
@@ -379,12 +379,7 @@ begin
   //FTagList.UpdateIndexer; //AT
 end;
 
-procedure TecParserResults.QueueSyntaxWork;
-begin
-  FParserStatus.ResetNonComplete();
-  TThread.ForceQueue(nil,
-     (self as TecClientSyntAnalyzer).HandleAddWork);
-end;
+
 
 function TecParserResults.IsEnabled(Rule: TRuleCollectionItem;
   OnlyGlobal: Boolean): Boolean;
@@ -1051,9 +1046,7 @@ begin
 
      TThread.ForceQueue(nil,
      FEditAdapter.AppendToPosDone );
-     TThread.Queue(nil,
-     HandleAddWork
-     );
+     QueueSyntaxWork(true);
   end;
 end;
 
@@ -1186,7 +1179,7 @@ begin
        if result then
               Finished;
      end//if done
-   end;
+   end;  //while
 
    _Exit:
    if FLastAnalPos>FParseOffsetTarget then
@@ -1200,10 +1193,15 @@ end;
 
 function TecClientSyntAnalyzer.DoAsyncPause(wrk: PSyntaxWork): boolean;
 var thr:TecSyntaxerThread;
+     time:cardinal;
+     bufChanged:boolean;
 begin
  thr:= TecSyntaxerThread(TThread.CurrentThread);
- thr.IssueSyncRequest();
- CheckSyncRequest(wrk, minTokenStep);
+ time:=GetTickCount;
+ repeat
+  thr.IssueSyncRequest();
+  bufChanged:=CheckSyncRequest(wrk, minTokenStep, 1000);
+ until (GetTickCount-time>1000) or bufChanged or (wrk.Stop);
 end;
 
 procedure TecClientSyntAnalyzer.DelayedWork();
@@ -1304,7 +1302,7 @@ begin
              Finished
         else begin
            if isAsync then
-             TThread.Queue(nil, DelayedWork)
+             QueueSyntaxWork(true)
            else
              DoSyntaxWork(wrk);
         end;
@@ -1893,18 +1891,15 @@ begin
   finally ReleaseBackgroundLock(); end;
 end;
 
-function TecClientSyntAnalyzer.CheckSyncRequest(wrk: PSyntaxWork;tokenCounter:integer): boolean;
+function TecClientSyntAnalyzer.CheckSyncRequest(wrk: PSyntaxWork;tokenCounter:integer;
+  timeWait:Cardinal): boolean;
+
 begin
-
-  if not assigned(wrk) then exit(false);
-  //if tokenCounter and 511 = 511 then
-  // UpdateIniEntry();
-
-  if (tokenCounter and minTokenStep <>minTokenStep)
-      or not FWorkerThread.HasSyncRequests()    then
+  if ( not assigned(wrk) ) or (tokenCounter and minTokenStep <>minTokenStep)
+      or ( not FWorkerThread.GetHasSyncRequests )    then
            exit(false);
 
-  result:=SyncDataToMainThread(wrk);
+  result:=SyncDataToMainThread(wrk, timeWait);
 
 end;
 
@@ -1915,20 +1910,23 @@ begin
   TSynLog.Add.Log(sllLeave, 'HandleStopRequest');
  {$ENDIF}
  FParserStatus.ResetNonComplete();
- TThread.Queue(nil, DelayedWork);
+ QueueSyntaxWork(true);
 end;
 
 
 
-function TecClientSyntAnalyzer.SyncDataToMainThread(const wrk: PSyntaxWork):boolean;
+function TecClientSyntAnalyzer.SyncDataToMainThread(const wrk: PSyntaxWork;timeWait:Cardinal):boolean;
+var bufferWasLocked:boolean;
 begin
+  bufferWasLocked:=FBuffer.IsLocked;
   FBuffer.Unlock;
-  FWorkerThread.YieldData(true);
+  FWorkerThread.YieldData(timeWait);
   result := wrk.FBufferVersion<>FBuffer.Version;
   if result  then  begin
    wrk.DoneHandler:=nil; exit(true);
   end;
-  FBuffer.Lock;
+  if bufferWasLocked then
+       FBuffer.Lock;
   Result:=false;
 end;
 
@@ -2144,6 +2142,17 @@ begin
      if Assigned(OnLexerParseProgress) then
        OnLexerParseProgress(Owner, progress);
    end;
+end;
+
+procedure TecClientSyntAnalyzer.QueueSyntaxWork(delayed: boolean);
+var mtd:TThreadMethod;
+begin
+  FParserStatus.ResetNonComplete();
+  if FParserStatus>=psComplete then exit;
+  if delayed then mtd:=DelayedWork
+  else mtd:=HandleAddWork;
+  TThread.ForceQueue(nil,
+     mtd);
 end;
 
 

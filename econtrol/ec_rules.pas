@@ -6,6 +6,7 @@ interface
 
 uses
   Classes, SysUtils,
+  Generics.Collections,
   graphics,
 
   ec_StrUtils,
@@ -287,6 +288,8 @@ public
   property Rule :TRuleCollectionItem read FRule;
 
 end;
+
+TecStrings=TList<ecString>;
 
 TecTagConditionType = (tcEqual, tcNotEqual, tcMask, tcSkip, tcStrictMask);
   TecSingleTagCondition = class(TCollectionItem)
