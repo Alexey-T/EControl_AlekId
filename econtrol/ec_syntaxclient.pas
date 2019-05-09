@@ -243,6 +243,7 @@ type
 
     function CloseRange(Cond: TecTagBlockCondition; RefTag: integer): Boolean;
     function DetectTag(Rule: TecTagBlockCondition; RefTag: integer): Boolean;
+    function GetIsLineParsed(lineIndex:integer):boolean;
 
     property ParseOffsetTarget:TPoint read FParseOffsetTargetP;
     property OpenCount: integer read GetOpenedCount;
@@ -1236,6 +1237,7 @@ end;
 procedure TecClientSyntAnalyzer.AppendToPosAsync(APos: integer; force:boolean);
 var newPos:TPoint;
 begin
+  FPrevProgress:=-1;
   if FBuffer.TextLength = 0 then Exit;
   if FParserStatus>=psAborted then Exit;
   if (apos<=FParseOffsetTarget) and (not force) and (FParseOffsetTarget-apos<5000)  then
@@ -1284,9 +1286,12 @@ begin
     currentPos := GetLastPos(FBuffer.FText);
     while (currentPos - 1 <= APos + 1) and (FParserStatus<psPostpone)
         and not StopRequest  do   begin
-       //if apos-currentPos>3000 then
-       //bufferChanged:= CheckSyncRequest(wrk, tokenCount);
-       //if bufferChanged then break;
+
+       if apos-currentPos>3000 then begin
+          bufferChanged:= CheckSyncRequest(wrk, tokenCount);
+          if bufferChanged then break;
+       end;
+
        inc(tokenCount);
        if tokenCount and 255 = 255 then CheckProgress(currentPos);
        tokensDone := ExtractTag(FBuffer.FText, currentPos{, False});
@@ -1890,11 +1895,16 @@ end;
 
 function TecClientSyntAnalyzer.CheckSyncRequest(wrk: PSyntaxWork;tokenCounter:integer): boolean;
 begin
-  if not assigned(wrk) or (tokenCounter and minTokenStep <>minTokenStep)
+
+  if not assigned(wrk) then exit(false);
+  //if tokenCounter and 511 = 511 then
+  // UpdateIniEntry();
+
+  if (tokenCounter and minTokenStep <>minTokenStep)
       or not FWorkerThread.HasSyncRequests()    then
            exit(false);
 
-  SyncDataToMainThread(wrk);
+  result:=SyncDataToMainThread(wrk);
 
 end;
 
@@ -1908,9 +1918,11 @@ begin
  TThread.Queue(nil, DelayedWork);
 end;
 
+
+
 function TecClientSyntAnalyzer.SyncDataToMainThread(const wrk: PSyntaxWork):boolean;
 begin
-  FBuffer.Unlock
+  FBuffer.Unlock;
   FWorkerThread.YieldData(true);
   result := wrk.FBufferVersion<>FBuffer.Version;
   if result  then  begin
@@ -1967,6 +1979,14 @@ begin
     SetTags(RefTag, Tag);
     Result := True;
   finally ReleaseBackgroundLock();  end;
+end;
+
+function TecClientSyntAnalyzer.GetIsLineParsed(lineIndex: integer): boolean;
+var ofs:integer;
+begin
+  //assume is multithreaded
+  ofs:=FBuffer.LineIndex(lineIndex+1);
+  result := FLastAnalPos >= ofs;
 end;
 
 procedure TecClientSyntAnalyzer.CloseAtEnd(wrk:PSyntaxWork; StartTagIdx: integer);
@@ -2104,10 +2124,11 @@ const ProgressStep = 3;
      ProgressMinPos = 2000;
 var progress:integer;
 begin
-   if curPos < ProgressMinPos then
-     progress := 0
-   else
-     progress := curPos * 100 div FBuffer.TextLength
+
+   //if curPos < ProgressMinPos then
+   //  progress := 0
+   //else
+   progress := curPos * 100 div FBuffer.TextLength
                  div ProgressStep * ProgressStep;
 
    if Abs(progress-FPrevProgress)>10 then
@@ -2123,19 +2144,20 @@ procedure TecClientSyntAnalyzer.HandleAddWork();
 var worker:TecSyntaxerThread;
 begin
   if FDestroying then exit;
+  if FParserStatus=psComplete then exit;
+
   FParserStatus.ResetNonComplete();
   if not FWorkerRequested then begin
     DoSyntaxWork(nil);
     exit;
   end;
-
-  worker:=AcquireWorker();
-
+  FPrevProgress:=-1;
  if FLastAnalPos<FParseOffsetTarget then begin
 
     AppendToPos(FParseOffsetTarget, true);
  end
  else begin
+  worker:=AcquireWorker();
   FBuffer.Lock;
   worker.ScheduleWork(DoSyntaxWork, -100,FBuffer.Version, SyntaxDoneHandler, true
   {$IFDEF DEBUGLOG},'DoSyntaxWork'{$ENDIF});

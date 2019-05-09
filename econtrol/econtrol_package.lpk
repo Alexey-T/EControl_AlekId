@@ -25,10 +25,14 @@
 
 if defined(FULLSPEED) then begin
 undefine(DEBUG);
-CustomOptions:=CustomOptions+&apos; -dTRICK -O3&apos;;
+CustomOptions:=CustomOptions+&apos; -dTRICK -O3 -g -gl &apos;;
 end
 else begin
-CustomOptions:=CustomOptions+&apos; -dTRICK -O1 -g -gl -dDEBUG &apos;;
+CustomOptions:=CustomOptions+&apos; -O1 -g -gl -dDEBUG &apos;;
+end;
+
+if defined(UseLogger) then begin
+CustomOptions:=CustomOptions+&apos; -dDEBUGLOG &apos;;
 end;"/>
       <CodeGeneration>
         <Optimizations>
@@ -36,9 +40,7 @@ end;"/>
         </Optimizations>
       </CodeGeneration>
       <Other>
-        <CustomOptions Value="-Sa
--dDEBUGa
--dDEBUGLOGa"/>
+        <CustomOptions Value="-Sa"/>
         <OtherDefines Count="1">
           <Define0 Value="DEBUG"/>
         </OtherDefines>

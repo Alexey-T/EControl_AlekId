@@ -10,8 +10,9 @@ uses
   Classes, SysUtils,  syncobjs,
   Generics.Collections
    {$IFDEF DEBUGLOG},Forms , SynCommons, SynLog,mORMotHttpClient  {$ENDIF};
-
-
+  {$IFDEF TRICK}
+  {$MESSAGE WARN 'ПЕДАЛЬ В ПОЛ!!!!!!!!!!!111'}
+  {$ENDIF}
 type
     IAsyncSyntaxClient=interface
      procedure SwitchContext(toWorker:boolean);
@@ -545,7 +546,7 @@ begin
   TSynLog.Add.Log( sllEnter, 'Yield Data!');
   {$ENDIF}
   if andWait then
-     Sleep(1000)
+     Sleep(100)
   else Yield;
   FSyncWall.Acquire;
   FClientSyntaxer.SwitchContext(true);
