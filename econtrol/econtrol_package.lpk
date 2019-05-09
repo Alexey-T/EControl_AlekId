@@ -24,6 +24,9 @@ if defined(UseLogger) then begin
 CustomOptions:=CustomOptions+&apos; -dDEBUGLOG &apos;;
 end;
 
+if defined(ProfileParser) then
+   CustomOptions:=CustomOptions + &apos; -pg &apos;;
+
 // example for adding linker options on Mac OS X
 //if TargetOS=&apos;darwin&apos; then
 //  LinkerOptions := &apos; -framework OpenGL&apos;;
