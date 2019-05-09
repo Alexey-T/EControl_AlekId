@@ -1944,6 +1944,7 @@ end;
 //end;
 
 function TecClientSyntAnalyzer.StopSyntax(AndWait: boolean): boolean;
+const cPauseForTaskDone=10*1000;
 var isAsync: boolean;
 begin
   isAsync:= assigned(FWorkerThread);
@@ -1951,11 +1952,11 @@ begin
   if not isAsync then exit(true);
 
   CancelCurrentSyntax;
+  CheckProgress(-1);
 
   if AndWait and assigned(FWorkerThread) then  begin
-   result:=FWorkerThread.WaitTaskDone(10*1000);
-   assert(result);
-
+    result:=FWorkerThread.WaitTaskDone(cPauseForTaskDone);
+    assert(result);
   end
   else
      result := not FWorkerThread.GetIsTaskAssigned();
@@ -2125,6 +2126,13 @@ const
   cProgressMinPos = 2000; //don't update progressbar for small files
 var progress: integer;
 begin
+   if curPos < 0 then
+   begin
+     if Assigned(OnLexerParseProgress) then
+       OnLexerParseProgress(Owner, -1);
+     exit;
+   end;
+
    if curPos < cProgressMinPos then
      progress := 0
    else
