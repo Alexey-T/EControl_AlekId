@@ -37,7 +37,7 @@ type
       {$IFDEF DEBUGLOG}Name:ansistring;{$ENDIF}
       procedure Setup(const task:TSyntaxWorkDelegate;aArg:integer;
       aBufferVersion:Integer; const doneEvent:TTaskDoneHandler; aExpendable:boolean
-      {$IFDEF DEBUGLOG}; aName:string{$ENDIF}
+      {$IFDEF DEBUGLOG}; const aName:string{$ENDIF}
       );overload;
       procedure Setup(constref other:TSyntaxWork);overload;
       procedure Clear();
@@ -128,10 +128,12 @@ implementation
 
 procedure TSyntaxWork.Setup(const task: TSyntaxWorkDelegate;
   aArg:integer; aBufferVersion:Integer; const doneEvent: TTaskDoneHandler;
-  aExpendable:boolean {$IFDEF DEBUGLOG}; aName:string{$ENDIF});
+  aExpendable:boolean {$IFDEF DEBUGLOG}; const aName:string{$ENDIF});
 begin
-    self.Task:=task; DoneHandler:=doneEvent;
-    self.Arg:=aArg; self.Expendable:=aExpendable;
+    self.Task:=task;
+    DoneHandler:=doneEvent;
+    self.Arg:=aArg;
+    self.Expendable:=aExpendable;
     self.FBufferVersion:=aBufferVersion;
     self.Stop:=false;
     {$IFDEF DEBUGLOG}
@@ -662,4 +664,3 @@ finalization
 //    Halt(0);
   {$ENDIF}
 end.
-
