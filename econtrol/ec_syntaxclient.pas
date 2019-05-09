@@ -2120,18 +2120,17 @@ begin
 end;
 
 procedure TecClientSyntAnalyzer.CheckProgress(curPos: integer);
-const ProgressStep = 3;
-     ProgressMinPos = 2000;
-var progress:integer;
+const
+  cProgressStep = 2; //update progressbar when increased by N %
+  cProgressMinPos = 2000; //don't update progressbar for small files
+var progress: integer;
 begin
+   if curPos < cProgressMinPos then
+     progress := 0
+   else
+     progress := curPos * 100 div FBuffer.TextLength;
 
-   //if curPos < ProgressMinPos then
-   //  progress := 0
-   //else
-   progress := curPos * 100 div FBuffer.TextLength
-                 div ProgressStep * ProgressStep;
-
-   if Abs(progress-FPrevProgress)>10 then
+   if Abs(progress-FPrevProgress)>cProgressStep then
    begin
      FPrevProgress := progress;
      if Assigned(OnLexerParseProgress) then
@@ -2227,4 +2226,3 @@ end;
 
 
 end.
-
