@@ -28,12 +28,16 @@ type
 
      { TSyntaxWork }
      TSyntaxWork=record
-      Task:TSyntaxWorkDelegate;
+      strict private
+      FExpendable,FStop:boolean;
+      FTask:TSyntaxWorkDelegate;
+      FBufferVersion:Integer;
+      public
+
       //happens when task is done(sender is thred) or cancelled(sender is nil)
       DoneHandler:TTaskDoneHandler;
-      FBufferVersion:Integer;
+
       Arg: Integer;
-      Expendable,Stop:boolean;
       {$IFDEF DEBUGLOG}Name:ansistring;{$ENDIF}
       procedure Setup(const task:TSyntaxWorkDelegate;aArg:integer;
       aBufferVersion:Integer; const doneEvent:TTaskDoneHandler; aExpendable:boolean
@@ -41,14 +45,20 @@ type
       );overload;
       procedure Setup(constref other:TSyntaxWork);overload;
       procedure Clear();
-      function TaskAssigned():boolean;
+      procedure Stop;inline;
+      function TaskAssigned():boolean;inline;
       function IsSame(const other:TSyntaxWork):boolean;
+      property StopRequested:boolean read FStop;
+      property Task :TSyntaxWorkDelegate read FTask;
+      property Expendable:boolean read FExpendable;
+      property BufferVersion:integer read FBufferVersion;
      end;
 
     { TecSyntaxerThread }
     TecSyntaxerThread=class(TThread)
     private
       FSyncRequestCount: integer;
+
     protected
 
     type
@@ -60,7 +70,7 @@ type
     FClientSyntaxer:IAsyncSyntaxClient;
     //FStopCurrentTask,
     FSchedulingDisabled : boolean;
-    FSyntaxWork  : TSyntaxWork;
+    FCurrentWork  : PSyntaxWork;
     FSyntaxQueue:TWorkQueue;
     FWakeUpEvent, FTaskDoneEvent : TEvent;
     FIdleTimeStart:Cardinal;
@@ -72,7 +82,7 @@ type
     const FPauseTimeOnSyncRequest:integer=60;//in ms
 
     procedure HandleTaskDone(var task:TSyntaxWork);
-    procedure HandleTaskStart(const task:TSyntaxWork);
+    procedure HandleTaskStart(constref task:TSyntaxWork);
     procedure HandleError(const e:Exception);
 
     function GetScheduled(out task:TSyntaxWork): boolean;
@@ -83,6 +93,7 @@ type
     procedure SetSchedulingEnabled(doEnable:boolean);
     procedure BeginSchedule;
     procedure EndSchedule;
+    procedure SleepAtWork(const wrk:PSyntaxWork; timeToSleep:cardinal);
     public
     constructor Create(const syntaxer:IAsyncSyntaxClient;
                    const errorHandler:TExceptionHandler);
@@ -98,7 +109,7 @@ type
     procedure ReleaseSync();inline;
 //    function WaitTaskAndSync(const timeOut:Cardinal):boolean;
     function GetIsWorking():boolean; inline;
-    procedure YieldData(timeWait:Cardinal);
+    procedure YieldData(wrk:PSyntaxWork; timeWait:Cardinal);
     procedure StopCurrentTask();
     procedure CancelExpendableTasks();
     function WaitTaskDone(time:Cardinal):boolean;
@@ -129,10 +140,10 @@ procedure TSyntaxWork.Setup(const task: TSyntaxWorkDelegate;
   aArg:integer; aBufferVersion:Integer; const doneEvent: TTaskDoneHandler;
   aExpendable:boolean {$IFDEF DEBUGLOG}; aName:string{$ENDIF});
 begin
-    self.Task:=task; DoneHandler:=doneEvent;
-    self.Arg:=aArg; self.Expendable:=aExpendable;
+    self.FTask:=task; DoneHandler:=doneEvent;
+    self.Arg:=aArg; self.FExpendable:=aExpendable;
     self.FBufferVersion:=aBufferVersion;
-    self.Stop:=false;
+    self.FStop:=false;
     {$IFDEF DEBUGLOG}
     self.name:= aName;
     {$ENDIF}
@@ -140,10 +151,10 @@ end;
 
 procedure TSyntaxWork.Setup(constref other: TSyntaxWork);
 begin
-  Task := other.Task; DoneHandler:=other.DoneHandler;
-  Arg:=other.Arg; Expendable:=other.Expendable;
+  FTask := other.FTask; DoneHandler:=other.DoneHandler;
+  Arg:=other.Arg; FExpendable:=other.FExpendable;
   FBufferVersion:= other.FBufferVersion;
-  Stop:= other.Stop;
+  FStop:= other.FStop;
   {$IFDEF DEBUGLOG}
   Name:= other.Name;
   {$ENDIF}
@@ -151,18 +162,23 @@ end;
 
 procedure TSyntaxWork.Clear();
 begin
-  Task:=nil;DoneHandler:=nil;
+  FTask:=nil;DoneHandler:=nil;
+end;
+
+procedure TSyntaxWork.Stop;
+begin
+  FStop:=true;
 end;
 
 function TSyntaxWork.TaskAssigned(): boolean;
 begin
- result :=assigned(Task);
+ result :=assigned(FTask);
 end;
 
 function TSyntaxWork.IsSame(const other: TSyntaxWork
   ): boolean;
 begin
-  result := @Task = @other.Task;
+  result := @FTask = @other.FTask;
 end;
 
 
@@ -171,7 +187,7 @@ end;
 
 function TecSyntaxerThread.GetIsWorking(): boolean;
 begin
-  result := FSyntaxWork.TaskAssigned();
+  result := assigned(FCurrentWork);
 end;
 
 
@@ -231,21 +247,26 @@ end;
 procedure TecSyntaxerThread.StopCurrentTask();
 begin
 BeginSchedule;
- FSyntaxWork.Stop:= true;
+ if assigned(FCurrentWork) then FCurrentWork.Stop();
 EndSchedule;
 end;
 
 procedure TecSyntaxerThread.CancelExpendableTasks();
+label Tail;
 var task:TSyntaxWork;
     q:TWorkQueue;
+    queueNonEmpty:boolean;
 begin
 
 BeginSchedule;
-{$IFDEF DEBUGLOG}
-TSynLog.Add.Log(sllCache, 'CancelExpendableTasks');
-{$ENDIF}
+queueNonEmpty:= FSyntaxQueue.Count>0;
 try
-if FSyntaxQueue.Count>0  then begin
+if queueNonEmpty  then begin
+  if (FSyntaxQueue.Count=1) and (not FSyntaxQueue.Peek.Expendable)
+    then goto Tail;
+  {$IFDEF DEBUGLOG}
+    TSynLog.Add.Log(sllCache, 'CancelExpendableTasks');
+  {$ENDIF}
   q:=TWorkQueue.Create;
   for task in FSyntaxQueue do begin
         if not task.Expendable then
@@ -258,7 +279,7 @@ if FSyntaxQueue.Count>0  then begin
      FSyntaxQueue.Enqueue(task);
    q.Free();
 end;
-
+ Tail:
 finally EndSchedule; end;
 end;
 
@@ -360,6 +381,7 @@ end;
 
 
 
+
 procedure TecSyntaxerThread.AcquireSyncHarder(const roSync: boolean);
 var time, spinCnt:Cardinal;
     acquired:boolean;
@@ -384,7 +406,7 @@ begin
       FSyncWall.Enter();
    {$IFDEF DEBUGLOG}
    time:=GetTickCount-time;
-   if (time > 50) or (roSync and (time>10)) then
+   if (time > 50) or (roSync and (time>30)) then
       TSynLog.Add.Log(sllWarning, 'AcquireSync waited: % ms', [time]);
    {$ENDIF}
 end;
@@ -397,17 +419,17 @@ begin
   FStartTime:=GetTickCount()-FStartTime;
   TSynLog.Add.Log(sllTrace, 'Task %s done in % ms',[task.Name, FStartTime]);
  {$ENDIF}
- task.Clear();
+
  FTaskDoneEvent.SetEvent();
+
  BeginSchedule;
  try
-  FSyntaxWork.Clear;
-
+ FCurrentWork:=nil;
+ task.Clear();
  finally  EndSchedule; end;
-
 end;
 
-procedure TecSyntaxerThread.HandleTaskStart(const task: TSyntaxWork);
+procedure TecSyntaxerThread.HandleTaskStart(constref task: TSyntaxWork);
 begin
 
   FStartTime:=GetTickCount();
@@ -415,7 +437,7 @@ begin
   TSynLog.Add.Log(sllInfo, 'Task %s started', [task.Name]);
   {$ENDIF}
   FTaskDoneEvent.ResetEvent();
-  FSyntaxWork.Setup(task);
+  FCurrentWork :=@task;
 end;
 
 function TecSyntaxerThread.GetScheduled(out task:TSyntaxWork): boolean;
@@ -493,7 +515,7 @@ begin
    end;
    FIdleTimeStart:=GetTickCount();
   until Terminated;
-
+  FCurrentWork:=nil;
   FClientSyntaxer:=nil;
 end;
 
@@ -541,9 +563,26 @@ begin
  _FSchedulerWall.Leave;
 end;
 
+procedure TecSyntaxerThread.SleepAtWork(const wrk: PSyntaxWork; timeToSleep:cardinal);
+label prematureStop;
+var startTime:Cardinal;
+
+begin
+  startTime:=GetTickCount;
+  repeat
+    if wrk.StopRequested then goto prematureStop;
+    Sleep(30);
+  until GetTickCount()-startTime >= timeToSleep;
+  exit;
+  prematureStop:
+  {$IFDEF DEBUGLOG}
+     TSynLog.Add.Log(sllMonitoring, 'SleepAtWork:Premature Stop');
+  {$ENDIF}
+end;
 
 
-procedure TecSyntaxerThread.YieldData(timeWait:Cardinal);
+
+procedure TecSyntaxerThread.YieldData(wrk:PSyntaxWork; timeWait:Cardinal);
 var doWait:boolean;
 begin
 //  if FSynRequestCount<=0 then exit;
@@ -555,8 +594,10 @@ begin
   Yield;
   doWait :=timeWait>0;
   if (FSyncRequestCount>0) or doWait then begin
-     if not doWait then timeWait:=30;
-     Sleep(timeWait);
+     if doWait then
+        SleepAtWork(wrk, timeWait)
+     else
+       Sleep(30);
   end;
   FSyncRequestCount:=0;
   FSyncWall.Acquire;
@@ -595,7 +636,7 @@ end;
 
 function TecSyntaxerThread.GetIsTaskAssigned(): boolean;
 begin
-  result := FSyntaxWork.TaskAssigned();
+  result := assigned(FCurrentWork);
 end;
 
 function TecSyntaxerThread.GetSyncNowAccessible: boolean;
@@ -644,7 +685,10 @@ var hlog:TSQLHttpClient;
 procedure MakeLogger();
 begin
  TSynLog.Family.LevelStackTrace:=[sllWarning,sllCustom1, sllCustom2
- {$IFDEF DEBUG} ,sllCache, sllSQL{$ENDIF}
+ {$IFDEF DEBUG}
+ ,sllCache
+ //, sllSQL
+ {$ENDIF}
  ] ;
 
  TSynLog.Family.Level:=LOG_VERBOSE;

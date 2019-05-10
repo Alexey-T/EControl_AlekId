@@ -131,13 +131,14 @@ type
     function GetTokenType(Index: integer): integer; override;
 
     procedure CancelCurrentSyntax;
+    function _GetRuleEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;inline;
   public
     constructor Create(AOwner: TecSyntAnalyzer; ABuffer: TATStringBuffer;
                    const AClient: IecSyntClient;const SynEditAdapter:ISynEditAdapter; useWorkerThread:boolean); virtual;
     destructor Destroy; override;
     procedure Clear; virtual;
     function __UnsafeGetTagPtr(index:integer):PecSyntToken;inline;
-    function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; virtual;
+
     procedure SetTags(Index: integer; constref AValue: TecSyntToken);
     procedure ApplyStates(Rule: TRuleCollectionItem);
     procedure HandleFormatChanged();
@@ -205,6 +206,7 @@ type
     procedure SetParseOffsetTarget(ofs:integer);
     procedure CheckProgress(curPos:integer);
     procedure QueueSyntaxWork(delayed:boolean);
+    function GetStopRequested(wrk:PSyntaxWork):boolean; inline;
   public
 
     constructor Create(AOwner: TecSyntAnalyzer; SrcProc: TATStringBuffer;
@@ -212,7 +214,7 @@ type
 
     destructor Destroy; override;
     procedure FireAdapterDetached;
-    function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean; override;
+    function IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;inline;
     function StopSyntax(AndWait: boolean): boolean;
 
     procedure _SetStartSeparateWork(tokenIx:integer);inline;
@@ -381,12 +383,18 @@ end;
 
 
 
-function TecParserResults.IsEnabled(Rule: TRuleCollectionItem;
+function TecParserResults._GetRuleEnabled(Rule: TRuleCollectionItem;
   OnlyGlobal: Boolean): Boolean;
+  var statesPresent, statesAbsent, curState:integer;
 begin
-  Result := Rule.Enabled and (not OnlyGlobal or Rule.AlwaysEnabled) and
-            ((Rule.StatesPresent = 0) or ((FCurState and Rule.StatesPresent) = Rule.StatesPresent)) and
-            ((Rule.StatesAbsent = 0) or ((FCurState and Rule.StatesAbsent) = 0));
+  statesPresent:=Rule.StatesPresent;
+  statesAbsent :=Rule.StatesAbsent;
+  curState:= FCurState;
+  Result :=
+         Rule.Enabled and
+         (not OnlyGlobal or Rule.AlwaysEnabled) and
+         ({(statesPresent = 0) or} ((curState and statesPresent) = statesPresent))
+         and  ({(StatesAbsent = 0) or} ((curState and StatesAbsent) = 0));
 end;
 
 function TecParserResults.GetTokenCount: integer;
@@ -538,7 +546,7 @@ var N: integer;
    var N: integer;
        sub: TecSubLexerRange;
    begin
-     Result := IsEnabled(Rule, False) and (Rule.SyntAnalyzer <> nil);
+     Result := _GetRuleEnabled(Rule, False) and (Rule.SyntAnalyzer <> nil);
      if not Result then Exit;
      Result := Rule.FromTextBegin and (FPos = 1);
      if Result then N := 0 else
@@ -754,8 +762,9 @@ end;
 function TecParserResults.WaitTillCoherent(roSync:boolean; timeOut:Cardinal): boolean;
 var timeWait:cardinal;
 begin
-  if not assigned(FWorkerThread) then exit(true);
-  if FWorkerThread.TryAcquireSync then exit(true);
+  if not assigned(FWorkerThread)
+      or FWorkerThread.TryAcquireSync then exit(true);
+
   WaitCoherentHarder(roSync);
   result:=true;
 end;
@@ -1057,17 +1066,13 @@ var
   tagIx, tagCount: integer;
   time:Cardinal;
 
-  function StopRequest():boolean;inline;
-  begin
-    result:= assigned(wrk) and (wrk.Stop);
-  end;
-
 begin
   time:=GetTickCount;
   tagCount:=self.TagCount;
   for tagIx := FStartSepRangeAnal + 1 to tagCount do begin
 
-       if  (FParserStatus>=psPostpone) or  StopRequest() or
+       if  (FParserStatus>=psPostpone) or
+           GetStopRequested(wrk) or
            CheckSyncRequest(wrk, tagIx) then
                                         goto _Abort;
 
@@ -1140,11 +1145,6 @@ var curPos, tmp, bufVersion: integer;
    time:Cardinal;
    label _Exit;
 
-  function StopRequest():boolean;inline;
-  begin
-  result:= assigned(wrk) and (wrk.Stop);
-  end;
-
 begin
  curPos := 0;
  result := true; // assume work is done
@@ -1162,7 +1162,7 @@ begin
   if  CheckSyncRequest(wrk, minTokenStep) then goto _Exit;
 
 
-   while (FParserStatus<psPostpone) and not StopRequest()  do  begin
+   while (FParserStatus<psPostpone) and not GetStopRequested(wrk)  do  begin
     Inc(tokenCounter);
      if  CheckSyncRequest(wrk, tokenCounter) then goto _Exit;
      tmp := GetLastPos(FBuffer.FText);
@@ -1201,7 +1201,8 @@ begin
  repeat
   thr.IssueSyncRequest();
   bufChanged:=CheckSyncRequest(wrk, minTokenStep, 1000);
- until (GetTickCount-time>1000) or bufChanged or (wrk.Stop);
+ until (GetTickCount-time>1000) or bufChanged or (GetStopRequested(wrk));
+ FBuffer.Unlock;
 end;
 
 procedure TecClientSyntAnalyzer.DelayedWork();
@@ -1259,11 +1260,6 @@ var aPos, currentPos, tokenCount, bufVersion, save_sep:integer;
     callRemainingSyntax,tokensDone, isAsync, bufferChanged:boolean;
 
 
-function StopRequest():boolean;inline;
-begin
-result:= assigned(wrk) and (wrk.Stop);
-end;
-
 begin
  result:=true;
  isAsync:=GetIsSyntaxThread();
@@ -1282,8 +1278,9 @@ begin
 
 
     currentPos := GetLastPos(FBuffer.FText);
-    while (currentPos - 1 <= APos + 1) and (FParserStatus<psPostpone)
-        and not StopRequest  do   begin
+    while (currentPos - 1 <= APos + 1) and
+          (FParserStatus<psPostpone) and
+          not GetStopRequested(wrk)  do   begin
 
        if apos-currentPos>3000 then begin
           bufferChanged:= CheckSyncRequest(wrk, tokenCount);
@@ -1328,7 +1325,7 @@ begin
  if FDestroying then exit;
  Dec(APos);
  if APos<0 then APos := 0;
-
+ SetParseOffsetTarget(-1);
  if FBuffer.TextLength <= Owner.FullRefreshSize then
    APos := 0
  else
@@ -1339,6 +1336,7 @@ begin
    StopSyntax(false);
    FDelayWorker:=1000;
    FParserStatus.Reset();
+
    if (FWorkerRequested) then  begin
      AcquireWorker().ScheduleWork(DoChangeAtPos, aPos,FBuffer.Version, nil, false
      {$IFDEF DEBUGLOG},'ChangedAtPos'{$ENDIF} );
@@ -1859,9 +1857,10 @@ end;
 
 function TecClientSyntAnalyzer.IsEnabled(Rule: TRuleCollectionItem; OnlyGlobal: Boolean): Boolean;
 begin
+  AssertCoherent();
   WaitTillCoherent();
   try
-  Result := inherited IsEnabled(Rule, OnlyGlobal) and
+  Result := _GetRuleEnabled(Rule, OnlyGlobal) and
       (HasOpened(Rule, Rule.Block, Rule.StrictParent) xor Rule.NotParent);
 
   finally ReleaseBackgroundLock();  end;
@@ -1920,8 +1919,8 @@ var bufferWasLocked:boolean;
 begin
   bufferWasLocked:=FBuffer.IsLocked;
   FBuffer.Unlock;
-  FWorkerThread.YieldData(timeWait);
-  result := wrk.FBufferVersion<>FBuffer.Version;
+  FWorkerThread.YieldData(wrk, timeWait);
+  result := wrk.BufferVersion<>FBuffer.Version;
   if result  then  begin
    wrk.DoneHandler:=nil; exit(true);
   end;
@@ -2054,12 +2053,14 @@ var aPos:integer;
  end;
 
 begin
+
    isAsync:= GetIsSyntaxThread();
    if isAsync then
       aPos:= wrk.Arg
    else
       aPos:= FAppendAtPosArg;
    FParserStatus.Reset();
+   FLastAnalPos := aPos-1;   // Reset current position
    result:= true;
    WaitTillCoherent();
    time :=GetTickCount;
@@ -2085,7 +2086,7 @@ begin
      tagList := FTagList.Get;
      tagList.ClearFromPos(APos);
 
-     FLastAnalPos := 0;   // Reset current position
+
      N := tagList.Count;
      FStartSepRangeAnal := N;
      // Remove text ranges from service containers
@@ -2108,13 +2109,16 @@ begin
      // Restore parser state
      RestoreState;
      time:= GetTickCount-time;
-     SetParseOffsetTarget(0);
+     //SetParseOffsetTarget(0);
   finally ReleaseBackgroundLock();end;
 end;
 
 procedure TecClientSyntAnalyzer.SetParseOffsetTarget(ofs: integer);
 begin
-  FParseOffsetTargetP:=FBuffer.StrToCaret(ofs);
+  if ofs>=0 then
+    FParseOffsetTargetP:=FBuffer.StrToCaret(ofs)
+  else
+    FParseOffsetTargetP.Y:=-1;
   FParseOffsetTarget:=ofs;
 end;
 
@@ -2153,6 +2157,15 @@ begin
   else mtd:=HandleAddWork;
   TThread.ForceQueue(nil,
      mtd);
+end;
+
+function TecClientSyntAnalyzer.GetStopRequested(wrk: PSyntaxWork): boolean;
+begin
+  result:= assigned(wrk) and (wrk.StopRequested);
+  {$IFDEF DEBUGLOG}
+  if result then
+    TSynLog.Add.Log(sllServiceReturn, 'Stop Requested: '+wrk.Name );
+  {$ENDIF}
 end;
 
 
