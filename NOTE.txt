@@ -1,0 +1,2 @@
+The current EControl master branch has NOT READY code, sorry for it, DON'T use this code in production. It has unfinished thread work.
+-Alexey, 2019.05
